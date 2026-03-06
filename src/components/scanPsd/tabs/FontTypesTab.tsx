@@ -1133,17 +1133,19 @@ export function FontTypesTab() {
                   <div className="mx-2 my-1 bg-bg-tertiary/60 rounded-lg px-2.5 py-2 border border-accent/20 space-y-1.5">
                     <div className="flex items-center gap-2">
                       <span className="text-[9px] text-text-muted w-12 flex-shrink-0">カテゴリ</span>
-                      <select
+                      <input
+                        list="subname-edit-list"
                         value={editForm.subName}
                         onChange={(e) => setEditForm({ ...editForm, subName: e.target.value })}
+                        placeholder="なし（選択 or 手入力）"
                         className="flex-1 bg-white border border-border rounded-lg px-2 py-1 text-[10px] text-text-primary
                           focus:border-accent focus:outline-none"
-                      >
-                        <option value="">なし</option>
+                      />
+                      <datalist id="subname-edit-list">
                         {UNIQUE_SUB_NAMES.map((sn) => (
-                          <option key={sn} value={sn}>{sn}</option>
+                          <option key={sn} value={sn} />
                         ))}
-                      </select>
+                      </datalist>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[9px] text-text-muted w-12 flex-shrink-0">表示名</span>
@@ -1282,17 +1284,19 @@ export function FontTypesTab() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[9px] text-text-muted w-20 flex-shrink-0">カテゴリ</span>
-              <select
+              <input
+                list="subname-manual-list"
                 value={manualFont.subName}
                 onChange={(e) => setManualFont({ ...manualFont, subName: e.target.value })}
+                placeholder="自動判定（選択 or 手入力）"
                 className="flex-1 bg-white border border-border rounded-lg px-2 py-1 text-[10px] text-text-primary
                   focus:border-accent-tertiary focus:outline-none"
-              >
-                <option value="">自動判定</option>
+              />
+              <datalist id="subname-manual-list">
                 {UNIQUE_SUB_NAMES.map((sn) => (
-                  <option key={sn} value={sn}>{sn}</option>
+                  <option key={sn} value={sn} />
                 ))}
-              </select>
+              </datalist>
             </div>
             <div className="flex gap-1.5 justify-end pt-1">
               <button
