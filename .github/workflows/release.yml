@@ -31,11 +31,23 @@ jobs:
           $pdfiumDir = "src-tauri/resources/pdfium"
           if (!(Test-Path "$pdfiumDir/pdfium.dll")) {
             New-Item -ItemType Directory -Force -Path $pdfiumDir | Out-Null
-            $url = "https://github.com/nicehash/pdfium-binaries/releases/latest/download/pdfium-windows-x64.zip"
-            Invoke-WebRequest -Uri $url -OutFile "pdfium.zip"
-            Expand-Archive -Path "pdfium.zip" -DestinationPath "pdfium-temp" -Force
-            Copy-Item "pdfium-temp/bin/pdfium.dll" "$pdfiumDir/pdfium.dll"
-            Remove-Item -Recurse -Force "pdfium-temp", "pdfium.zip"
+            New-Item -ItemType Directory -Force -Path "pdfium-temp" | Out-Null
+            $headers = @{ "User-Agent" = "COMIC-Bridge-CI" }
+            $release = Invoke-RestMethod -Uri "https://api.github.com/repos/nicehash/pdfium-binaries/releases/latest" -Headers $headers
+            $asset = $release.assets | Where-Object { $_.name -match "win.*x64" } | Select-Object -First 1
+            if (-not $asset) { throw "No matching pdfium asset found in release $($release.tag_name)" }
+            Write-Host "Downloading $($asset.name)"
+            Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "pdfium-archive"
+            if ($asset.name -match "\.tgz$|\.tar\.gz$") {
+              tar -xzf "pdfium-archive" -C "pdfium-temp"
+            } else {
+              Expand-Archive -Path "pdfium-archive" -DestinationPath "pdfium-temp" -Force
+            }
+            $dllPath = Get-ChildItem -Path "pdfium-temp" -Recurse -Filter "pdfium.dll" | Select-Object -First 1
+            if (-not $dllPath) { throw "pdfium.dll not found in archive" }
+            Copy-Item $dllPath.FullName "$pdfiumDir/pdfium.dll"
+            Remove-Item -Recurse -Force "pdfium-temp", "pdfium-archive"
+            Write-Host "pdfium.dll installed successfully"
           }
 
       - name: Build and release
