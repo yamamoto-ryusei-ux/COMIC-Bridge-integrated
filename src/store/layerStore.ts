@@ -1,7 +1,7 @@
 import { create } from "zustand";
 
 // 操作モード
-export type LayerActionMode = "hide" | "show" | "organize" | "layerMove" | "custom";
+export type LayerActionMode = "hide" | "show" | "organize" | "layerMove" | "custom" | "lock";
 
 // カスタム操作の型
 export interface CustomVisibilityOp {
@@ -105,6 +105,10 @@ interface LayerVisibilityState {
   // 非表示テキストレイヤー削除オプション（hideモード専用）
   deleteHiddenText: boolean;
 
+  // ロックモード設定
+  lockBottomLayer: boolean;
+  unlockAllLayers: boolean;
+
   // カスタム操作（個別レイヤーの表示/非表示 + 移動）
   customVisibilityOps: Map<string, CustomVisibilityOp[]>;  // fileId → ops
   customMoveOps: Map<string, CustomMoveOp[]>;               // fileId → ops
@@ -141,6 +145,8 @@ interface LayerVisibilityState {
   setLayerMoveCondName: (name: string) => void;
   setLayerMoveCondNamePartial: (value: boolean) => void;
   setDeleteHiddenText: (value: boolean) => void;
+  setLockBottomLayer: (value: boolean) => void;
+  setUnlockAllLayers: (value: boolean) => void;
 
   // カスタム操作アクション
   toggleCustomVisibility: (fileId: string, path: string[], index: number, currentVisible: boolean, layerId?: string) => void;
@@ -174,6 +180,8 @@ export const useLayerStore = create<LayerVisibilityState>((set, get) => ({
   layerMoveCondName: "",
   layerMoveCondNamePartial: false,
   deleteHiddenText: false,
+  lockBottomLayer: true,
+  unlockAllLayers: false,
   customVisibilityOps: new Map(),
   customMoveOps: new Map(),
   _customOpsHistory: [],
@@ -287,6 +295,12 @@ export const useLayerStore = create<LayerVisibilityState>((set, get) => ({
   },
   setDeleteHiddenText: (value) => {
     set({ deleteHiddenText: value });
+  },
+  setLockBottomLayer: (value) => {
+    set({ lockBottomLayer: value });
+  },
+  setUnlockAllLayers: (value) => {
+    set({ unlockAllLayers: value });
   },
 
   toggleCustomVisibility: (fileId, path, index, currentVisible, layerId) => {

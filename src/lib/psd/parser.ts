@@ -175,6 +175,7 @@ function extractLayerTree(children: Psd["children"], parentPath = "", dpi = 72):
       hasMask: !!(childAny.mask || childAny.realMask),
       hasVectorMask: !!childAny.vectorMask,
       clipping: !!childAny.clipping,
+      locked: childAny.transparencyProtected || childAny.positionProtected || childAny.compositeProtected || undefined,
     };
 
     // テキストレイヤーのフォント情報を抽出

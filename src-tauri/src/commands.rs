@@ -1362,6 +1362,162 @@ pub async fn run_photoshop_layer_organize(
 }
 
 // ============================================
+// Photoshop Layer Lock (レイヤーロック)
+// ============================================
+
+#[derive(Debug, Serialize, Deserialize)]
+struct LayerLockSettings {
+    files: Vec<String>,
+    #[serde(rename = "lockBottom")]
+    lock_bottom: bool,
+    #[serde(rename = "unlockAll")]
+    unlock_all: bool,
+    #[serde(rename = "outputPath")]
+    output_path: String,
+    #[serde(rename = "saveFolder", skip_serializing_if = "Option::is_none")]
+    save_folder: Option<String>,
+}
+
+/// Run Photoshop to lock specified layers
+#[tauri::command]
+pub async fn run_photoshop_layer_lock(
+    app_handle: tauri::AppHandle,
+    file_paths: Vec<String>,
+    lock_bottom: bool,
+    unlock_all: Option<bool>,
+    save_mode: Option<String>,
+) -> Result<Vec<PhotoshopResult>, String> {
+    use std::process::Command;
+    use std::io::Write;
+
+    let ps_path = find_photoshop_path()
+        .ok_or_else(|| "Photoshop not found. Please install Adobe Photoshop.".to_string())?;
+
+    // Resolve script path
+    let resource_path = app_handle
+        .path()
+        .resource_dir()
+        .map_err(|e| format!("Failed to get resource dir: {}", e))?;
+
+    let script_path = resource_path.join("scripts").join("lock_layers.jsx");
+
+    let script_path_str = if script_path.exists() {
+        script_path.to_string_lossy().to_string()
+    } else {
+        let dev_script = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("scripts")
+            .join("lock_layers.jsx");
+        if dev_script.exists() {
+            dev_script.to_string_lossy().to_string()
+        } else {
+            return Err("Layer lock script not found".to_string());
+        }
+    };
+
+    let temp_dir = std::env::temp_dir();
+    let settings_path = temp_dir.join("psd_layer_lock_settings.json");
+    let output_path = temp_dir.join("psd_layer_lock_results.json");
+
+    let _ = fs::remove_file(&output_path);
+
+    // Compute save folder for "copyToFolder" mode
+    let save_folder = if save_mode.as_deref() == Some("copyToFolder") {
+        let home = std::env::var("USERPROFILE")
+            .unwrap_or_else(|_| std::env::var("HOME").unwrap_or_default());
+        let parent_name = file_paths
+            .first()
+            .and_then(|p| {
+                Path::new(p)
+                    .parent()
+                    .and_then(|par| par.file_name())
+                    .map(|n| n.to_string_lossy().to_string())
+            })
+            .unwrap_or_else(|| "output".to_string());
+        let folder = Path::new(&home)
+            .join("Desktop")
+            .join("Script_Output")
+            .join("レイヤーロック")
+            .join(&parent_name);
+        let _ = fs::create_dir_all(&folder);
+        Some(folder.to_string_lossy().to_string().replace("\\", "/"))
+    } else {
+        None
+    };
+
+    // Build settings JSON
+    let settings = LayerLockSettings {
+        files: file_paths.iter().map(|p| p.replace("\\", "/")).collect(),
+        lock_bottom,
+        unlock_all: unlock_all.unwrap_or(false),
+        output_path: output_path.to_string_lossy().to_string().replace("\\", "/"),
+        save_folder,
+    };
+
+    let settings_json = serde_json::to_string_pretty(&settings)
+        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+
+    let mut settings_file = fs::File::create(&settings_path)
+        .map_err(|e| format!("Failed to create settings file: {}", e))?;
+    settings_file.write_all(&[0xEF, 0xBB, 0xBF])
+        .map_err(|e| format!("Failed to write BOM: {}", e))?;
+    settings_file.write_all(settings_json.as_bytes())
+        .map_err(|e| format!("Failed to write settings: {}", e))?;
+
+    eprintln!("Layer lock - Photoshop: {}", ps_path);
+    eprintln!("Layer lock - Script: {}", script_path_str);
+    eprintln!("Layer lock - Files: {}", file_paths.len());
+
+    let _output = Command::new(&ps_path)
+        .arg("-r")
+        .arg(&script_path_str)
+        .output()
+        .map_err(|e| format!("Failed to run Photoshop: {}", e))?;
+
+    // Poll for results
+    let max_wait_secs = 120;
+    let poll_interval_ms = 500;
+    let max_polls = (max_wait_secs * 1000) / poll_interval_ms;
+
+    for poll in 0..max_polls {
+        if output_path.exists() {
+            if let Ok(content) = fs::read_to_string(&output_path) {
+                if content.trim().starts_with('[') && content.trim().ends_with(']') {
+                    eprintln!("Layer lock output ready after {} polls", poll);
+                    break;
+                }
+            }
+        }
+        std::thread::sleep(std::time::Duration::from_millis(poll_interval_ms as u64));
+
+        if poll > 0 && poll % 20 == 0 {
+            eprintln!("Still waiting for Photoshop... ({} seconds)", poll * poll_interval_ms / 1000);
+        }
+    }
+
+    if output_path.exists() {
+        let results_json = fs::read_to_string(&output_path)
+            .map_err(|e| format!("Failed to read results: {}", e))?;
+
+        let results: Vec<PhotoshopResult> = serde_json::from_str(&results_json)
+            .map_err(|e| format!("Failed to parse results: {}. JSON was: {}", e, results_json))?;
+
+        let _ = fs::remove_file(&settings_path);
+        let _ = fs::remove_file(&output_path);
+
+        if let Some(window) = app_handle.get_webview_window("main") {
+            let _ = window.set_focus();
+        }
+
+        Ok(results)
+    } else {
+        if let Some(window) = app_handle.get_webview_window("main") {
+            let _ = window.set_focus();
+        }
+        Err("Photoshop did not produce output file. Script may have failed.".to_string())
+    }
+}
+
+// ============================================
 // Photoshop Layer Move (条件ベース レイヤー整理)
 // ============================================
 

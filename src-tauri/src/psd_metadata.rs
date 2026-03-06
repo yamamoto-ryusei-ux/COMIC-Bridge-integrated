@@ -68,6 +68,8 @@ pub struct LayerNode {
     #[serde(rename = "hasVectorMask")]
     pub has_vector_mask: bool,
     pub clipping: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locked: Option<bool>,
     #[serde(rename = "textInfo", skip_serializing_if = "Option::is_none")]
     pub text_info: Option<TextInfo>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -86,6 +88,9 @@ pub struct TextInfo {
     pub stroke_size: Option<f64>,
     #[serde(rename = "antiAlias", skip_serializing_if = "Option::is_none")]
     pub anti_alias: Option<String>,
+    /// カーニング（トラッキング）値のリスト（0以外の値のみ収集）
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tracking: Vec<f64>,
 }
 
 // ================================================================
@@ -112,6 +117,8 @@ struct RawLayer {
     tysh_data: Option<TyShData>,
     /// Stroke (border) size from lfx2 layer effects
     stroke_size: Option<f64>,
+    /// transparency protected flag (bit 0 of layer flags byte)
+    transparency_protected: bool,
     /// Bounding rect from layer record
     top: i32,
     left: i32,
@@ -125,6 +132,7 @@ struct TyShData {
     fonts: Vec<String>,
     font_sizes: Vec<f64>,
     anti_alias: Option<String>,
+    tracking: Vec<f64>,
 }
 
 // ================================================================
@@ -486,6 +494,7 @@ fn parse_layer_record<R: Read + Seek>(r: &mut R, version: u16) -> Result<RawLaye
     // Filler (1 byte)
     r.seek(SeekFrom::Current(1)).map_err(|e| format!("Seek error: {}", e))?;
 
+    let transparency_protected = (flags & 0x01) != 0; // bit 0: transparency protected
     let visible = (flags & 0x02) == 0; // bit 1: 0=visible, 1=hidden
 
     // Extra data field length (4 bytes)
@@ -636,6 +645,7 @@ fn parse_layer_record<R: Read + Seek>(r: &mut R, version: u16) -> Result<RawLaye
         section_type,
         tysh_data,
         stroke_size,
+        transparency_protected,
         top,
         left,
         bottom,
@@ -702,6 +712,7 @@ fn build_layer_tree(raw_layers: &[RawLayer], dpi: u32) -> Vec<LayerNode> {
                     has_mask: raw.has_mask,
                     has_vector_mask: raw.has_vector_mask,
                     clipping: raw.clipping,
+                    locked: if raw.transparency_protected { Some(true) } else { None },
                     text_info: None,
                     children: if children.is_empty() { None } else { Some(children) },
                     bounds: None, // Groups don't have meaningful bounds
@@ -746,6 +757,7 @@ fn build_layer_tree(raw_layers: &[RawLayer], dpi: u32) -> Vec<LayerNode> {
                         font_sizes,
                         stroke_size: raw.stroke_size,
                         anti_alias: td.anti_alias.clone(),
+                        tracking: td.tracking.clone(),
                     }
                 });
 
@@ -770,6 +782,7 @@ fn build_layer_tree(raw_layers: &[RawLayer], dpi: u32) -> Vec<LayerNode> {
                     has_mask: raw.has_mask,
                     has_vector_mask: raw.has_vector_mask,
                     clipping: raw.clipping,
+                    locked: if raw.transparency_protected { Some(true) } else { None },
                     text_info,
                     children: None,
                     bounds,
@@ -836,12 +849,12 @@ fn parse_tysh_data(data: &[u8]) -> Option<TyShData> {
 
     // Extract font names and sizes from EngineData
     // Note: font sizes are in document pixels; DPI conversion happens in build_layer_tree
-    let (fonts, font_sizes) = match engine_data {
+    let (fonts, font_sizes, tracking) = match engine_data {
         Some(ed) => extract_from_engine_data(&ed),
-        None => (Vec::new(), Vec::new()),
+        None => (Vec::new(), Vec::new(), Vec::new()),
     };
 
-    Some(TyShData { text, fonts, font_sizes, anti_alias })
+    Some(TyShData { text, fonts, font_sizes, anti_alias, tracking })
 }
 
 /// Parse a Photoshop descriptor, extracting "Txt " (text content),
@@ -1071,7 +1084,7 @@ fn parse_frfx_descriptor<R: Read + Seek>(r: &mut R) -> Option<f64> {
 /// Builds a font index from /FontSet, then only returns fonts actually
 /// referenced by /Font indices in style runs (filtering out Photoshop
 /// internal fonts like AdobeInvisFont and CJK fallbacks).
-fn extract_from_engine_data(data: &[u8]) -> (Vec<String>, Vec<f64>) {
+fn extract_from_engine_data(data: &[u8]) -> (Vec<String>, Vec<f64>, Vec<f64>) {
     // 1. Build indexed font name list from /FontSet
     let mut font_index: Vec<String> = Vec::new();
     if let Some(font_set_pos) = find_subsequence(data, b"/FontSet") {
@@ -1151,7 +1164,28 @@ fn extract_from_engine_data(data: &[u8]) -> (Vec<String>, Vec<f64>) {
     }
 
     let font_sizes: Vec<f64> = sizes_set.iter().rev().map(|&v| v as f64 / 10.0).collect();
-    (fonts, font_sizes)
+
+    // 5. Find all /Tracking values (only in /StyleRun section, before /ResourceDict)
+    let mut tracking_set = std::collections::BTreeSet::new();
+    let mut pos = 0;
+    while pos < font_scan_end {
+        if let Some(offset) = find_subsequence(&data[pos..font_scan_end], b"/Tracking") {
+            let after = pos + offset + 9; // "/Tracking".len() == 9
+            if let Some(val) = read_number_after_whitespace(data, after) {
+                // 0以外のトラッキング値のみ収集（0はデフォルト）
+                if val.abs() > 0.001 {
+                    let rounded = (val * 10.0).round() / 10.0;
+                    tracking_set.insert((rounded * 1000.0) as i64);
+                }
+            }
+            pos = after + 1;
+        } else {
+            break;
+        }
+    }
+    let tracking: Vec<f64> = tracking_set.iter().map(|&v| v as f64 / 1000.0).collect();
+
+    (fonts, font_sizes, tracking)
 }
 
 fn is_ed_whitespace(b: u8) -> bool {

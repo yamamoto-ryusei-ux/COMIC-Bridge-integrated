@@ -468,11 +468,101 @@ export function useLayerControl() {
     updateFile,
   ]);
 
+  // レイヤーロック適用
+  const applyLayerLock = useCallback(async () => {
+    const { lockBottomLayer, unlockAllLayers } = useLayerStore.getState();
+
+    if (!lockBottomLayer && !unlockAllLayers) return;
+
+    const targetFiles = selectedFileIds.length > 0
+      ? files.filter((f) => selectedFileIds.includes(f.id))
+      : files;
+
+    if (targetFiles.length === 0) return;
+
+    setIsProcessing(true);
+
+    try {
+      const filePaths = targetFiles.map((f) => f.filePath);
+
+      const psResults = await invoke<PhotoshopResult[]>(
+        "run_photoshop_layer_lock",
+        {
+          filePaths,
+          lockBottom: lockBottomLayer,
+          unlockAll: unlockAllLayers,
+          saveMode,
+        }
+      );
+
+      const results: LayerControlResult[] = [];
+
+      for (const psResult of psResults) {
+        const normalizedPath = psResult.filePath.replace(/\//g, "\\");
+        const file = targetFiles.find(
+          (f) => f.filePath === psResult.filePath || f.filePath === normalizedPath
+        );
+
+        if (!file) continue;
+
+        const summaryLine = psResult.changes.find((c: string) => !c.startsWith("  "));
+        const changedMatch = summaryLine ? summaryLine.match(/(\d+)/) : null;
+        const changedCount = changedMatch ? parseInt(changedMatch[1], 10) : 0;
+
+        results.push({
+          fileName: file.fileName,
+          success: psResult.success,
+          changedCount,
+          changes: psResult.changes,
+          error: psResult.error || undefined,
+        });
+
+        // Update local layer tree to reflect lock/unlock changes
+        if (psResult.success && file.metadata && changedCount > 0) {
+          const layerTree = file.metadata.layerTree;
+          if (layerTree.length > 0) {
+            let updatedTree = [...layerTree];
+            if (lockBottomLayer) {
+              const bottomIdx = updatedTree.length - 1;
+              updatedTree[bottomIdx] = { ...updatedTree[bottomIdx], locked: true };
+            }
+            if (unlockAllLayers) {
+              updatedTree = clearAllLocks(updatedTree);
+            }
+            updateFile(file.id, {
+              metadata: {
+                ...file.metadata,
+                layerTree: updatedTree,
+              },
+            });
+          }
+        }
+      }
+
+      setLastResults(results, "lock");
+
+      return results;
+    } catch (error) {
+      console.error("Layer lock failed:", error);
+      throw error;
+    } finally {
+      setIsProcessing(false);
+    }
+  }, [
+    files,
+    selectedFileIds,
+    saveMode,
+    setIsProcessing,
+    setLastResults,
+    updateFile,
+  ]);
+
   return {
     applyLayerVisibility,
     organizeLayersIntoFolder,
     moveLayersByConditions,
     applyCustomOperations,
+    applyLayerLock,
   };
 }
 
@@ -516,6 +606,15 @@ function updateLayerTreeByConditions(
 
     return updatedLayer;
   });
+}
+
+// レイヤーツリーの全ロックを解除するヘルパー
+function clearAllLocks(layers: LayerNode[]): LayerNode[] {
+  return layers.map((layer) => ({
+    ...layer,
+    locked: false,
+    children: layer.children ? clearAllLocks(layer.children) : undefined,
+  }));
 }
 
 // applyCustomVisibilityToTree is imported from ../lib/layerTreeOps

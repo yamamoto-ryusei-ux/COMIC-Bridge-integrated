@@ -83,6 +83,7 @@ export interface TextInfo {
   fontSizes: number[];
   strokeSize?: number;
   antiAlias?: string; // "Shrp" | "Crsp" | "Strg" | "Smth" | "Anno"
+  tracking?: number[]; // トラッキング値（0以外のみ）
 }
 
 export interface LayerBounds {
@@ -102,6 +103,7 @@ export interface LayerNode {
   hasMask?: boolean;
   hasVectorMask?: boolean;
   clipping?: boolean;
+  locked?: boolean;
   textInfo?: TextInfo;
   children?: LayerNode[];
   bounds?: LayerBounds;

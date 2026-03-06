@@ -12,6 +12,7 @@ import { FontBrowserDialog } from "./FontBrowserDialog";
 const FONT_SHARE_PATH = "\\\\haku\\CLLENN\\■アシスタント\\★フォント\\★全フォント";
 
 const AA_LABELS: Record<string, string> = {
+  // ag-psd format
   antiAliasSharp: "シャープ",
   antiAliasCrisp: "鮮明",
   antiAliasStrong: "強く",
@@ -19,9 +20,16 @@ const AA_LABELS: Record<string, string> = {
   antiAliasNone: "なし",
   antiAliasPlatformLCD: "LCD",
   antiAliasPlatformLCDSmooth: "LCD(滑らか)",
+  // PSD raw OSType (Rust psd_metadata)
+  Shrp: "シャープ",
+  Crsp: "鮮明",
+  Strg: "強く",
+  Smth: "滑らか",
+  Anno: "なし",
+  AnCr: "LCD",
 };
 
-const AA_SHARP_VALUES = new Set(["antiAliasSharp"]);
+const AA_SHARP_VALUES = new Set(["antiAliasSharp", "Shrp"]);
 
 function getAALabel(code: string): string {
   return AA_LABELS[code] || code;
@@ -78,6 +86,32 @@ export function SpecTextGrid({ onFilterFont }: SpecTextGridProps = {}) {
     return {
       entries: [...strokeCount.entries()].sort((a, b) => b[1] - a[1]),
       total: totalWithStroke,
+    };
+  }, [files]);
+
+  // カーニング（トラッキング）統計
+  const trackingStats = useMemo(() => {
+    const trackingCount = new Map<number, number>();
+    let totalTextLayers = 0;
+    let totalWithNonZero = 0;
+    for (const file of files) {
+      if (!file.metadata?.layerTree) continue;
+      for (const entry of collectTextLayers(file.metadata.layerTree)) {
+        if (!entry.textInfo) continue;
+        totalTextLayers++;
+        const t = entry.textInfo.tracking;
+        if (t && t.length > 0) {
+          for (const val of t) {
+            trackingCount.set(val, (trackingCount.get(val) || 0) + 1);
+          }
+          totalWithNonZero++;
+        }
+      }
+    }
+    return {
+      entries: [...trackingCount.entries()].sort((a, b) => b[1] - a[1]),
+      totalTextLayers,
+      totalWithNonZero,
     };
   }, [files]);
 
@@ -194,8 +228,8 @@ export function SpecTextGrid({ onFilterFont }: SpecTextGridProps = {}) {
         </div>
       )}
 
-      {/* Secondary summary: Stroke + AntiAlias (compact inline) */}
-      {(strokeStats.entries.length > 0 || antiAliasStats.total > 0) && (
+      {/* Secondary summary: Stroke + AntiAlias + Tracking (compact inline) */}
+      {(strokeStats.entries.length > 0 || antiAliasStats.total > 0 || trackingStats.totalTextLayers > 0) && (
         <div className="mb-4 flex flex-wrap gap-2">
           {/* Stroke compact */}
           {strokeStats.entries.length > 0 && (
@@ -250,6 +284,33 @@ export function SpecTextGrid({ onFilterFont }: SpecTextGridProps = {}) {
                 </>
               ) : (
                 <span className="text-[10px] font-medium text-emerald-400">全てシャープ</span>
+              )}
+            </div>
+          )}
+
+          {/* Tracking (kerning) compact */}
+          {trackingStats.totalTextLayers > 0 && (
+            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border ${
+              trackingStats.totalWithNonZero > 0
+                ? "bg-red-500/5 border-red-500/25"
+                : "bg-bg-secondary/60 border-border/50"
+            }`}>
+              <svg className={`w-3 h-3 flex-shrink-0 ${trackingStats.totalWithNonZero > 0 ? "text-red-400" : "text-emerald-400"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              <span className="text-[10px] text-text-muted">カーニング</span>
+              {trackingStats.totalWithNonZero > 0 ? (
+                trackingStats.entries.map(([val, count]) => (
+                  <span
+                    key={val}
+                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded border border-red-500/25 bg-red-500/8 text-[9px]"
+                  >
+                    <span className="font-medium text-red-400">{val > 0 ? `+${val}` : val}</span>
+                    <span className="text-text-muted">({count})</span>
+                  </span>
+                ))
+              ) : (
+                <span className="text-[10px] font-medium text-emerald-400">全て0</span>
               )}
             </div>
           )}
@@ -480,6 +541,11 @@ export function TextLayerRow({ entry, fontInfo, useActualFont = false, highlight
         {info?.antiAlias && !isSharp(info.antiAlias) && (
           <span className="text-[9px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 font-medium" title={`アンチエイリアス: ${getAALabel(info.antiAlias)}`}>
             AA:{getAALabel(info.antiAlias)}
+          </span>
+        )}
+        {info?.tracking && info.tracking.length > 0 && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 font-medium" title={`カーニング: ${info.tracking.join(", ")}`}>
+            K:{info.tracking.map(v => v > 0 ? `+${v}` : v).join("/")}
           </span>
         )}
         {!entry.visible && (

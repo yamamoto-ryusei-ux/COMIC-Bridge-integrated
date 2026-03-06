@@ -160,6 +160,39 @@ function isOrganizeCandidate(
   return true;
 }
 
+// --- Lock mode annotation ---
+
+/** Annotate tree for lock mode: mark the bottom-most layer (last in original order, first after reverse) as willChange */
+function annotateTreeLock(layers: LayerNode[], lockBottom: boolean, unlockAll: boolean): AnnotatedLayer[] {
+  const reversed = [...layers].reverse();
+  return reversed.map((layer, idx) => {
+    const isBottomLayer = idx === reversed.length - 1; // last after reverse = bottom in original
+    const matchedByLockBottom = lockBottom && isBottomLayer;
+    const matchedByUnlock = unlockAll; // all layers are targets for unlock
+    const matched = matchedByLockBottom || matchedByUnlock;
+    // willChange: lock bottom if not already locked, or unlock if locked
+    const willChangeLock = matchedByLockBottom && !layer.locked;
+    const willChangeUnlock = matchedByUnlock && !!layer.locked;
+    return {
+      node: layer,
+      matched,
+      risk: "none" as MatchRisk,
+      willChange: willChangeLock || willChangeUnlock,
+      children: layer.children ? annotateChildrenLock(layer.children, unlockAll) : [],
+    };
+  });
+}
+
+function annotateChildrenLock(layers: LayerNode[], unlockAll: boolean): AnnotatedLayer[] {
+  return [...layers].reverse().map((layer) => ({
+    node: layer,
+    matched: unlockAll,
+    risk: "none" as MatchRisk,
+    willChange: unlockAll && !!layer.locked,
+    children: layer.children ? annotateChildrenLock(layer.children, unlockAll) : [],
+  }));
+}
+
 /** Annotate children of organize mode as non-matched (just visual context) */
 function annotateChildrenPlain(layers: LayerNode[]): AnnotatedLayer[] {
   return [...layers].reverse().map((layer) => ({
@@ -405,6 +438,9 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
   const layerMoveCondName = useLayerStore((s) => s.layerMoveCondName);
   const layerMoveCondNamePartial = useLayerStore((s) => s.layerMoveCondNamePartial);
   const deleteHiddenText = useLayerStore((s) => s.deleteHiddenText);
+  // Lock mode
+  const lockBottomLayer = useLayerStore((s) => s.lockBottomLayer);
+  const unlockAllLayers = useLayerStore((s) => s.unlockAllLayers);
   // Custom mode
   const customVisibilityOps = useLayerStore((s) => s.customVisibilityOps);
   const customMoveOps = useLayerStore((s) => s.customMoveOps);
@@ -461,23 +497,27 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
   const isOrganizeMode = actionMode === "organize";
   const isLayerMoveMode = actionMode === "layerMove";
   const isCustomMode = actionMode === "custom";
+  const isLockMode = actionMode === "lock";
   const hasAnyLayerMoveCondition = layerMoveCondTextLayer || layerMoveCondSubgroupTop || layerMoveCondSubgroupBottom || layerMoveCondNameEnabled;
 
   // Whether any mode has enough settings to show annotated preview
   const hasAnnotations = useMemo(() => {
+    if (isLockMode) return lockBottomLayer || unlockAllLayers;
     if (isCustomMode) return true; // Always show interactive tree in custom mode
     if (isOrganizeMode) return organizeTargetName.trim() !== "";
     if (isLayerMoveMode) return hasAnyLayerMoveCondition && layerMoveTargetName.trim() !== "";
     if (isHideMode && deleteHiddenText) return true;
     return hasConditions; // hide/show
-  }, [isCustomMode, isOrganizeMode, isLayerMoveMode, isHideMode, organizeTargetName, layerMoveTargetName, hasAnyLayerMoveCondition, hasConditions, deleteHiddenText]);
+  }, [isLockMode, lockBottomLayer, unlockAllLayers, isCustomMode, isOrganizeMode, isLayerMoveMode, isHideMode, organizeTargetName, layerMoveTargetName, hasAnyLayerMoveCondition, hasConditions, deleteHiddenText]);
 
   const fileAnnotations = useMemo((): FileAnnotation[] => {
     return targetFiles.map((file) => {
       const layerTree = file.metadata?.layerTree ?? [];
       let annotatedTree: AnnotatedLayer[] = [];
 
-      if (isCustomMode) {
+      if (isLockMode && (lockBottomLayer || unlockAllLayers)) {
+        annotatedTree = annotateTreeLock(layerTree, lockBottomLayer, unlockAllLayers);
+      } else if (isCustomMode) {
         const ops = customVisibilityOps.get(file.id) ?? [];
         const moveOps = customMoveOps.get(file.id) ?? [];
         const { layers: virtualTree, movedIds } = applyVirtualMoves(layerTree, moveOps);
@@ -514,6 +554,7 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
     });
   }, [
     targetFiles, conditions, hasConditions, isHideMode,
+    isLockMode, lockBottomLayer, unlockAllLayers,
     isCustomMode, customVisibilityOps, customMoveOps,
     isOrganizeMode, organizeTargetName, organizeIncludeSpecial,
     isLayerMoveMode, hasAnyLayerMoveCondition, layerMoveTargetName,
@@ -1036,6 +1077,18 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
             </>
           ) : (
             <>
+              {isLockMode && lockBottomLayer && (
+                <div className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-sm bg-amber-500/30" />
+                  <span className="text-[9px] text-text-muted">→ロック</span>
+                </div>
+              )}
+              {isLockMode && unlockAllLayers && (
+                <div className="flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-sm bg-sky-500/30" />
+                  <span className="text-[9px] text-text-muted">→解除</span>
+                </div>
+              )}
               {(hasConditions || isOrganizeMode || isLayerMoveMode) && (
                 <div className="flex items-center gap-1">
                   <span className={`w-2 h-2 rounded-sm ${
@@ -1188,6 +1241,8 @@ function FileColumn({ annotation, hasAnnotations, actionMode, isChecked, onToggl
   onAddCustomMove?: (move: CustomMoveOp) => void;
 }) {
   const { file, layerTree, annotatedTree, stats } = annotation;
+  const lockBottomLayer = useLayerStore((s) => s.lockBottomLayer);
+  const unlockAllLayers = useLayerStore((s) => s.unlockAllLayers);
 
   return (
     <div
@@ -1224,7 +1279,8 @@ function FileColumn({ annotation, hasAnnotations, actionMode, isChecked, onToggl
         </span>
         {hasAnnotations && stats.willChange > 0 && (
           <span className={`text-[9px] px-1 py-px rounded flex-shrink-0 ${
-            actionMode === "custom" ? "bg-sky-500/10 text-sky-500"
+            actionMode === "lock" ? (unlockAllLayers && !lockBottomLayer ? "bg-sky-500/10 text-sky-500" : "bg-amber-500/10 text-amber-500")
+            : actionMode === "custom" ? "bg-sky-500/10 text-sky-500"
             : actionMode === "organize" ? "bg-warning/10 text-warning"
             : actionMode === "layerMove" ? "bg-violet-500/10 text-violet-500"
             : actionMode === "hide" ? "bg-accent/10 text-accent"
@@ -1432,6 +1488,16 @@ function AnnotatedItem({ item, depth, actionMode, parentVisible = true, onToggle
         rowBg = "bg-sky-500/8";
         borderLeft = "border-l-[2px] border-sky-500/50";
       }
+    } else if (actionMode === "lock") {
+      if (node.locked) {
+        // Unlocking
+        rowBg = "bg-sky-500/8";
+        borderLeft = "border-l-[2px] border-sky-500/50";
+      } else {
+        // Locking
+        rowBg = "bg-amber-500/8";
+        borderLeft = "border-l-[2px] border-amber-500/50";
+      }
     } else if (actionMode === "organize") {
       rowBg = "bg-warning/8";
       borderLeft = "border-l-[2px] border-warning/50";
@@ -1463,9 +1529,13 @@ function AnnotatedItem({ item, depth, actionMode, parentVisible = true, onToggle
           : item.customAction === "hide"
             ? "bg-accent/12 text-accent font-medium"
             : "bg-accent-tertiary/12 text-accent-tertiary font-medium"
-        : actionMode === "organize"
-          ? "bg-warning/12 text-warning font-medium"
-          : actionMode === "layerMove"
+        : actionMode === "lock"
+          ? node.locked
+            ? "bg-sky-500/12 text-sky-500 font-medium"
+            : "bg-amber-500/12 text-amber-500 font-medium"
+          : actionMode === "organize"
+            ? "bg-warning/12 text-warning font-medium"
+            : actionMode === "layerMove"
             ? "bg-violet-500/12 text-violet-500 font-medium"
             : actionMode === "hide"
               ? "bg-accent/12 text-accent font-medium"
@@ -1477,13 +1547,16 @@ function AnnotatedItem({ item, depth, actionMode, parentVisible = true, onToggle
     : willChange
       ? actionMode === "custom"
         ? item.customAction === "move" ? "移動" : item.customAction === "hide" ? "→非表示" : "→表示"
-        : actionMode === "organize" ? "→格納"
-          : actionMode === "layerMove" ? "→移動"
-          : actionMode === "hide" ? "→非表示"
-          : "→表示"
-      : actionMode === "organize" || actionMode === "layerMove"
-        ? "対象外"
-        : actionMode === "hide" ? "非表示済" : "表示済";
+        : actionMode === "lock" ? (node.locked ? "→解除" : "→ロック")
+          : actionMode === "organize" ? "→格納"
+            : actionMode === "layerMove" ? "→移動"
+            : actionMode === "hide" ? "→非表示"
+            : "→表示"
+      : actionMode === "lock"
+        ? matched ? (node.locked ? "ロック済" : "解除済") : ""
+        : actionMode === "organize" || actionMode === "layerMove"
+          ? "対象外"
+          : actionMode === "hide" ? "非表示済" : "表示済";
 
   // Custom mode: click handler for VisIcon
   // Use effectiveVisible (not node.visible) so that a layer hidden by parent group
@@ -1741,6 +1814,14 @@ function Badges({ layer }: { layer: LayerNode }) {
           <svg className="w-2.5 h-2.5 text-[#59a8f8]/60" viewBox="0 0 16 16" fill="currentColor">
             <rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
             <path d="M4 12L8 4l4 8H4z" fill="none" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+        </span>
+      )}
+      {layer.locked && (
+        <span className="flex-shrink-0" title="ロック">
+          <svg className="w-2.5 h-2.5 text-text-muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3.5" y="7" width="9" height="7" rx="1" />
+            <path d="M5.5 7V5a2.5 2.5 0 015 0v2" />
           </svg>
         </span>
       )}

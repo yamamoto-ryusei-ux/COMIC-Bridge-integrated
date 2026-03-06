@@ -4,6 +4,13 @@ import { usePsdStore } from "../../store/psdStore";
 import { useLayerControl } from "../../hooks/useLayerControl";
 import { LayerControlResultDialog } from "./LayerControlResultDialog";
 
+const LockIcon = () => (
+  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <rect x="5" y="11" width="14" height="10" rx="2" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M8 11V7a4 4 0 018 0v4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 export function LayerControlPanel() {
   const [customName, setCustomName] = useState("");
   const [customType, setCustomType] = useState<"layerName" | "folderName">("layerName");
@@ -25,6 +32,10 @@ export function LayerControlPanel() {
   const setOrganizeIncludeSpecial = useLayerStore((state) => state.setOrganizeIncludeSpecial);
   const deleteHiddenText = useLayerStore((state) => state.deleteHiddenText);
   const setDeleteHiddenText = useLayerStore((state) => state.setDeleteHiddenText);
+  const lockBottomLayer = useLayerStore((state) => state.lockBottomLayer);
+  const setLockBottomLayer = useLayerStore((state) => state.setLockBottomLayer);
+  const unlockAllLayers = useLayerStore((state) => state.unlockAllLayers);
+  const setUnlockAllLayers = useLayerStore((state) => state.setUnlockAllLayers);
   const files = usePsdStore((state) => state.files);
   const selectedFileIds = usePsdStore((state) => state.selectedFileIds);
 
@@ -55,13 +66,14 @@ export function LayerControlPanel() {
   const customMoveOps = useLayerStore((state) => state.customMoveOps);
   const clearCustomOps = useLayerStore((state) => state.clearCustomOps);
 
-  const { applyLayerVisibility, organizeLayersIntoFolder, moveLayersByConditions, applyCustomOperations } = useLayerControl();
+  const { applyLayerVisibility, organizeLayersIntoFolder, moveLayersByConditions, applyCustomOperations, applyLayerLock } = useLayerControl();
 
   const targetCount = selectedFileIds.length > 0 ? selectedFileIds.length : files.length;
   const isHideMode = actionMode === "hide";
   const isOrganizeMode = actionMode === "organize";
   const isLayerMoveMode = actionMode === "layerMove";
   const isCustomMode = actionMode === "custom";
+  const isLockMode = actionMode === "lock";
 
   // カスタム操作のサマリー
   const customVisCount = Array.from(customVisibilityOps.values()).reduce((acc, ops) => acc + ops.length, 0);
@@ -84,7 +96,9 @@ export function LayerControlPanel() {
 
   const handleApply = async () => {
     try {
-      if (isCustomMode) {
+      if (isLockMode) {
+        await applyLayerLock();
+      } else if (isCustomMode) {
         await applyCustomOperations();
       } else if (isOrganizeMode) {
         await organizeLayersIntoFolder();
@@ -98,13 +112,15 @@ export function LayerControlPanel() {
     }
   };
 
-  const canExecute = isCustomMode
-    ? !isProcessing && files.length > 0 && (customTotalCount > 0 || deleteHiddenText)
-    : isOrganizeMode
-      ? !isProcessing && files.length > 0 && organizeTargetName.trim() !== ""
-      : isLayerMoveMode
-        ? !isProcessing && files.length > 0 && layerMoveTargetName.trim() !== "" && hasAnyLayerMoveCondition
-        : !isProcessing && files.length > 0 && (selectedConditions.length > 0 || (isHideMode && deleteHiddenText));
+  const canExecute = isLockMode
+    ? !isProcessing && files.length > 0 && (lockBottomLayer || unlockAllLayers)
+    : isCustomMode
+      ? !isProcessing && files.length > 0 && (customTotalCount > 0 || deleteHiddenText)
+      : isOrganizeMode
+        ? !isProcessing && files.length > 0 && organizeTargetName.trim() !== ""
+        : isLayerMoveMode
+          ? !isProcessing && files.length > 0 && layerMoveTargetName.trim() !== "" && hasAnyLayerMoveCondition
+          : !isProcessing && files.length > 0 && (selectedConditions.length > 0 || (isHideMode && deleteHiddenText));
 
   return (
     <div className="flex flex-col h-full">
@@ -114,16 +130,18 @@ export function LayerControlPanel() {
           <svg className="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
           </svg>
-          {isCustomMode ? "カスタム操作" : isLayerMoveMode ? "レイヤー整理" : isOrganizeMode ? "フォルダ格納" : "レイヤー可視性"}
+          {isLockMode ? "レイヤーロック" : isCustomMode ? "カスタム操作" : isLayerMoveMode ? "レイヤー整理" : isOrganizeMode ? "フォルダ格納" : "レイヤー可視性"}
         </h3>
         <p className="text-xs text-text-muted mt-1">
-          {isCustomMode
-            ? "レイヤーを個別に操作"
-            : isLayerMoveMode
-              ? "条件に一致するレイヤーを指定グループに移動"
-              : isOrganizeMode
-                ? "レイヤーを指定フォルダに格納"
-                : "条件を選択してレイヤーを一括操作"
+          {isLockMode
+            ? "レイヤーのロック・ロック解除"
+            : isCustomMode
+              ? "レイヤーを個別に操作"
+              : isLayerMoveMode
+                ? "条件に一致するレイヤーを指定グループに移動"
+                : isOrganizeMode
+                  ? "レイヤーを指定フォルダに格納"
+                  : "条件を選択してレイヤーを一括操作"
           }
         </p>
       </div>
@@ -192,10 +210,117 @@ export function LayerControlPanel() {
               currentMode={actionMode}
               onChange={setActionMode}
             />
+            <ModeButton
+              mode="lock"
+              label="ロック"
+              icon={<LockIcon />}
+              currentMode={actionMode}
+              onChange={setActionMode}
+            />
           </div>
         </div>
 
-        {isCustomMode ? (
+        {isLockMode ? (
+          /* ロックモード設定 */
+          <>
+            <div className="bg-bg-tertiary rounded-xl p-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p className="text-xs text-text-secondary leading-relaxed">
+                  レイヤーのロック・ロック解除を行います。右のプレビューで対象を確認できます。
+                </p>
+              </div>
+            </div>
+
+            {/* ロック対象 */}
+            <div className="bg-bg-tertiary rounded-xl p-3 space-y-2">
+              <h4 className="text-xs font-medium text-text-muted">ロック</h4>
+              <div
+                className={`
+                  flex items-center gap-2 p-2.5 rounded-xl cursor-pointer transition-all duration-200
+                  ${lockBottomLayer
+                    ? "bg-amber-500/15 border border-amber-500/50"
+                    : "bg-bg-secondary border border-white/5 hover:border-white/10"
+                  }
+                `}
+                onClick={() => {
+                  const next = !lockBottomLayer;
+                  setLockBottomLayer(next);
+                  if (next) setUnlockAllLayers(false);
+                }}
+              >
+                <div
+                  className={`
+                    w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all duration-200
+                    ${lockBottomLayer
+                      ? "bg-amber-500 border-amber-500"
+                      : "border-text-muted/50"
+                    }
+                  `}
+                >
+                  {lockBottomLayer && (
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <span className="text-sm text-text-primary">最下層レイヤー</span>
+                  <p className="text-[10px] text-text-muted mt-0.5">各ファイルの最下位レイヤーをロック</p>
+                </div>
+                <svg className="w-4 h-4 text-amber-500/60 flex-shrink-0" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3.5" y="7" width="9" height="7" rx="1" />
+                  <path d="M5.5 7V5a2.5 2.5 0 015 0v2" />
+                </svg>
+              </div>
+            </div>
+
+            {/* ロック解除 */}
+            <div className="bg-bg-tertiary rounded-xl p-3 space-y-2">
+              <h4 className="text-xs font-medium text-text-muted">ロック解除</h4>
+              <div
+                className={`
+                  flex items-center gap-2 p-2.5 rounded-xl cursor-pointer transition-all duration-200
+                  ${unlockAllLayers
+                    ? "bg-sky-500/15 border border-sky-500/50"
+                    : "bg-bg-secondary border border-white/5 hover:border-white/10"
+                  }
+                `}
+                onClick={() => {
+                  const next = !unlockAllLayers;
+                  setUnlockAllLayers(next);
+                  if (next) setLockBottomLayer(false);
+                }}
+              >
+                <div
+                  className={`
+                    w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all duration-200
+                    ${unlockAllLayers
+                      ? "bg-sky-500 border-sky-500"
+                      : "border-text-muted/50"
+                    }
+                  `}
+                >
+                  {unlockAllLayers && (
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <span className="text-sm text-text-primary">すべてのロックを解除</span>
+                  <p className="text-[10px] text-text-muted mt-0.5">全レイヤー・グループのロックを解除</p>
+                </div>
+                <svg className="w-4 h-4 text-sky-500/60 flex-shrink-0" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3.5" y="7" width="9" height="7" rx="1" />
+                  <path d="M5.5 7V5a2.5 2.5 0 015 0" />
+                </svg>
+              </div>
+            </div>
+          </>
+        ) : isCustomMode ? (
           /* カスタム操作モード */
           <>
             <div className="bg-bg-tertiary rounded-xl p-3 space-y-3">
@@ -611,15 +736,17 @@ export function LayerControlPanel() {
           saveMode={saveMode}
           onChange={setSaveMode}
           folderHint={files.length > 0 ? files[0].filePath.replace(/\\/g, "/").split("/").slice(-2, -1)[0] || "" : ""}
-          isOrganizeMode={isOrganizeMode || isLayerMoveMode || isCustomMode}
+          isOrganizeMode={isOrganizeMode || isLayerMoveMode || isCustomMode || isLockMode}
         />
         <div className="flex items-center justify-between text-xs text-text-muted">
           <span>対象: {targetCount} ファイル</span>
-          {isCustomMode
-            ? <span>{customTotalCount} 操作登録中</span>
-            : isLayerMoveMode
-              ? <span>{layerMoveCondCount} 条件選択中</span>
-              : !isOrganizeMode && <span>{selectedConditions.length} 条件選択中</span>
+          {isLockMode
+            ? <span>{(lockBottomLayer || unlockAllLayers) ? "1" : "0"} 条件選択中</span>
+            : isCustomMode
+              ? <span>{customTotalCount} 操作登録中</span>
+              : isLayerMoveMode
+                ? <span>{layerMoveCondCount} 条件選択中</span>
+                : !isOrganizeMode && <span>{selectedConditions.length} 条件選択中</span>
           }
         </div>
         <button
@@ -627,7 +754,9 @@ export function LayerControlPanel() {
           disabled={!canExecute}
           className={`
             w-full px-4 py-3 text-sm font-medium rounded-xl text-white
-            ${isCustomMode
+            ${isLockMode
+              ? "bg-gradient-to-r from-amber-500 to-yellow-500 shadow-[0_4px_15px_rgba(245,158,11,0.3)] hover:shadow-[0_6px_20px_rgba(245,158,11,0.4)]"
+              : isCustomMode
               ? "bg-gradient-to-r from-sky-500 to-blue-500 shadow-[0_4px_15px_rgba(14,165,233,0.3)] hover:shadow-[0_6px_20px_rgba(14,165,233,0.4)]"
               : isLayerMoveMode
                 ? "bg-gradient-to-r from-violet-500 to-purple-500 shadow-[0_4px_15px_rgba(139,92,246,0.3)] hover:shadow-[0_6px_20px_rgba(139,92,246,0.4)]"
@@ -647,6 +776,11 @@ export function LayerControlPanel() {
             <>
               <div className="w-4 h-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
               処理中...
+            </>
+          ) : isLockMode ? (
+            <>
+              <LockIcon />
+              {unlockAllLayers ? "ロック解除を適用" : "ロックを適用"}
             </>
           ) : isCustomMode ? (
             <>
@@ -715,6 +849,7 @@ function ModeButton({
     : mode === "show" ? "bg-accent-tertiary text-white"
     : mode === "layerMove" ? "bg-violet-500 text-white"
     : mode === "custom" ? "bg-sky-500 text-white"
+    : mode === "lock" ? "bg-amber-500 text-white"
     : "bg-warning text-white";
 
   return (

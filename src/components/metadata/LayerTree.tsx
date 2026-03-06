@@ -191,6 +191,14 @@ function LayerItem({ layer, depth, parentVisible, selectedLayerId, onSelectLayer
               </svg>
             </span>
           )}
+          {layer.locked && (
+            <span className="flex-shrink-0" title="ロック">
+              <svg className="w-3 h-3 text-text-muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3.5" y="7" width="9" height="7" rx="1" />
+                <path d="M5.5 7V5a2.5 2.5 0 015 0v2" />
+              </svg>
+            </span>
+          )}
 
           {/* Opacity Badge */}
           {layer.opacity < 100 && (
