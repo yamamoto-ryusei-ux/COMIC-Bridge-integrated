@@ -229,7 +229,7 @@ export async function performPresetJsonSave(): Promise<boolean> {
     selectedGuideSetIndex: store.selectedGuideIndex ?? undefined,
     excludedGuideIndices: undefined,
     rubyList: undefined,
-    selectionRanges: undefined,
+    selectionRanges: existingData.presetData?.selectionRanges,
     saveLocation: store.workInfo.label || undefined,
   };
 
@@ -441,7 +441,7 @@ function appendRubiesFromFolders(newFolderNames: string[]): void {
  * 保存先: {textLogFolderPath}/{label}/{title}/{XX巻}.txt + ルビ一覧.txt
  * startScan完了後の自動出力からも呼ばれる
  */
-async function performExportTextLog(): Promise<void> {
+export async function performExportTextLog(): Promise<void> {
   const store = useScanPsdStore.getState();
   if (!store.scanData?.textLogByFolder) return;
   const { workInfo, scanData, rubyList, textLogFolderPath } = store;
@@ -554,6 +554,101 @@ async function performExportTextLog(): Promise<void> {
   if (rubyContent) {
     const rubyPath = `${titleFolderPath}/ルビ一覧.txt`;
     await invoke("write_text_file", { filePath: rubyPath, content: rubyContent });
+  }
+}
+
+/**
+ * プリセットJSON読み込み（スタンドアロン版）
+ * filePath のJSONを読み込み、scanPsdStoreに反映する
+ * リンクscandataがあれば自動読み込みし、ガイド選択/除外/ルビも復元する
+ */
+export async function performLoadPresetJson(filePath: string): Promise<void> {
+  const store = useScanPsdStore.getState();
+
+  const content = await invoke<string>("read_text_file", { filePath });
+  const data = JSON.parse(content) as PresetJsonData;
+  store.loadFromPresetJson(data);
+  store.setCurrentJsonFilePath(filePath);
+
+  // リンクされたscandataを自動読み込み
+  const pd = data.presetData;
+  if (pd?.workInfo?.label && pd?.workInfo?.title) {
+    const safeLabel = pd.workInfo.label.replace(/[\\/:*?"<>|]/g, "_");
+    const safeTitle = pd.workInfo.title.replace(/[\\/:*?"<>|]/g, "_");
+    const scandataPath = `${store.saveDataBasePath}/${safeLabel}/${safeTitle}_scandata.json`.replace(/\\/g, "/");
+    try {
+      const scandataContent = await invoke<string>("read_text_file", { filePath: scandataPath });
+      const scandataData = JSON.parse(scandataContent) as ScanData;
+      store.setScanData(scandataData);
+      store.setCurrentScandataFilePath(scandataPath);
+      const sd = scandataData as ScanData & {
+        selectedGuideSetIndex?: number;
+        excludedGuideIndices?: number[];
+      };
+      if (sd.selectedGuideSetIndex != null) {
+        store.setSelectedGuideIndex(sd.selectedGuideSetIndex);
+      }
+      if (sd.excludedGuideIndices) {
+        store.setExcludedGuideIndices(new Set(sd.excludedGuideIndices));
+      }
+      const rawRuby = scandataData.editedRubyList as unknown[] | undefined;
+      if (rawRuby && rawRuby.length > 0) {
+        store.setRubyList(normalizeRubyEntries(rawRuby));
+      }
+    } catch {
+      // scandataが見つからない場合、JSON内のguideSetsから最小限のscanDataを構築
+      if (pd.guideSets && pd.guideSets.length > 0) {
+        const rawStats = pd.fontSizeStats as Record<string, unknown> | undefined;
+        let sizeStats: ScanData["sizeStats"] = { mostFrequent: null, sizes: [], excludeRange: null, allSizes: {} };
+        if (rawStats) {
+          const mf = rawStats.mostFrequent;
+          sizeStats.mostFrequent =
+            typeof mf === "number"
+              ? { size: mf, count: 0 }
+              : (mf as ScanData["sizeStats"]["mostFrequent"]) ?? null;
+          const rawSizes = rawStats.sizes;
+          if (Array.isArray(rawSizes)) {
+            sizeStats.sizes = rawSizes.map((s: unknown) =>
+              typeof s === "number" ? { size: s, count: 0 } : (s as { size: number; count: number })
+            );
+          }
+          const rawTop10 = rawStats.top10Sizes;
+          if (Array.isArray(rawTop10) && sizeStats.sizes.every((s) => s.count === 0)) {
+            const countMap = new Map<number, number>();
+            for (const t of rawTop10 as { size: number; count: number }[]) {
+              countMap.set(t.size, t.count);
+            }
+            sizeStats.sizes = sizeStats.sizes.map((s) => ({
+              ...s,
+              count: countMap.get(s.size) ?? 0,
+            }));
+            if (typeof mf === "number" && countMap.has(mf)) {
+              sizeStats.mostFrequent = { size: mf, count: countMap.get(mf)! };
+            }
+          }
+          sizeStats.excludeRange = (rawStats.excludeRange as ScanData["sizeStats"]["excludeRange"]) ?? null;
+          sizeStats.allSizes = (rawStats.allSizes as Record<string, number>) ?? {};
+        }
+        const rawStrokes = pd.strokeSizes ?? [];
+        const safeStrokes = rawStrokes.map((s) => ({
+          ...s,
+          count: s.count ?? 0,
+        }));
+        const fallbackScanData: ScanData = {
+          fonts: [],
+          sizeStats,
+          allFontSizes: {},
+          strokeStats: { sizes: safeStrokes },
+          guideSets: pd.guideSets,
+          textLayersByDoc: {},
+          scannedFolders: {},
+          processedFiles: 0,
+          workInfo: pd.workInfo ?? store.workInfo,
+          textLogByFolder: {},
+        };
+        store.setScanData(fallbackScanData);
+      }
+    }
   }
 }
 

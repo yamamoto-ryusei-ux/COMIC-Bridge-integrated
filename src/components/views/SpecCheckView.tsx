@@ -8,6 +8,7 @@ import { usePreparePsd } from "../../hooks/usePreparePsd";
 import { usePhotoshopShortcut, useOpenInPhotoshop } from "../../hooks/useOpenInPhotoshop";
 import { useOpenFolder } from "../../hooks/useOpenFolder";
 import { useCanvasSizeCheck } from "../../hooks/useCanvasSizeCheck";
+
 import { usePageNumberCheck } from "../../hooks/usePageNumberCheck";
 import { PreviewGrid } from "../preview/PreviewGrid";
 import { CompactFileList } from "../common/CompactFileList";
@@ -17,6 +18,7 @@ import { GuideSectionPanel } from "../spec-checker/GuideSectionPanel";
 import { SpecLayerGrid } from "../spec-checker/SpecLayerGrid";
 import { LayerSeparationPanel } from "../spec-checker/LayerSeparationPanel";
 import { DropZone } from "../file-browser/DropZone";
+
 import { THUMBNAIL_SIZES, type ThumbnailSize } from "../../types";
 import { invoke } from "@tauri-apps/api/core";
 
@@ -44,6 +46,7 @@ export function SpecCheckView() {
   const [showGuidePrompt, setShowGuidePrompt] = useState(false);
   const [viewMode, setViewMode] = useState<"thumbnails" | "layers" | "layerCheck">("thumbnails");
   const [tachimiError, setTachimiError] = useState<string | null>(null);
+
   const guidePromptRef = useRef<HTMLDivElement>(null);
 
   const { checkAllFiles, isChecking } = useSpecChecker();
@@ -53,6 +56,7 @@ export function SpecCheckView() {
   const { openFolderForFile, revealFiles } = useOpenFolder();
   const { outlierFileIds, majoritySize } = useCanvasSizeCheck();
   const { missingNumbers } = usePageNumberCheck();
+
   usePhotoshopShortcut();
 
   // 前回選択した仕様を復元（SpecCheckViewマウント時のみ）
@@ -646,6 +650,7 @@ export function SpecCheckView() {
           )}
         </div>
       </div>
+
     </div>
   );
 }

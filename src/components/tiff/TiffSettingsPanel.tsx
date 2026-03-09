@@ -4,7 +4,7 @@ import { useTiffStore } from "../../store/tiffStore";
 import { TiffResultDialog } from "./TiffResultDialog";
 import { TiffPartialBlurModal } from "./TiffPartialBlurModal";
 import { TiffPageRulesEditor } from "./TiffPageRulesEditor";
-import { CropJsonLoadDialog, CropJsonRegisterDialog } from "./TiffCropSidePanel";
+import { TiffAutoScanDialog } from "./TiffAutoScanDialog";
 import { useTiffProcessor } from "../../hooks/useTiffProcessor";
 import { usePsdLoader } from "../../hooks/usePsdLoader";
 import type { TiffColorMode } from "../../types/tiff";
@@ -73,7 +73,6 @@ export function TiffSettingsPanel() {
   const selectedCropGuideIndex = useTiffStore((s) => s.selectedCropGuideIndex);
   const setSelectedCropGuideIndex = useTiffStore((s) => s.setSelectedCropGuideIndex);
   const applyCropGuidesToBounds = useTiffStore((s) => s.applyCropGuidesToBounds);
-  const loadCropPreset = useTiffStore((s) => s.loadCropPreset);
   const setCropStep = useTiffStore((s) => s.setCropStep);
 
   const { convertSelectedFiles, convertAllFiles } = useTiffProcessor();
@@ -83,8 +82,7 @@ export function TiffSettingsPanel() {
   const hasResults = results.length > 0;
   const [showPartialBlurModal, setShowPartialBlurModal] = useState(false);
   const [showPageRulesEditor, setShowPageRulesEditor] = useState(false);
-  const [showJsonLoadDialog, setShowJsonLoadDialog] = useState(false);
-  const [showJsonRegisterDialog, setShowJsonRegisterDialog] = useState(false);
+  const [showAutoScanDialog, setShowAutoScanDialog] = useState<"selected" | "all" | null>(null);
 
   // Accordion
   const [openSections, setOpenSections] = useState<Set<string>>(() => new Set(DEFAULT_OPEN));
@@ -390,28 +388,6 @@ export function TiffSettingsPanel() {
                   </div>
                 )}
 
-                {/* JSON operations */}
-                <div className="space-y-1 pt-2 border-t border-border/30">
-                  <span className="text-[10px] text-text-muted font-medium">JSON範囲</span>
-                  <button
-                    onClick={() => setShowJsonLoadDialog(true)}
-                    className="w-full px-3 py-1.5 text-xs font-medium rounded-lg text-left flex items-center gap-2 text-text-secondary bg-bg-elevated border border-border/50 hover:bg-bg-elevated/80 transition-colors"
-                  >
-                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
-                    JSONから読み込む
-                  </button>
-                  <button
-                    onClick={() => setShowJsonRegisterDialog(true)}
-                    className="w-full px-3 py-1.5 text-xs font-medium rounded-lg text-left flex items-center gap-2 text-text-secondary bg-bg-elevated border border-border/50 hover:bg-bg-elevated/80 transition-colors"
-                  >
-                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                    </svg>
-                    JSONに新規登録
-                  </button>
-                </div>
               </>
             )}
           </div>
@@ -725,7 +701,7 @@ export function TiffSettingsPanel() {
         ) : (
           <div className="flex gap-2">
             <button
-              onClick={convertSelectedFiles}
+              onClick={() => setShowAutoScanDialog("selected")}
               disabled={selectedFileIds.length === 0}
               className="flex-1 px-3 py-3 text-sm font-medium rounded-xl bg-bg-tertiary text-text-primary border border-accent-warm/40 hover:bg-accent-warm/10 hover:border-accent-warm/60 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
@@ -735,7 +711,7 @@ export function TiffSettingsPanel() {
               選択のみ ({selectedFileIds.length})
             </button>
             <button
-              onClick={convertAllFiles}
+              onClick={() => setShowAutoScanDialog("all")}
               disabled={files.length === 0}
               className="flex-1 px-3 py-3 text-sm font-medium rounded-xl text-white bg-gradient-to-r from-accent-warm to-accent shadow-[0_3px_12px_rgba(255,177,66,0.25)] hover:shadow-[0_5px_16px_rgba(255,177,66,0.35)] hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
             >
@@ -758,14 +734,16 @@ export function TiffSettingsPanel() {
       {showPageRulesEditor && (
         <TiffPageRulesEditor onClose={() => setShowPageRulesEditor(false)} />
       )}
-      {showJsonLoadDialog && (
-        <CropJsonLoadDialog
-          onLoad={(preset) => { loadCropPreset(preset); setCropStep("confirm"); }}
-          onClose={() => setShowJsonLoadDialog(false)}
+      {showAutoScanDialog && (
+        <TiffAutoScanDialog
+          mode={showAutoScanDialog}
+          fileCount={showAutoScanDialog === "selected" ? selectedFileIds.length : files.length}
+          onExecute={() => {
+            if (showAutoScanDialog === "selected") convertSelectedFiles();
+            else convertAllFiles();
+          }}
+          onClose={() => setShowAutoScanDialog(null)}
         />
-      )}
-      {showJsonRegisterDialog && (
-        <CropJsonRegisterDialog onClose={() => setShowJsonRegisterDialog(false)} />
       )}
     </div>
   );

@@ -146,7 +146,7 @@ export function SpecTextGrid({ onFilterFont, onFilterIssue, onFilterStroke }: Sp
   }, [files]);
 
   return (
-    <div className="h-full overflow-auto p-4 select-none">
+    <div className="h-full overflow-auto p-4 pb-24 select-none">
       {/* Primary summary: Font + Size */}
       {(allFonts.length > 0 || sizeStats.length > 0) && (
         <div className="mb-3 grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))" }}>

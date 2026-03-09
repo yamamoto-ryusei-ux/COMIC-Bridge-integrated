@@ -49,11 +49,29 @@ function saveSettingsToStorage(settings: TiffSettings) {
   } catch { /* ignore */ }
 }
 
+/** JSON自動登録の結果 */
+export interface AutoScanJsonResult {
+  success: boolean;
+  filePath?: string;
+  scandataPath?: string;
+  error?: string;
+  fontCount?: number;
+  guideSetCount?: number;
+  textLogSaved?: boolean;
+}
+
 interface TiffState {
   // --- 設定 ---
   settings: TiffSettings;
   fileOverrides: Map<string, TiffFileOverride>; // fileId → override
   cropPresets: TiffCropPreset[];
+
+  // --- JSON自動登録 ---
+  autoScanEnabled: boolean;
+  autoScanVolume: number;
+  autoScanJsonResult: AutoScanJsonResult | null;
+  cropSourceJsonPath: string | null; // クロップ範囲をどのJSONから読み込んだか
+  registerSelectionRange: boolean; // 選択範囲をJSONに登録するか
 
   // --- 処理状態 ---
   phase: TiffPhase;
@@ -133,6 +151,14 @@ interface TiffState {
   setShowResultDialog: (show: boolean) => void;
   setReferenceFileIndex: (index: number) => void;
   setReferenceImageSize: (size: { width: number; height: number } | null) => void;
+
+  // --- アクション: JSON自動登録 ---
+  setAutoScanEnabled: (enabled: boolean) => void;
+  setAutoScanVolume: (volume: number) => void;
+  setAutoScanJsonResult: (result: AutoScanJsonResult | null) => void;
+  setCropSourceJsonPath: (path: string | null) => void;
+  setRegisterSelectionRange: (enabled: boolean) => void;
+
   reset: () => void;
 }
 
@@ -144,6 +170,12 @@ export const useTiffStore = create<TiffState>((set) => ({
   settings: initialSettings,
   fileOverrides: new Map(),
   cropPresets: loadCropPresetsFromStorage(),
+
+  autoScanEnabled: false,
+  autoScanVolume: 1,
+  autoScanJsonResult: null,
+  cropSourceJsonPath: null,
+  registerSelectionRange: false,
 
   phase: "idle",
   isProcessing: false,
@@ -423,6 +455,13 @@ export const useTiffStore = create<TiffState>((set) => ({
   setShowResultDialog: (show) => set({ showResultDialog: show }),
   setReferenceFileIndex: (index) => set({ referenceFileIndex: index }),
   setReferenceImageSize: (size) => set({ referenceImageSize: size }),
+
+  // --- JSON自動登録 ---
+  setAutoScanEnabled: (enabled) => set({ autoScanEnabled: enabled }),
+  setAutoScanVolume: (volume) => set({ autoScanVolume: volume }),
+  setAutoScanJsonResult: (result) => set({ autoScanJsonResult: result }),
+  setCropSourceJsonPath: (path) => set({ cropSourceJsonPath: path }),
+  setRegisterSelectionRange: (enabled) => set({ registerSelectionRange: enabled }),
 
   reset: () =>
     set({

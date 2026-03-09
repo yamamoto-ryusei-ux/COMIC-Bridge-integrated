@@ -4,6 +4,7 @@ import { useTiffStore } from "../../store/tiffStore";
 import { useHighResPreview } from "../../hooks/useHighResPreview";
 import { useCropEditorKeyboard } from "../../hooks/useCropEditorKeyboard";
 import { CanvasRuler, RULER_SIZE } from "../guide-editor/CanvasRuler";
+import { CropJsonLoadDialog } from "./TiffCropSidePanel";
 import type { TiffCropBounds } from "../../types/tiff";
 
 const ASPECT_W = 640;
@@ -29,6 +30,10 @@ export function TiffCropEditor() {
   const cropMethod = useTiffStore((state) => state.cropMethod);
   const setCropStep = useTiffStore((state) => state.setCropStep);
   const cropEnabled = useTiffStore((state) => state.settings.crop.enabled);
+  const loadCropPreset = useTiffStore((state) => state.loadCropPreset);
+  const [showJsonLoadDialog, setShowJsonLoadDialog] = useState(false);
+  const [jsonBtnVisible, setJsonBtnVisible] = useState(true);
+  const [jsonBtnHover, setJsonBtnHover] = useState(false);
 
   // ガイド
   const cropGuides = useTiffStore((state) => state.cropGuides);
@@ -680,6 +685,62 @@ export function TiffCropEditor() {
             </div>
           </div>
 
+        {/* Floating JSON Load Button */}
+        {cropEnabled && (
+          <div
+            className="absolute bottom-14 right-4 z-40"
+            onMouseEnter={() => setJsonBtnHover(true)}
+            onMouseLeave={() => setJsonBtnHover(false)}
+          >
+            {jsonBtnVisible ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setShowJsonLoadDialog(true)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="flex items-center gap-2.5 px-5 py-3 text-base font-medium rounded-xl bg-bg-secondary/80 text-text-secondary backdrop-blur-md border border-border/40 shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:bg-bg-secondary/95 hover:text-text-primary hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] hover:-translate-y-0.5 transition-all duration-200"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  JSON読み込み
+                </button>
+                {/* Hide toggle */}
+                <button
+                  onClick={() => setJsonBtnVisible(false)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className={`p-1.5 rounded-lg transition-all duration-200 ${
+                    jsonBtnHover
+                      ? "bg-bg-secondary/80 text-text-muted hover:text-text-primary backdrop-blur-sm border border-border/50"
+                      : "opacity-0 pointer-events-none"
+                  }`}
+                  title="ボタンを非表示"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                </button>
+              </div>
+            ) : (
+              /* Hidden state — show eye icon on hover to restore */
+              <button
+                onClick={() => setJsonBtnVisible(true)}
+                onMouseDown={(e) => e.stopPropagation()}
+                className={`p-2 rounded-lg transition-all duration-300 ${
+                  jsonBtnHover
+                    ? "bg-bg-secondary/90 text-accent-secondary backdrop-blur-sm border border-accent-secondary/30 shadow-md"
+                    : "bg-bg-secondary/40 text-text-muted/30 backdrop-blur-sm"
+                }`}
+                title="JSON読み込みボタンを表示"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Zoom indicator */}
         {zoom !== 1 && (
           <div className="absolute bottom-2 right-2 z-40 bg-bg-secondary/90 px-3 py-1.5 rounded-md text-xs text-text-muted backdrop-blur-sm border border-text-muted/10">
@@ -701,6 +762,20 @@ export function TiffCropEditor() {
         <div className="flex-1" />
         {cropEnabled && <span className="text-text-muted/60">比率 {ASPECT_W}:{ASPECT_H}</span>}
       </div>
+
+      {/* JSON Load Dialog */}
+      {showJsonLoadDialog && (
+        <CropJsonLoadDialog
+          onLoad={(preset, jsonPath) => {
+            loadCropPreset(preset);
+            if (jsonPath) {
+              useTiffStore.getState().setCropSourceJsonPath(jsonPath);
+            }
+            setShowJsonLoadDialog(false);
+          }}
+          onClose={() => setShowJsonLoadDialog(false)}
+        />
+      )}
     </div>
   );
 
