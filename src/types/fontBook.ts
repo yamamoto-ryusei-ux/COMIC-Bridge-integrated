@@ -17,13 +17,13 @@ export interface FontBookData {
 
 /** フォント帳の保存ディレクトリパスを算出 */
 export function getFontBookDir(
-  saveDataBasePath: string,
+  textLogFolderPath: string,
   label: string,
   title: string
 ): string {
   const safeLabel = label.replace(/[\\/:*?"<>|]/g, "_");
   const safeTitle = title.replace(/[\\/:*?"<>|]/g, "_");
-  return `${saveDataBasePath}/${safeLabel}/${safeTitle}_fontbook`.replace(
+  return `${textLogFolderPath}/${safeLabel}/${safeTitle}_fontbook`.replace(
     /\\/g,
     "/"
   );

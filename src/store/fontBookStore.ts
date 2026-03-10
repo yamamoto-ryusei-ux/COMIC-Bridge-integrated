@@ -13,7 +13,7 @@ interface FontBookState {
   setCapturing: (v: boolean) => void;
 
   // データ操作
-  loadFontBook: (saveDataBasePath: string, label: string, title: string) => Promise<void>;
+  loadFontBook: (textLogFolderPath: string, label: string, title: string) => Promise<void>;
   addEntry: (entry: FontBookEntry, imageData: Uint8Array) => Promise<void>;
   removeEntry: (id: string) => Promise<void>;
   updateEntry: (id: string, partial: Partial<Pick<FontBookEntry, "note">>) => Promise<void>;
@@ -29,8 +29,8 @@ export const useFontBookStore = create<FontBookState>((set, get) => ({
 
   setCapturing: (isCapturing) => set({ isCapturing }),
 
-  loadFontBook: async (saveDataBasePath, label, title) => {
-    const dir = getFontBookDir(saveDataBasePath, label, title);
+  loadFontBook: async (textLogFolderPath, label, title) => {
+    const dir = getFontBookDir(textLogFolderPath, label, title);
     // 同じ作品が既にロード済みならスキップ（メモリ上のentriesを維持）
     const { fontBookDir, isLoaded } = get();
     if (fontBookDir === dir && isLoaded) return;

@@ -120,7 +120,7 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
         } catch { /* scandata not found, ok */ }
         // フォント帳も読み込み
         useFontBookStore.getState().loadFontBook(
-          store.saveDataBasePath,
+          store.textLogFolderPath,
           pd.workInfo.label,
           pd.workInfo.title
         );
@@ -639,9 +639,9 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
       // fontBookDirが未設定なら今のworkInfoから初期化を試みる
       if (!dir) {
         const scanStore = useScanPsdStore.getState();
-        const { saveDataBasePath, workInfo } = scanStore;
+        const { textLogFolderPath, workInfo } = scanStore;
         if (workInfo.label && workInfo.title) {
-          await store.loadFontBook(saveDataBasePath, workInfo.label, workInfo.title);
+          await store.loadFontBook(textLogFolderPath, workInfo.label, workInfo.title);
           dir = useFontBookStore.getState().fontBookDir;
         }
       }

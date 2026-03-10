@@ -38,7 +38,7 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
   const presetSets = useScanPsdStore((s) => s.presetSets);
   const currentSetName = useScanPsdStore((s) => s.currentSetName);
   const workInfo = useScanPsdStore((s) => s.workInfo);
-  const saveDataBasePath = useScanPsdStore((s) => s.saveDataBasePath);
+  const textLogFolderPath = useScanPsdStore((s) => s.textLogFolderPath);
   const jsonFolderPath = useScanPsdStore((s) => s.jsonFolderPath);
 
   const [showJsonBrowser, setShowJsonBrowser] = useState(false);
@@ -159,9 +159,9 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
   // JSON読み込み時にフォント帳も読み込む
   useEffect(() => {
     if (currentJsonFilePath && workInfo.label && workInfo.title) {
-      loadFontBook(saveDataBasePath, workInfo.label, workInfo.title);
+      loadFontBook(textLogFolderPath, workInfo.label, workInfo.title);
     }
-  }, [currentJsonFilePath, workInfo.label, workInfo.title, saveDataBasePath, loadFontBook]);
+  }, [currentJsonFilePath, workInfo.label, workInfo.title, textLogFolderPath, loadFontBook]);
 
   // フォントプリセット
   const fonts: FontPreset[] = useMemo(
