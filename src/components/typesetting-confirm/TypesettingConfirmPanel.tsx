@@ -134,6 +134,20 @@ function parseComicPotText(content: string): { header: string[]; pages: TextPage
   return { header, pages };
 }
 
+/** フォント指定文字列の括弧バランスを検証し、不正なら補正 */
+function validateFontTag(tag: string): string {
+  let depth = 0;
+  for (const ch of tag) {
+    if (ch === "(") depth++;
+    else if (ch === ")") depth--;
+    if (depth < 0) break;
+  }
+  if (depth === 0) return tag;
+  // 不正な場合: nameInfo部分を除去してPostScript名のみにする
+  const match = tag.match(/^\[font:([^\](]+)/);
+  return match ? `[font:${match[1]}]` : tag;
+}
+
 /** テキストデータを保存用文字列に変換 */
 function serializeText(header: string[], pages: TextPage[], fontPresets: FontPresetEntry[]): string {
   const lines: string[] = [];
@@ -144,8 +158,10 @@ function serializeText(header: string[], pages: TextPage[], fontPresets: FontPre
       const block = page.blocks[i];
       if (block.assignedFont) {
         const fp = fontPresets.find((fp) => fp.font === block.assignedFont);
-        const nameInfo = fp ? `(${fp.name}${fp.subName ? `(${fp.subName})` : ""})` : "";
-        lines.push(`[font:${block.assignedFont}${nameInfo}]`);
+        const sanitize = (s: string) => s.replace(/[()（）[\]]/g, "");
+        const nameInfo = fp ? `(${sanitize(fp.name)}${fp.subName ? `(${sanitize(fp.subName)})` : ""})` : "";
+        const fontTag = `[font:${block.assignedFont}${nameInfo}]`;
+        lines.push(validateFontTag(fontTag));
       }
       if (block.isAdded) {
         lines.push(`[added]`);

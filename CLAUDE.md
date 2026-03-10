@@ -301,7 +301,20 @@
 - **コンポーネント**: TypesettingCheckView, TypesettingCheckPanel, TypesettingViewerPanel, CheckCategoryGroup
 - **ストア**: `typesettingCheckStore.ts` — checkData, checkTabMode, searchQuery, jsonBasePath, showJsonBrowser, navigateToPage
 
-### 17. ユーティリティ機能
+### 17. 写植確認（TypesettingConfirmPanel）
+- **概要**: comicpotテキストデータにフォント指定を付与して保存する機能。フォント帳（プリセットJSON）を読み込み、テキストブロックにフォントを割り当て
+- **コンポーネント**: `TypesettingConfirmPanel.tsx`（`src/components/typesetting-confirm/`）
+- **テキスト解析**: `parseComicPotText()` でページ区切り `<<NPage>>` とブロック（空行区切り）を解析
+- **テキスト保存**: `serializeText()` でフォント指定タグ付きテキストに変換
+- **フォント指定書式**: `[font:PostScriptName(表示名(カテゴリ))]` — subNameなし時は `[font:PostScriptName(表示名)]`
+- **sanitize処理**: フォント名・カテゴリ名から括弧文字（半角`()`・全角`（）`・角括弧`[]`）を除去して書式破壊を防止
+- **validateFontTag**: 出力前に括弧バランスを検証。不正な場合はPostScript名のみにフォールバック（再発防止）
+- **フォントプリセット読み込み**: Scan PSDのJSONフォルダからフォントプリセットJSONを選択・読み込み（`handleSelectFontJson`）
+- **PDF見開き分割モード**: 見開きPDFのページ割り当て（none/coverSpread/skipCover/allSpread）
+- **ビューアー連動**: 高解像度プレビュー + ページ遷移 + クロップ表示
+- **ブロック操作**: 選択（Ctrl/Shift複数対応）、フォント割り当て、追加、並べ替え（D&D）、移動マーカー
+
+### 18. ユーティリティ機能
 
 **キャンバスサイズチェック** (`useCanvasSizeCheck.ts`):
 - 全読み込みファイルのキャンバス寸法を分析、多数派サイズを検出
@@ -480,6 +493,8 @@ src/
 │   │       ├── FontSizesTab.tsx      # タブ2: フォントサイズ統計
 │   │       ├── GuideLinesTab.tsx     # タブ3: ガイド線（選択/除外）
 │   │       └── TextRubyTab.tsx       # タブ4: テキスト/ルビ
+│   ├── typesetting-confirm/ # 写植確認
+│   │   └── TypesettingConfirmPanel.tsx  # フォント指定・テキスト保存・ビューアー連動
 │   ├── ErrorBoundary.tsx  # Reactエラーバウンダリ（ViewRouterに適用）
 │   └── ui/                # 共通UIコンポーネント
 │       ├── index.ts              # バレルエクスポート

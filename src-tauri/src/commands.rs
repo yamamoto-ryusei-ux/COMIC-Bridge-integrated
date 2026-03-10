@@ -214,6 +214,7 @@ pub struct ResampleOptions {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct ConversionOptions {
     pub target_color_mode: Option<String>, // "RGB", "Grayscale"
     pub target_bit_depth: Option<u8>,      // 8 or 16
