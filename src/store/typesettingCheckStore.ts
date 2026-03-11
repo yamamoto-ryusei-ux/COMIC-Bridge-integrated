@@ -4,7 +4,7 @@ import { usePsdStore } from "./psdStore";
 
 // --- デフォルトパス ---
 const DEFAULT_JSON_BASE_PATH =
-  "G:/共有ドライブ/CLLENN/編集部フォルダ/編集企画部/写植・校正用テキストログ/テキスト抽出";
+  "G:/共有ドライブ/CLLENN/編集部フォルダ/編集企画部/写植・校正用テキストログ";
 
 function loadPath(key: string, fallback: string): string {
   try {
