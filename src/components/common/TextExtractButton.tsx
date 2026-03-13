@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { usePsdStore } from "../../store/psdStore";
 import { invoke } from "@tauri-apps/api/core";
+import { desktopDir } from "@tauri-apps/api/path";
 import type { LayerNode, PsdFile } from "../../types";
 
 /**
@@ -32,7 +33,7 @@ export function TextExtractButton() {
       const folderName = parts[parts.length - 2] || "extracted";
 
       // 出力先: Desktop/Script_Output/テキスト抽出/
-      const desktop = await getDesktopPath();
+      const desktop = await desktopDir();
       const outputDir = `${desktop}\\Script_Output\\テキスト抽出`;
 
       // フォルダ作成
@@ -157,7 +158,7 @@ export function TextExtractButton() {
 
         {/* メインボタン */}
         <button
-          className="h-16 min-w-[220px] px-8 text-lg font-bold rounded-2xl shadow-2xl transition-all duration-200 flex items-center justify-center gap-3 whitespace-nowrap bg-bg-secondary border-2 border-[#7c5cff]/40 text-[#7c5cff] hover:bg-bg-elevated hover:border-[#7c5cff]/60 hover:shadow-[0_6px_24px_rgba(124,92,255,0.25)] active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
+          className="h-16 min-w-[220px] px-8 text-lg font-bold rounded-2xl shadow-2xl transition-all duration-200 flex items-center justify-center gap-3 whitespace-nowrap bg-bg-secondary border-2 border-[#7c5cff]/40 text-[#7c5cff] hover:bg-bg-elevated hover:border-[#7c5cff]/60 hover:shadow-[0_4px_16px_rgba(124,92,255,0.25)] active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={() => {
             setResult(null);
             setShowOptions(!showOptions);
@@ -207,17 +208,6 @@ export function TextExtractButton() {
 
 // ===== ヘルパー関数 =====
 
-/** デスクトップパスを取得 */
-async function getDesktopPath(): Promise<string> {
-  const userProfile = await invoke<string>("read_text_file", {
-    filePath: "C:\\Users\\yamamoto-ryusei\\Desktop\\.keep",
-  }).then(
-    () => "C:\\Users\\yamamoto-ryusei\\Desktop",
-    () => "C:\\Users\\yamamoto-ryusei\\Desktop"
-  );
-  // Desktop直取得（Windowsのデフォルト）
-  return userProfile;
-}
 
 /**
  * テキストレイヤーを再帰的に収集する

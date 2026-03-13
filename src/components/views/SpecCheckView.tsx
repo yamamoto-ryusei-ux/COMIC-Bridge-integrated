@@ -522,7 +522,7 @@ export function SpecCheckView() {
           {viewMode === "layerCheck" && <LayerSeparationPanel onOpenInPhotoshop={openFileInPhotoshop} />}
 
           {/* Floating Action Buttons */}
-          <div className="absolute bottom-6 right-6 flex flex-col items-end gap-4 z-10">
+          <div className="absolute bottom-6 right-6 flex flex-row flex-wrap items-end justify-end gap-3 z-10">
             {viewMode === "thumbnails" && stats.noGuides > 0 && (
               <button
                 className="h-16 min-w-[220px] px-8 text-lg font-bold rounded-2xl shadow-2xl transition-all duration-200 flex items-center justify-center gap-3 bg-bg-secondary border-2 border-guide-v/50 text-guide-v hover:bg-bg-elevated hover:border-guide-v/70 hover:shadow-[0_8px_30px_rgba(0,188,212,0.25)] active:scale-[0.97]"
@@ -586,7 +586,7 @@ export function SpecCheckView() {
                     </div>
                   )}
                   <button
-                    className="h-16 min-w-[220px] px-8 text-lg font-bold rounded-2xl shadow-2xl transition-all duration-200 flex items-center justify-center gap-3 text-white bg-gradient-to-r from-[#31A8FF] to-[#0066CC] shadow-[0_6px_25px_rgba(49,168,255,0.4)] hover:shadow-[0_8px_35px_rgba(49,168,255,0.55)] hover:brightness-110 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-16 min-w-[220px] px-8 text-lg font-bold rounded-2xl shadow-2xl transition-all duration-200 flex items-center justify-center gap-3 text-white bg-gradient-to-r from-[#31A8FF] to-[#0066CC] shadow-[0_4px_16px_rgba(49,168,255,0.4)] hover:shadow-[0_6px_24px_rgba(49,168,255,0.55)] hover:brightness-110 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => {
                       if (stats.noGuides > 0 && guides.length === 0) {
                         setShowGuidePrompt(true);
@@ -623,7 +623,7 @@ export function SpecCheckView() {
                 <button
                   className={`h-16 min-w-[220px] px-8 text-lg font-bold rounded-2xl shadow-2xl transition-all duration-200 flex items-center justify-center gap-3 bg-bg-secondary active:scale-[0.97] ${
                     allPassed
-                      ? "border-2 border-[#ff8a6b]/60 text-[#ff8a6b] hover:bg-bg-elevated hover:border-[#ff8a6b]/80 hover:shadow-[0_8px_30px_rgba(255,138,107,0.25)]"
+                      ? "border-2 border-[#ff8a6b]/60 text-[#ff8a6b] hover:bg-bg-elevated hover:border-[#ff8a6b]/80 hover:shadow-[0_6px_20px_rgba(255,138,107,0.25)]"
                       : "border-2 border-[#c8806a]/30 text-[#c8806a]/70 hover:bg-bg-elevated hover:border-[#c8806a]/50 hover:text-[#c8806a]"
                   }`}
                   onClick={handleLaunchTachimi}
