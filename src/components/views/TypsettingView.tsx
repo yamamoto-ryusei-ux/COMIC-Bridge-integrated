@@ -21,6 +21,7 @@ export function TypsettingView() {
   const [viewerFilterIssue, setViewerFilterIssue] = useState<TextIssueFilter | null>(null);
   const [viewerFilterStroke, setViewerFilterStroke] = useState<number | null>(null);
   const [showScanJsonDialog, setShowScanJsonDialog] = useState(false);
+  const [extractButtonVisible, setExtractButtonVisible] = useState(true);
   const { openFileInPhotoshop } = useOpenInPhotoshop();
 
   const hasFiles = files.length > 0;
@@ -111,7 +112,34 @@ export function TypsettingView() {
               <div className="flex-1 overflow-hidden relative">
                 <TypesettingViewerPanel />
                 <div className="absolute bottom-6 right-6 z-10">
-                  <TextExtractButton />
+                  <div className="flex items-center gap-2">
+                    {extractButtonVisible ? (
+                      <button
+                        onClick={() => setExtractButtonVisible(false)}
+                        className="p-1.5 rounded-full text-text-muted/40 hover:text-text-muted/70 hover:bg-black/5 transition-all"
+                        title="テキスト抽出ボタンを非表示"
+                      >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </button>
+                    ) : (
+                      <div
+                        className="group/eye p-1.5 cursor-pointer"
+                        onClick={() => setExtractButtonVisible(true)}
+                        title="テキスト抽出ボタンを表示"
+                      >
+                        <svg className="w-5 h-5 opacity-0 group-hover/eye:opacity-60 transition-opacity duration-200 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                      </div>
+                    )}
+                    <div className={extractButtonVisible ? "" : "invisible"}>
+                      <TextExtractButton compact />
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="w-[480px] flex-shrink-0 border-l border-border overflow-hidden flex flex-col bg-bg-secondary">

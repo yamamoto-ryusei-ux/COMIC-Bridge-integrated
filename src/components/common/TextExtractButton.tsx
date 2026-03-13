@@ -8,7 +8,7 @@ import type { LayerNode, PsdFile } from "../../types";
  * テキスト抽出フローティングボタン
  * PSDファイルのテキストレイヤーからテキストを抽出し、COMIC-POT互換フォーマットで保存する
  */
-export function TextExtractButton() {
+export function TextExtractButton({ compact = false }: { compact?: boolean }) {
   const files = usePsdStore((s) => s.files);
   const [isExtracting, setIsExtracting] = useState(false);
   const [showOptions, setShowOptions] = useState(false);
@@ -158,7 +158,7 @@ export function TextExtractButton() {
 
         {/* メインボタン */}
         <button
-          className="h-16 min-w-[220px] px-8 text-lg font-bold rounded-2xl shadow-2xl transition-all duration-200 flex items-center justify-center gap-3 whitespace-nowrap bg-bg-secondary border-2 border-[#7c5cff]/40 text-[#7c5cff] hover:bg-bg-elevated hover:border-[#7c5cff]/60 hover:shadow-[0_4px_16px_rgba(124,92,255,0.25)] active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
+          className={`${compact ? "h-11 min-w-[150px] px-5 text-sm" : "h-16 min-w-[220px] px-8 text-lg"} font-bold rounded-2xl shadow-2xl transition-all duration-200 flex items-center justify-center gap-2 whitespace-nowrap bg-bg-secondary border-2 border-[#7c5cff]/40 text-[#7c5cff] hover:bg-bg-elevated hover:border-[#7c5cff]/60 hover:shadow-[0_4px_16px_rgba(124,92,255,0.25)] active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed`}
           onClick={() => {
             setResult(null);
             setShowOptions(!showOptions);
@@ -168,17 +168,17 @@ export function TextExtractButton() {
         >
           {isExtracting ? (
             <>
-              <div className="w-5 h-5 rounded-full border-2 border-[#7c5cff]/30 border-t-[#7c5cff] animate-spin" />
-              <span className="text-base">抽出中...</span>
+              <div className={`${compact ? "w-4 h-4" : "w-5 h-5"} rounded-full border-2 border-[#7c5cff]/30 border-t-[#7c5cff] animate-spin`} />
+              <span className={compact ? "text-xs" : "text-base"}>抽出中...</span>
             </>
           ) : (
             <>
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className={compact ? "w-4 h-4" : "w-5 h-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 3v5a1 1 0 001 1h5" />
               </svg>
               テキスト抽出
-              <span className="px-2 py-1 rounded-lg bg-[#7c5cff]/10 text-[#7c5cff] text-sm font-bold">
+              <span className={`${compact ? "px-1.5 py-0.5 text-xs" : "px-2 py-1 text-sm"} rounded-lg bg-[#7c5cff]/10 text-[#7c5cff] font-bold`}>
                 {psdFiles.length}
               </span>
             </>
