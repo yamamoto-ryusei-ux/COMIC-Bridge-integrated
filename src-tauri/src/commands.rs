@@ -2983,33 +2983,81 @@ pub async fn search_json_folders(
         .filter_map(|e| e.ok())
     {
         let entry_path = entry.path();
-        if !entry_path.is_dir() {
+
+        // JSONファイルを検索対象に含める
+        if entry_path.is_file() {
+            if let Some(ext) = entry_path.extension().and_then(|e| e.to_str()) {
+                if ext.eq_ignore_ascii_case("json") {
+                    let file_stem = entry_path
+                        .file_stem()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("");
+                    // _scandata サフィックスは除外（プリセットJSONのみ対象）
+                    if file_stem.ends_with("_scandata") {
+                        continue;
+                    }
+                    if file_stem.to_lowercase().contains(&query_lower) {
+                        let label = entry_path
+                            .parent()
+                            .and_then(|p| p.file_name())
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("")
+                            .to_string();
+
+                        results.push(JsonSearchResult {
+                            label,
+                            title: file_stem.to_string(),
+                            path: entry_path.to_string_lossy().to_string(),
+                        });
+                    }
+                }
+            }
             continue;
         }
 
-        let folder_name = entry_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("")
-            .to_string();
-
-        if folder_name.to_lowercase().contains(&query_lower) {
-            let label = entry_path
-                .parent()
-                .and_then(|p| p.file_name())
+        // フォルダ名も検索対象
+        if entry_path.is_dir() {
+            let folder_name = entry_path
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("")
                 .to_string();
 
-            results.push(JsonSearchResult {
-                label,
-                title: folder_name,
-                path: entry_path.to_string_lossy().to_string(),
-            });
+            if folder_name.to_lowercase().contains(&query_lower) {
+                // フォルダ内にJSONファイルがあるか確認
+                let has_json = std::fs::read_dir(entry_path)
+                    .map(|rd| {
+                        rd.filter_map(|e| e.ok()).any(|e| {
+                            e.path()
+                                .extension()
+                                .and_then(|ext| ext.to_str())
+                                .map(|ext| ext.eq_ignore_ascii_case("json"))
+                                .unwrap_or(false)
+                        })
+                    })
+                    .unwrap_or(false);
+
+                if has_json {
+                    let label = entry_path
+                        .parent()
+                        .and_then(|p| p.file_name())
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .to_string();
+
+                    results.push(JsonSearchResult {
+                        label,
+                        title: folder_name,
+                        path: entry_path.to_string_lossy().to_string(),
+                    });
+                }
+            }
         }
     }
 
     results.sort_by(|a, b| a.title.cmp(&b.title));
+    // 重複除去（同名フォルダとJSONファイルが両方ヒットする場合）
+    results.dedup_by(|a, b| a.path == b.path);
     Ok(results)
 }
 
@@ -3790,6 +3838,13 @@ pub struct TiffConvertResult {
     #[serde(rename = "outputPath")]
     pub output_path: Option<String>,
     pub error: Option<String>,
+    #[serde(rename = "colorMode")]
+    pub color_mode: Option<String>,
+    #[serde(rename = "finalWidth")]
+    pub final_width: Option<u32>,
+    #[serde(rename = "finalHeight")]
+    pub final_height: Option<u32>,
+    pub dpi: Option<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -3924,22 +3979,46 @@ pub async fn run_photoshop_tiff_convert(
         .map_err(|e| format!("Failed to write settings: {}", e))?;
     drop(settings_file);
 
-    // Copy script to temp (avoids Japanese path DDE forwarding issues — same as split_psd)
+    // Copy script to temp with UTF-8 BOM (avoids Japanese path DDE forwarding issues + ExtendScript encoding)
     let temp_script = temp_dir.join("tiff_convert_temp.jsx");
-    fs::copy(&script_path_str, &temp_script)
-        .map_err(|e| format!("Failed to copy script to temp: {}", e))?;
+    {
+        let script_bytes = fs::read(&script_path_str)
+            .map_err(|e| format!("Failed to read script: {}", e))?;
+        let mut out_file = fs::File::create(&temp_script)
+            .map_err(|e| format!("Failed to create temp script: {}", e))?;
+        // Add BOM if not already present
+        if script_bytes.len() < 3 || script_bytes[0] != 0xEF || script_bytes[1] != 0xBB || script_bytes[2] != 0xBF {
+            out_file.write_all(&[0xEF, 0xBB, 0xBF])
+                .map_err(|e| format!("Failed to write BOM: {}", e))?;
+        }
+        out_file.write_all(&script_bytes)
+            .map_err(|e| format!("Failed to write script: {}", e))?;
+    }
     let script_to_run = temp_script.to_string_lossy().to_string();
 
+    // Verify copy succeeded
+    let source_size = fs::metadata(&script_path_str).map(|m| m.len()).unwrap_or(0);
+    let copied_size = fs::metadata(&temp_script).map(|m| m.len()).unwrap_or(0);
     eprintln!("TIFF Convert - Photoshop: {}", ps_path);
-    eprintln!("TIFF Convert - Script (source): {}", script_path_str);
-    eprintln!("TIFF Convert - Script (temp): {}", script_to_run);
+    eprintln!("TIFF Convert - Script (source): {} ({} bytes)", script_path_str, source_size);
+    eprintln!("TIFF Convert - Script (temp): {} ({} bytes)", script_to_run, copied_size);
 
-    // spawn() for non-blocking (same as split_psd — output() blocks while PS is open)
+    // BOM追加で最大3バイト増える場合がある
+    if copied_size == 0 || (copied_size != source_size && copied_size != source_size + 3) {
+        return Err(format!(
+            "Script copy verification failed: source={} bytes, copy={} bytes",
+            source_size, copied_size
+        ));
+    }
+
+    // Launch Photoshop with -r flag (same pattern as split_psd)
+    eprintln!("TIFF Convert - Launching: {} -r {}", ps_path, script_to_run);
+
     let _child = Command::new(&ps_path)
         .arg("-r")
         .arg(&script_to_run)
         .spawn()
-        .map_err(|e| format!("Failed to run Photoshop: {}", e))?;
+        .map_err(|e| format!("Failed to launch Photoshop: {}", e))?;
 
     // Poll for results — heartbeat-based timeout
     // JSX writes "X/N" to psd_tiff_progress.txt; no timeout while X < N
@@ -4036,7 +4115,31 @@ pub async fn run_photoshop_tiff_convert(
         if let Some(window) = app_handle.get_webview_window("main") {
             let _ = window.set_focus();
         }
-        Err("Photoshop did not produce output file. Script may have failed.".to_string())
+        // Check VBS error log for diagnostics
+        let vbs_error_path = temp_dir.join("tiff_convert_vbs_error.txt");
+        let vbs_error = if vbs_error_path.exists() {
+            fs::read_to_string(&vbs_error_path).unwrap_or_default()
+        } else {
+            String::new()
+        };
+        let _ = fs::remove_file(&vbs_error_path);
+
+        // Check JSX script error log
+        let jsx_error_path = temp_dir.join("psd_tiff_script_error.txt");
+        let jsx_error = if jsx_error_path.exists() {
+            fs::read_to_string(&jsx_error_path).unwrap_or_default()
+        } else {
+            String::new()
+        };
+        let _ = fs::remove_file(&jsx_error_path);
+
+        if !vbs_error.is_empty() {
+            Err(format!("Photoshop script failed: {}", vbs_error.trim()))
+        } else if !jsx_error.is_empty() {
+            Err(format!("Photoshop script error: {}", jsx_error.trim()))
+        } else {
+            Err("Photoshop did not produce output file. Script may have failed.".to_string())
+        }
     }
 }
 
@@ -4112,6 +4215,46 @@ pub async fn launch_tachimi(file_paths: Vec<String>) -> Result<(), String> {
     Command::new(&tachimi_path)
         .spawn()
         .map_err(|e| format!("Tachimi起動エラー: {}", e))?;
+
+    Ok(())
+}
+
+/// Launch ProGen with handoff file for text extraction integration
+/// comicpot互換: Desktop/Script_Output/COMIPO_text抽出/ に .progen_handoff.txt を書き込み、progen.exeを起動
+#[tauri::command]
+pub async fn launch_progen(handoff_text_path: Option<String>) -> Result<(), String> {
+    use std::process::Command;
+
+    let user_profile = std::env::var("USERPROFILE")
+        .map_err(|_| "USERPROFILE not found".to_string())?;
+    let local_app_data = std::env::var("LOCALAPPDATA")
+        .map_err(|_| "LOCALAPPDATA not found".to_string())?;
+    let progen_path = Path::new(&local_app_data).join("ProGen").join("progen.exe");
+
+    if !progen_path.exists() {
+        return Err(format!(
+            "ProGen が見つかりません: {}",
+            progen_path.display()
+        ));
+    }
+
+    // ハンドオフファイルの書き込み（comicpot互換: COMIPO_text抽出フォルダに配置）
+    if let Some(ref text_path) = handoff_text_path {
+        // comicpot互換パス: Desktop/Script_Output/COMIPO_text抽出/.progen_handoff.txt
+        let desktop = Path::new(&user_profile).join("Desktop");
+        let marker_dir = desktop.join("Script_Output").join("COMIPO_text抽出");
+        // フォルダが存在しない場合は作成
+        let _ = fs::create_dir_all(&marker_dir);
+        let handoff_path = marker_dir.join(".progen_handoff.txt");
+        std::fs::write(&handoff_path, text_path)
+            .map_err(|e| format!("ハンドオフファイル書き込みエラー: {}", e))?;
+        eprintln!("ProGen handoff written: {} -> {}", handoff_path.display(), text_path);
+    }
+
+    Command::new("cmd")
+        .args(["/c", "start", "", &progen_path.to_string_lossy()])
+        .spawn()
+        .map_err(|e| format!("ProGen起動エラー: {}", e))?;
 
     Ok(())
 }
@@ -5034,4 +5177,71 @@ pub async fn run_photoshop_custom_operations(
         if let Some(w) = app_handle.get_webview_window("main") { let _ = w.set_focus(); }
         Err("Photoshop did not produce output file. Script may have failed.".to_string())
     }
+}
+
+// --- COMIC-Bridge Handoff (from Photoshop UXP plugin) ---
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HandoffData {
+    pub version: Option<u32>,
+    pub timestamp: Option<String>,
+    pub source: Option<String>,
+    pub document: Option<HandoffDocument>,
+    pub selection: Option<HandoffSelection>,
+    pub options: Option<HandoffOptions>,
+    #[serde(rename = "folderFiles")]
+    pub folder_files: Option<Vec<String>>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HandoffDocument {
+    pub path: Option<String>,
+    #[serde(rename = "fileName")]
+    pub file_name: Option<String>,
+    #[serde(rename = "folderPath")]
+    pub folder_path: Option<String>,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+    pub dpi: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HandoffSelection {
+    pub left: f64,
+    pub top: f64,
+    pub right: f64,
+    pub bottom: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HandoffOptions {
+    #[serde(rename = "sendSelection")]
+    pub send_selection: Option<bool>,
+    #[serde(rename = "loadFolder")]
+    pub load_folder: Option<bool>,
+}
+
+/// Check for handoff file from Photoshop UXP plugin and consume it
+#[tauri::command]
+pub async fn check_handoff() -> Result<Option<HandoffData>, String> {
+    let local_app_data = std::env::var("LOCALAPPDATA")
+        .map_err(|_| "LOCALAPPDATA not found".to_string())?;
+    let handoff_path = Path::new(&local_app_data)
+        .join("COMIC-Bridge")
+        .join(".comicbridge_handoff.json");
+
+    if !handoff_path.exists() {
+        return Ok(None);
+    }
+
+    let content = fs::read_to_string(&handoff_path)
+        .map_err(|e| format!("ハンドオフファイル読み込みエラー: {}", e))?;
+
+    // 読み込み後に削除（1回限りの消費）
+    let _ = fs::remove_file(&handoff_path);
+
+    let data: HandoffData = serde_json::from_str(&content)
+        .map_err(|e| format!("ハンドオフJSON解析エラー: {}", e))?;
+
+    Ok(Some(data))
 }

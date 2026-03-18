@@ -13,10 +13,10 @@ interface PhotoshopResult {
 }
 
 interface BatchRenameResult {
-  original_path: string;
-  original_name: string;
-  new_name: string;
-  output_path: string;
+  originalPath: string;
+  originalName: string;
+  newName: string;
+  outputPath: string;
   success: boolean;
   error: string | null;
 }
@@ -207,8 +207,8 @@ export function useRenameProcessor() {
       const entries = previews.map((p) => {
         const entry = entryMap.get(p.id)!;
         return {
-          source_path: entry.filePath,
-          new_name: p.newName,
+          sourcePath: entry.filePath,
+          newName: p.newName,
         };
       });
 
@@ -216,7 +216,7 @@ export function useRenameProcessor() {
         "batch_rename_files",
         {
           entries,
-          outputMode: fileSettings.outputMode,
+          mode: fileSettings.outputMode,
           outputDirectory: fileSettings.outputDirectory,
         }
       );
@@ -225,12 +225,12 @@ export function useRenameProcessor() {
         const br = batchResults[i];
 
         const result: RenameResult = {
-          fileName: br.original_name,
-          newFileName: br.new_name,
+          fileName: br.originalName,
+          newFileName: br.newName,
           success: br.success,
-          outputFile: br.output_path,
+          outputFile: br.outputPath,
           changes: br.success
-            ? [`${br.original_name} → ${br.new_name}`]
+            ? [`${br.originalName} → ${br.newName}`]
             : [],
           error: br.error || undefined,
         };

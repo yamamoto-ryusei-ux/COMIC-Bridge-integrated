@@ -17,7 +17,11 @@ const GUIDE_HIT_HALF = 5;
 
 type DragMode = "move" | "nw" | "ne" | "sw" | "se" | "n" | "s" | "w" | "e" | null;
 
-export function TiffCropEditor() {
+interface TiffCropEditorProps {
+  onSwitchToQueue?: () => void;
+}
+
+export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
   const files = usePsdStore((state) => state.files);
   const referenceFileIndex = useTiffStore((state) => state.referenceFileIndex);
   const setReferenceFileIndex = useTiffStore((state) => state.setReferenceFileIndex);
@@ -31,6 +35,15 @@ export function TiffCropEditor() {
   const setCropStep = useTiffStore((state) => state.setCropStep);
   const cropEnabled = useTiffStore((state) => state.settings.crop.enabled);
   const loadCropPreset = useTiffStore((state) => state.loadCropPreset);
+
+  // ファイル別クロップ編集モード
+  const perFileEditTarget = useTiffStore((state) => state.perFileEditTarget);
+  const setPerFileEditTarget = useTiffStore((state) => state.setPerFileEditTarget);
+  const setFileOverride = useTiffStore((state) => state.setFileOverride);
+  const fileOverrides = useTiffStore((state) => state.fileOverrides);
+  const perFileTargetName = perFileEditTarget
+    ? files.find((f) => f.id === perFileEditTarget)?.fileName ?? perFileEditTarget
+    : null;
   const [showJsonLoadDialog, setShowJsonLoadDialog] = useState(false);
   const [jsonBtnVisible, setJsonBtnVisible] = useState(true);
   const [jsonBtnHover, setJsonBtnHover] = useState(false);
@@ -48,6 +61,13 @@ export function TiffCropEditor() {
     const idx = Math.max(0, Math.min(referenceFileIndex - 1, files.length - 1));
     return files[idx] || null;
   }, [files, referenceFileIndex]);
+
+  // 参照ファイルの個別クロップ設定（perFileEditTarget中は表示しない）
+  const refFilePerFileBounds = useMemo(() => {
+    if (perFileEditTarget || !referenceFile) return undefined;
+    const ov = fileOverrides.get(referenceFile.id);
+    return ov?.cropBounds; // undefined=グローバル使用, null=スキップ, TiffCropBounds=個別設定
+  }, [perFileEditTarget, referenceFile, fileOverrides]);
 
   // PSD元ガイド（読み取り専用表示用）
   const psdGuides = useMemo(() => {
@@ -71,6 +91,22 @@ export function TiffCropEditor() {
   useEffect(() => {
     setReferenceImageSize(originalSize);
   }, [originalSize, setReferenceImageSize]);
+
+  // per-file編集開始前のグローバル範囲を保存するref（終了時に復元する）
+  const savedGlobalBoundsRef = useRef<TiffCropBounds | null | undefined>(undefined);
+
+  // ファイル別編集モードに入った時: グローバル範囲を保存し、個別cropBoundsをエディタにロード
+  useEffect(() => {
+    if (!perFileEditTarget) return;
+    // 編集開始時にグローバル範囲を保存（undefinedは「未保存」マーカー、nullは「範囲なし」）
+    savedGlobalBoundsRef.current = useTiffStore.getState().settings.crop.bounds;
+    const override = fileOverrides.get(perFileEditTarget);
+    if (override?.cropBounds) {
+      setLocalBounds(override.cropBounds);
+      setCropBounds(override.cropBounds);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [perFileEditTarget]);
 
   // Canvas container
   const containerRef = useRef<HTMLDivElement>(null);
@@ -634,6 +670,70 @@ export function TiffCropEditor() {
         </div>
       </div>
 
+      {/* 参照ファイルの個別クロップ設定バナー（閲覧中・編集モード外） */}
+      {!perFileEditTarget && refFilePerFileBounds !== undefined && (
+        <div className={`px-4 py-1.5 border-b flex items-center gap-2 flex-shrink-0 ${
+          refFilePerFileBounds === null
+            ? "bg-error/8 border-error/20"
+            : "bg-warning/8 border-warning/20"
+        }`}>
+          <svg className={`w-3 h-3 flex-shrink-0 ${refFilePerFileBounds === null ? "text-error/70" : "text-warning/70"}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+          </svg>
+          <span className={`text-[10px] flex-1 ${refFilePerFileBounds === null ? "text-error/70" : "text-warning/70"}`}>
+            {refFilePerFileBounds === null
+              ? `${referenceFile?.fileName}: クロップをスキップ`
+              : `${referenceFile?.fileName}: 個別クロップ範囲 (点線表示)`}
+          </span>
+        </div>
+      )}
+
+      {/* ファイル別クロップ編集モード バナー */}
+      {perFileEditTarget && (
+        <div className="px-4 py-2 bg-warning/10 border-b border-warning/20 flex items-center gap-3 flex-shrink-0">
+          <svg className="w-4 h-4 text-warning flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+          </svg>
+          <span className="text-xs text-warning font-medium flex-1 truncate">
+            個別クロップ設定中: <span className="font-bold">{perFileTargetName}</span>
+          </span>
+          <button
+            onClick={() => {
+              if (localBounds) {
+                setFileOverride(perFileEditTarget, { cropBounds: localBounds });
+              }
+              // 編集前のグローバル範囲を復元
+              if (savedGlobalBoundsRef.current !== undefined) {
+                setCropBounds(savedGlobalBoundsRef.current);
+                setLocalBounds(savedGlobalBoundsRef.current);
+                savedGlobalBoundsRef.current = undefined;
+              }
+              setPerFileEditTarget(null);
+              onSwitchToQueue?.();
+            }}
+            className="flex-shrink-0 px-3 py-1 text-xs font-medium rounded-lg bg-warning text-white hover:bg-warning/90 transition-all"
+          >
+            この範囲をファイルに適用
+          </button>
+          <button
+            onClick={() => {
+              // 編集前のグローバル範囲を復元
+              if (savedGlobalBoundsRef.current !== undefined) {
+                setCropBounds(savedGlobalBoundsRef.current);
+                setLocalBounds(savedGlobalBoundsRef.current);
+                savedGlobalBoundsRef.current = undefined;
+              }
+              setPerFileEditTarget(null);
+              onSwitchToQueue?.();
+            }}
+            className="flex-shrink-0 px-3 py-1 text-xs rounded-lg bg-bg-tertiary text-text-muted hover:text-text-primary transition-all"
+          >
+            キャンセル
+          </button>
+        </div>
+      )}
+
       {/* Canvas Area with optional rulers */}
       <div ref={containerRef} className="flex-1 overflow-hidden relative">
           <div
@@ -1011,6 +1111,32 @@ export function TiffCropEditor() {
               );
             })}
           </>
+        )}
+
+        {/* 参照ファイルの個別クロップ範囲プレビュー（2次オーバーレイ・読み取り専用） */}
+        {refFilePerFileBounds !== undefined && imageLayout && (
+          refFilePerFileBounds === null ? (
+            /* クロップスキップ表示 */
+            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+              <div className="px-3 py-1.5 bg-error/75 text-white text-xs rounded-lg font-medium backdrop-blur-sm">
+                このファイルはクロップをスキップ
+              </div>
+            </div>
+          ) : (() => {
+            const tl = docToScreen(refFilePerFileBounds.left, refFilePerFileBounds.top);
+            const br = docToScreen(refFilePerFileBounds.right, refFilePerFileBounds.bottom);
+            const rx = tl.x, ry = tl.y, rw = br.x - tl.x, rh = br.y - tl.y;
+            return (
+              <div className="absolute pointer-events-none z-[9]"
+                style={{ left: rx, top: ry, width: rw, height: rh,
+                  border: "2px dashed rgba(245,158,11,0.75)",
+                  boxShadow: "0 0 8px rgba(245,158,11,0.25)" }}>
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-warning text-white text-[9px] font-mono rounded whitespace-nowrap">
+                  個別: {refFilePerFileBounds.right - refFilePerFileBounds.left}×{refFilePerFileBounds.bottom - refFilePerFileBounds.top}
+                </div>
+              </div>
+            );
+          })()
         )}
 
         {/* Empty state (only when crop is enabled) */}

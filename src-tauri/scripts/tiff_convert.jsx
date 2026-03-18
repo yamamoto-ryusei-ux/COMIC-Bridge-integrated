@@ -17,6 +17,7 @@ var TEXT_GROUP_NAMES = ["#text#", "text", "\u5199\u690D", "\u30BB\u30EA\u30D5", 
  ----------------------------------------------------- */
 function main() {
     var tempFolder = Folder.temp;
+
     var settingsFile = new File(tempFolder + "/psd_tiff_settings.json");
 
     if (!settingsFile.exists) {
@@ -215,22 +216,31 @@ function processFile(fileConfig, globalSettings) {
             saveIntermediatePsd(doc, fileConfig, globalSettings);
         }
 
-        // 10. Apply Gaussian blur to background only
-        if (fileConfig.applyBlur && fileConfig.blurRadius > 0) {
-            if (backgroundLayer) {
-                try {
-                    doc.activeLayer = backgroundLayer;
-                    if (backgroundLayer.allLocked) backgroundLayer.allLocked = false;
-                } catch (e) {}
-            } else if (doc.layers.length > 0) {
-                doc.activeLayer = doc.layers[doc.layers.length - 1];
-            }
+        // 10. Apply Gaussian blur to background only (Tippy v2.92 pattern)
+        // Check for page-specific partial blur settings
+        var currentPartialBlurSettings = null;
+        if (fileConfig.partialBlur && fileConfig.partialBlur.blurRadius !== undefined) {
+            currentPartialBlurSettings = fileConfig.partialBlur;
+        }
 
-            if (fileConfig.partialBlur && fileConfig.partialBlur.blurRadius !== undefined) {
-                applyPartialBlur(doc, fileConfig);
-            } else {
-                doc.activeLayer.applyGaussianBlur(fileConfig.blurRadius);
-            }
+        if (backgroundLayer && fileConfig.applyBlur && fileConfig.blurRadius > 0) {
+            doc.activeLayer = backgroundLayer;
+            try {
+                if (backgroundLayer.allLocked) backgroundLayer.allLocked = false;
+
+                if (currentPartialBlurSettings) {
+                    applyPartialBlur(doc, fileConfig.blurRadius, currentPartialBlurSettings);
+                } else {
+                    doc.activeLayer.applyGaussianBlur(fileConfig.blurRadius);
+                }
+            } catch (e) {}
+        } else if (backgroundLayer && currentPartialBlurSettings) {
+            // Blur disabled globally but partial blur exists for this page
+            doc.activeLayer = backgroundLayer;
+            try {
+                if (backgroundLayer.allLocked) backgroundLayer.allLocked = false;
+                applyPartialBlur(doc, 0, currentPartialBlurSettings);
+            } catch (e) {}
         }
 
         // 11. Show text SO
@@ -331,13 +341,23 @@ function processFile(fileConfig, globalSettings) {
             doc.saveAs(jpgFile2, jpgOpts2, true, Extension.LOWERCASE);
         }
 
-        // 17. Close
+        // 17. Capture final document metadata before closing
+        var finalColorMode = (doc.mode == DocumentMode.GRAYSCALE) ? "mono" : "color";
+        var finalWidth = Math.round(doc.width.value);
+        var finalHeight = Math.round(doc.height.value);
+        var finalDpi = Math.round(doc.resolution);
+
+        // 18. Close
         doc.close(SaveOptions.DONOTSAVECHANGES);
 
         return {
             fileName: fileName,
             success: true,
-            outputPath: outputFile.fsName.replace(/\\/g, "/")
+            outputPath: outputFile.fsName.replace(/\\/g, "/"),
+            colorMode: finalColorMode,
+            finalWidth: finalWidth,
+            finalHeight: finalHeight,
+            dpi: finalDpi
         };
 
     } catch (e) {
@@ -540,48 +560,122 @@ function rasterizeLayer() {
 /* -----------------------------------------------------
   Blur Operations
  ----------------------------------------------------- */
-function applyPartialBlur(doc, fileConfig) {
+// 部分ぼかし: regionsがある場合は各ポリゴン領域に個別の半径を適用
+// regionsが無い場合はレガシーboundsまたは全体にpartialBlurRadiusを適用
+function applyPartialBlur(doc, defaultBlurRadius, partialSettings) {
     try {
         var activeLayer = doc.activeLayer;
-        var pb = fileConfig.partialBlur;
-        var defaultBlur = fileConfig.blurRadius;
-        var partialBlurRadius = pb.blurRadius;
-        var bounds = pb.bounds;
+        var partialBlurRadius = partialSettings.blurRadius;
+        var regions = partialSettings.regions;
 
-        // 1. Apply default blur to OUTSIDE the selection region
-        if (defaultBlur > 0) {
-            var selRegion = [
-                [bounds.left, bounds.top],
-                [bounds.right, bounds.top],
-                [bounds.right, bounds.bottom],
-                [bounds.left, bounds.bottom]
-            ];
+        // --- regions配列がある場合: 新方式（複数ポリゴン領域） ---
+        if (regions && regions.length > 0) {
+            applyRegionsBlur(doc, activeLayer, defaultBlurRadius, partialBlurRadius, regions);
+            return;
+        }
+
+        // --- レガシー: bounds方式 ---
+        var bounds = partialSettings.bounds;
+
+        // boundsがnull/未定義: 全体にpartialBlurRadiusを適用
+        if (!bounds || bounds.left === undefined) {
+            if (partialBlurRadius > 0) {
+                activeLayer.applyGaussianBlur(partialBlurRadius);
+            } else if (defaultBlurRadius > 0) {
+                activeLayer.applyGaussianBlur(defaultBlurRadius);
+            }
+            return;
+        }
+
+        // boundsがドキュメント全体と同じ場合も同様にスキップ
+        var docW = doc.width.value;
+        var docH = doc.height.value;
+        if (bounds.left <= 0 && bounds.top <= 0 && bounds.right >= docW && bounds.bottom >= docH) {
+            if (partialBlurRadius > 0) {
+                activeLayer.applyGaussianBlur(partialBlurRadius);
+            } else if (defaultBlurRadius > 0) {
+                activeLayer.applyGaussianBlur(defaultBlurRadius);
+            }
+            return;
+        }
+
+        // 有効なboundsがある場合のみ選択範囲ベースの処理
+        var selRegion = [
+            [bounds.left, bounds.top],
+            [bounds.right, bounds.top],
+            [bounds.right, bounds.bottom],
+            [bounds.left, bounds.bottom]
+        ];
+
+        // 1. 選択範囲外に通常のぼかしを適用
+        if (defaultBlurRadius > 0) {
             doc.selection.select(selRegion);
             doc.selection.invert();
-
-            if (doc.selection.bounds) {
-                activeLayer.applyGaussianBlur(defaultBlur);
+            var hasSelection = false;
+            try { var sb = doc.selection.bounds; hasSelection = true; } catch (eSel) {}
+            if (hasSelection) {
+                activeLayer.applyGaussianBlur(defaultBlurRadius);
             }
-
             doc.selection.deselect();
         }
 
-        // 2. Apply partial blur to INSIDE the selection region
+        // 2. 選択範囲内に指定したぼかしを適用
         if (partialBlurRadius > 0) {
-            var selRegion2 = [
-                [bounds.left, bounds.top],
-                [bounds.right, bounds.top],
-                [bounds.right, bounds.bottom],
-                [bounds.left, bounds.bottom]
-            ];
-            doc.selection.select(selRegion2);
+            doc.selection.select(selRegion);
             activeLayer.applyGaussianBlur(partialBlurRadius);
             doc.selection.deselect();
         }
     } catch (e) {
-        // Fallback: apply default blur to everything
-        if (fileConfig.blurRadius > 0) {
-            try { doc.activeLayer.applyGaussianBlur(fileConfig.blurRadius); } catch (e2) {}
+        try { doc.selection.deselect(); } catch (ed) {}
+        if (defaultBlurRadius > 0) {
+            try { doc.activeLayer.applyGaussianBlur(defaultBlurRadius); } catch (e2) {}
+        }
+    }
+}
+
+// 複数ポリゴン領域ぼかし
+// 1. 全regions選択→invert→外側にdefaultBlur
+// 2. 各regionを個別選択→個別blurRadius適用
+function applyRegionsBlur(doc, activeLayer, defaultBlurRadius, fallbackBlurRadius, regions) {
+    try {
+        // 1. 外側にデフォルトぼかし
+        if (defaultBlurRadius > 0) {
+            // 全regionsをunion選択
+            for (var i = 0; i < regions.length; i++) {
+                var pts = regions[i].points;
+                if (!pts || pts.length < 3) continue;
+                if (i === 0) {
+                    doc.selection.select(pts);
+                } else {
+                    doc.selection.select(pts, SelectionType.EXTEND);
+                }
+            }
+            doc.selection.invert();
+            var hasOuter = false;
+            try { var sb = doc.selection.bounds; hasOuter = true; } catch (eOuter) {}
+            if (hasOuter) {
+                activeLayer.applyGaussianBlur(defaultBlurRadius);
+            }
+            doc.selection.deselect();
+        }
+
+        // 2. 各regionに個別ぼかし
+        for (var j = 0; j < regions.length; j++) {
+            var region = regions[j];
+            var pts2 = region.points;
+            var regionBlur = region.blurRadius;
+            if (!pts2 || pts2.length < 3) continue;
+            if (regionBlur === undefined || regionBlur === null) regionBlur = fallbackBlurRadius;
+            if (regionBlur > 0) {
+                doc.selection.select(pts2);
+                activeLayer.applyGaussianBlur(regionBlur);
+                doc.selection.deselect();
+            }
+        }
+    } catch (e) {
+        try { doc.selection.deselect(); } catch (ed) {}
+        if (defaultBlurRadius > 0) {
+            try { activeLayer.applyGaussianBlur(defaultBlurRadius); } catch (e2) {}
         }
     }
 }
@@ -759,4 +853,15 @@ function parseJSON(str) {
 /* -----------------------------------------------------
   Execute
  ----------------------------------------------------- */
-main();
+try {
+    main();
+} catch (e) {
+    // Write error to temp file for Rust to read
+    try {
+        var errFile = new File(Folder.temp + "/psd_tiff_script_error.txt");
+        errFile.open("w");
+        errFile.write("JSX Error: " + (e.message || String(e)) + " (line: " + (e.line || "?") + ")");
+        errFile.close();
+    } catch (ef) {}
+    app.displayDialogs = originalDialogs;
+}

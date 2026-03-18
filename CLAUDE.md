@@ -145,18 +145,25 @@
 - **処理順序**: unlock → テキストグループ検索 → 上に移動 → 背景SO化 → テキストSO化 → 両方ラスタライズ → カラーモード変換 → テキスト再SO化 → 非表示 → ぼかし(背景のみ) → 表示 → getByName最終マージ → crop → resize → save
 - **ExtendScript注意**: レイヤー比較は`.id`（プロキシオブジェクトの`===`は不可）、選択は`putIdentifier`+`makeVisible:false`、crop引数は`UnitValue`配列
 - **出力フォルダ重複回避**: `TIF_Output`フォルダが既存の場合`TIF_Output (1)`, `(2)`...で連番生成（Rust側でJSON内outputPathも書き換え）
-- **ビジュアルクロップエディタ**: useHighResPreviewベースのプレビュー上にドラッグ可能なクロップ矩形をオーバーレイ。640:909アスペクト比ロック、8ハンドルリサイズ、暗転マスク、三分割グリッド、リアルタイム寸法表示、比率検証（±1%）
+- **ビジュアルクロップエディタ**: useHighResPreviewベースのプレビュー上にドラッグ可能なクロップ矩形をオーバーレイ。640:909アスペクト比ロック、8ハンドルリサイズ、暗転マスク、三分割グリッド、リアルタイム寸法表示、比率検証（±1%）。手入力フィールド(L/T/R/B)は廃止済み — 比率OK/サイズ表示/PSDから自動設定のみ表示
+- **個別クロップ編集**: ファイル別クロップ編集モード中は`savedGlobalBoundsRef`でグローバル範囲を退避。OK/キャンセルボタン押下時にグローバル範囲を復元（個別編集がグローバル設定を上書きしない）
 - **バッチキュー＆個別上書き**: 全ファイルの処理予定を可視化。ファイル毎にカラーモード・ぼかし半径・スキップをインライン上書き。リネームプレビュータブで出力名確認・重複検出
 - **カラーモード**: モノクロ/カラー/変更なし/個別選択（ページ範囲ルール最大3件 + デフォルトモード）
 - **ガウスぼかし**: モノクロ時のみ適用、半径指定(px)。部分ぼかし（最大5ページ、ページ別半径）
-- **クロップ範囲**: 640:909比率。JSONから読込/保存（CLLENN互換: ジャンル→レーベル→タイトル階層）。キャンバスサイズ不一致ダイアログ（4択: ラベル再選択/手動選択/そのまま/スキップ）
+- **部分ぼかしのページマッチング**: `buildSettingsJson`内で`allPsdFiles`（psdStore全ファイル）から`globalFileIndex`を取得し、選択ファイルのみ処理時もグローバルページ番号で`partialBlurEntries`をマッチ。ファイル別ぼかしモーダルは既存overrideがない場合に空リストで開始（グローバル設定にフォールバックしない）
+- **クロップ範囲**: 640:909比率。JSONから読込/保存（CLLENN互換: ジャンル→レーベル→タイトル階層）。キャンバスサイズ不一致ダイアログ（4択: ラベル再選択/手動選択/そのまま/スキップ）。PSDガイドから自動設定ボタンはクロップ有効/無効に関わらず常時表示
 - **リサイズ**: 1280x1818（DPI: モノクロ=600, カラー=350）
 - **テキスト整理**: #text#, text, 写植, セリフ, テキスト, 台詞 グループを検索・統合→スマートオブジェクト化
 - **リネーム**: 連番/ページ数計算/リネームなし。開始番号・ゼロ埋め桁数指定
 - **出力**: TIFF(LZW)/PSD、中間PSD保存、画像レイヤー統合オプション
 - **PSB対応**: PSBファイルのTIFF変換サポート
 - Photoshop JSX経由で実行（`tiff_convert.jsx`）
-- **設定パネル**: 8セクション折りたたみ式、処理状態表示（スピナー+プログレスバー）
+- **設定パネル**: 折りたたみ式セクション構成（処理状態表示スピナー+プログレスバー付き）
+  - **出力形式**: TIFF/JPG切替
+  - **カラーモード・ぼかし**: カラーモード選択、ガウスぼかし設定、ルール編集
+  - **クロップ・リサイズ**: クロップ設定（比率OK/サイズ/PSD自動設定）＋リサイズ・解像度を統合
+  - **リネーム・出力先**: リネーム設定＋出力先ディレクトリ＋中間PSD保存＋テキスト整理を統合
+  - ※サブフォルダも含めるチェックはTiffFileList（中央ファイルリスト）ヘッダーとTiffBatchQueueヘッダーに配置
 - **設定永続化**: localStorageに保存（ただし`crop.bounds`はファイル依存のため永続化しない）
 - **JSON範囲ライブラリ**: TiffCropRangeLibrary（読込/保存/新規作成の3タブ）、GENRE_LABELS定数でジャンル→レーベルマッピング
 - **Tachimi互換JSON構造**: TiffCropPreset型（units: "px", size, documentSize, savedAt）。新規登録時に現在の選択範囲をプリセットとして保存。4スペースインデント
@@ -174,7 +181,7 @@
   - Photoshop JSX経由で実行（`rename_psd.jsx`）
 - **モードB: ファイルリネーム（Rust直接処理、Photoshop不要）**
   - 対応形式: PSD, PSB, TIFF, JPG, PNG, BMP, GIF, PDF, EPS
-  - 連番リネーム: ベース名+セパレータ+ゼロ埋め連番
+  - 連番リネーム: ベース名+セパレータ+ゼロ埋め連番。デフォルト: 開始番号=3, 桁数=4, セパレータ=空文字
   - 文字列置換: 検索→置換（部分一致/正規表現）
   - プレフィックス/サフィックス追加
   - フォルダ追加ボタンで複数フォルダ対応（フォルダ名ヘッダー付き表示）
@@ -369,7 +376,7 @@
 - **ComposeView**: 合成（2カラム: ComposePanel | ComposeDropZone）。Replace機能と類似のペアリングUI
 - **SplitView**: 見開き分割
 - **RenameView**: リネーム（レイヤーリネーム / ファイルリネーム）
-- **TiffView**: TIFF化（3カラム: CompactFileList | BatchQueue/CropEditor | TiffSettingsPanel）
+- **TiffView**: TIFF化（3カラム: TiffSettingsPanel | TiffFileList | Center(プレビュー/一覧/ビューアータブ切替)）。TiffFileListヘッダーとTiffBatchQueueヘッダーにサブフォルダチェックを配置
 - **ScanPsdView**: Scan PSD（2カラム: ScanPsdPanel(5タブ) | ScanPsdContent(モード選択/スキャン/サマリー)）
 
 ### レイヤーツリー (LayerPreviewPanel)
@@ -489,13 +496,14 @@ src/
 │   │   ├── RenamePreview.tsx      # プレビュー表示（両モード共通）
 │   │   └── RenameResultDialog.tsx # 処理結果ダイアログ
 │   ├── tiff/              # TIFF化
-│   │   ├── TiffSettingsPanel.tsx        # 右パネル設定UI（8セクション折りたたみ）
-│   │   ├── TiffBatchQueue.tsx           # バッチキュー＋個別上書き＋リネームプレビュー
-│   │   ├── TiffCropEditor.tsx           # ビジュアルクロップエディタ（ドラッグ矩形）
+│   │   ├── TiffSettingsPanel.tsx        # 左パネル設定UI（折りたたみセクション: 出力形式/カラーぼかし/クロップ・リサイズ/リネーム・出力先）
+│   │   ├── TiffFileList.tsx             # 中央ファイルリスト（スキップ切替・個別設定・サブフォルダチェック）
+│   │   ├── TiffBatchQueue.tsx           # バッチキュー＋個別上書き＋リネームプレビュー＋サブフォルダチェック
+│   │   ├── TiffCropEditor.tsx           # ビジュアルクロップエディタ（ドラッグ矩形・savedGlobalBoundsRefで個別編集後グローバル復元）
 │   │   ├── TiffCropRangeLibrary.tsx     # JSON範囲ライブラリ（CLLENN互換）
-│   │   ├── TiffCropSidePanel.tsx        # クロップ設定サイドパネル（JSON登録/読込ダイアログ）
+│   │   ├── TiffCropSidePanel.tsx        # クロップ設定サイドパネル（比率OK/サイズ/PSD自動設定のみ表示、手入力廃止）
 │   │   ├── TiffResultDialog.tsx         # 処理結果ダイアログ
-│   │   ├── TiffPartialBlurModal.tsx     # 部分ぼかし設定モーダル
+│   │   ├── TiffPartialBlurModal.tsx     # 部分ぼかし設定モーダル（ファイル別モード時は空リスト開始）
 │   │   ├── TiffPageRulesEditor.tsx      # ページ別カラー設定
 │   │   └── TiffCanvasMismatchDialog.tsx # キャンバスサイズ不一致ダイアログ
 │   ├── scanPsd/           # Scan PSD（フォントプリセット管理）

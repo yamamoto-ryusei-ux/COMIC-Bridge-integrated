@@ -2,8 +2,10 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { useTiffStore } from "../../store/tiffStore";
+import { usePsdStore } from "../../store/psdStore";
 import type { TiffCropPreset, TiffScandataFile, TiffCropStep } from "../../types/tiff";
 import { GENRE_LABELS, JSON_BASE_PATH } from "../../types/tiff";
+import { TiffPartialBlurModal } from "./TiffPartialBlurModal";
 
 const ASPECT_W = 640;
 const ASPECT_H = 909;
@@ -35,10 +37,94 @@ export function TiffCropSidePanel() {
   const resetCropEditor = useTiffStore((s) => s.resetCropEditor);
 
 
+  const psdFiles = usePsdStore((s) => s.files);
+  const referenceFileIndex = useTiffStore((s) => s.referenceFileIndex);
+  const partialBlurEntries = useTiffStore((s) => s.settings.partialBlurEntries);
+  const blurEnabled = useTiffStore((s) => s.settings.blur.enabled);
+
+  const [showPartialBlurModal, setShowPartialBlurModal] = useState(false);
+
   // ガイドの水平・垂直本数
   const hGuideCount = cropGuides.filter((g) => g.direction === "horizontal").length;
   const vGuideCount = cropGuides.filter((g) => g.direction === "vertical").length;
   const canApplyGuides = hGuideCount >= 2 && vGuideCount >= 2;
+
+  // PSD埋め込みガイドの有無チェック（基準ファイル → 全ファイルからフォールバック）
+  const refIdx = Math.max(0, Math.min(referenceFileIndex - 1, psdFiles.length - 1));
+  const refFile = psdFiles[refIdx] || null;
+
+  // 基準ファイルのガイドを優先、なければ全ファイルからガイド付きを探す
+  const guideSource = useMemo(() => {
+    if (refFile?.metadata?.guides && refFile.metadata.guides.length >= 2) {
+      return refFile;
+    }
+    return psdFiles.find((f) => f.metadata?.guides && f.metadata.guides.length >= 2) || null;
+  }, [refFile, psdFiles]);
+
+  const psdGuides = guideSource?.metadata?.guides;
+  const hasPsdGuides = !!(psdGuides && psdGuides.length >= 2);
+
+  // デバッグ: ガイド検出状況をログ出力
+  useEffect(() => {
+    if (psdFiles.length > 0) {
+      const guideCounts = psdFiles.map((f) => ({
+        name: f.fileName,
+        hasMetadata: !!f.metadata,
+        hasGuides: !!f.metadata?.hasGuides,
+        guideCount: f.metadata?.guides?.length ?? 0,
+        guides: f.metadata?.guides ?? [],
+      }));
+      console.log("[TiffCropSidePanel] PSD Guide Debug:", {
+        totalFiles: psdFiles.length,
+        refIdx,
+        referenceFileIndex,
+        hasPsdGuides,
+        guideSource: guideSource?.fileName ?? "none",
+        guideCounts,
+      });
+    }
+  }, [psdFiles, refIdx, referenceFileIndex, hasPsdGuides, guideSource]);
+
+  // PSDガイドから自動範囲設定（縦ガイドのみでも動作）
+  const handleAutoGuideSelect = useCallback(() => {
+    if (!psdGuides || !guideSource?.metadata) return;
+    const docWidth = guideSource.metadata.width ?? 0;
+    const docHeight = guideSource.metadata.height ?? 0;
+    if (!docWidth || !docHeight) return;
+
+    const hPositions = psdGuides
+      .filter((g) => g.direction === "horizontal")
+      .map((g) => g.position);
+    const vPositions = psdGuides
+      .filter((g) => g.direction === "vertical")
+      .map((g) => g.position);
+
+    // tachimi準拠: ドキュメント中心±1pxのガイドを除外し、最適範囲を算出
+    const getOptimalRange = (positions: number[], docSize: number): [number, number] | null => {
+      const center = docSize / 2;
+      const filtered = positions.filter((p) => Math.abs(p - center) > 1);
+      const sorted = [...new Set(filtered.map((p) => Math.round(p)))].sort((a, b) => a - b);
+      if (sorted.length < 2) return null;
+      return [sorted[0], sorted[sorted.length - 1]];
+    };
+
+    const hRange = getOptimalRange(hPositions, docHeight);
+    const vRange = getOptimalRange(vPositions, docWidth);
+
+    // 縦ガイドのみの場合: 水平方向はドキュメント全体を使用
+    if (!vRange && !hRange) {
+      alert("ガイド線が不足しています（中心以外に2本以上必要）");
+      return;
+    }
+
+    pushCropHistory();
+    setCropBounds({
+      left: vRange ? vRange[0] : 0,
+      top: hRange ? hRange[0] : 0,
+      right: vRange ? vRange[1] : docWidth,
+      bottom: hRange ? hRange[1] : docHeight,
+    });
+  }, [psdGuides, guideSource, pushCropHistory, setCropBounds]);
 
   // 比率検証
   const ratioValid = useMemo(() => {
@@ -149,43 +235,43 @@ export function TiffCropSidePanel() {
             )}
           </div>
           {cropBounds ? (
-            <div className="space-y-2">
-              <div className="grid grid-cols-2 gap-1.5">
-                <BoundsInput label="L" value={cropBounds.left} onChange={(v) => {
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-text-muted">
+                サイズ: <span className="font-mono text-accent-warm">{cropBounds.right - cropBounds.left} x {cropBounds.bottom - cropBounds.top}</span>
+              </span>
+              <button
+                onClick={() => {
                   pushCropHistory();
-                  setCropBounds({ ...cropBounds, left: v });
-                }} />
-                <BoundsInput label="T" value={cropBounds.top} onChange={(v) => {
-                  pushCropHistory();
-                  setCropBounds({ ...cropBounds, top: v });
-                }} />
-                <BoundsInput label="R" value={cropBounds.right} onChange={(v) => {
-                  pushCropHistory();
-                  setCropBounds({ ...cropBounds, right: v });
-                }} />
-                <BoundsInput label="B" value={cropBounds.bottom} onChange={(v) => {
-                  pushCropHistory();
-                  setCropBounds({ ...cropBounds, bottom: v });
-                }} />
-              </div>
-              <div className="flex items-center justify-between text-[10px]">
-                <span className="text-text-muted">
-                  サイズ: <span className="font-mono text-accent-warm">{cropBounds.right - cropBounds.left} x {cropBounds.bottom - cropBounds.top}</span>
-                </span>
-                <button
-                  onClick={() => {
-                    pushCropHistory();
-                    setCropBounds(null);
-                    setCropStep("select");
-                  }}
-                  className="text-text-muted hover:text-error transition-colors"
-                >
-                  クリア
-                </button>
-              </div>
+                  setCropBounds(null);
+                  setCropStep("select");
+                }}
+                className="text-text-muted hover:text-error transition-colors"
+              >
+                クリア
+              </button>
             </div>
           ) : (
             <p className="text-xs text-text-muted/60 px-1">範囲未設定</p>
+          )}
+
+          {/* PSD Guide Auto-Select — 常時表示、ガイド未検出時はdisabled */}
+          {psdFiles.length > 0 && (
+            <button
+              onClick={handleAutoGuideSelect}
+              disabled={!hasPsdGuides}
+              className={`w-full mt-2 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                hasPsdGuides
+                  ? "text-accent-secondary bg-accent-secondary/10 border border-accent-secondary/30 hover:bg-accent-secondary/20"
+                  : "text-text-muted/50 bg-bg-tertiary border border-transparent cursor-not-allowed"
+              }`}
+            >
+              PSDガイドから自動設定
+              {hasPsdGuides ? (
+                <span className="ml-1 text-[10px] text-text-muted">({psdGuides!.length}本)</span>
+              ) : (
+                <span className="ml-1 text-[10px] text-text-muted/40">（ガイド未検出）</span>
+              )}
+            </button>
           )}
         </div>
 
@@ -245,6 +331,30 @@ export function TiffCropSidePanel() {
           </div>
         )}
       </div>
+
+      {/* Partial Blur Section */}
+      {blurEnabled && (
+        <div className="px-3 pb-2">
+          <button
+            onClick={() => setShowPartialBlurModal(true)}
+            className="w-full px-3 py-2 text-xs font-medium text-accent-secondary bg-accent-secondary/10 border border-accent-secondary/30 rounded-lg hover:bg-accent-secondary/20 transition-colors flex items-center justify-center gap-1.5"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+            </svg>
+            部分ぼかし設定
+            {partialBlurEntries.length > 0 && (
+              <span className="ml-1 px-1.5 py-0.5 text-[10px] bg-accent-secondary/20 rounded-full">
+                {partialBlurEntries.length}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+
+      {showPartialBlurModal && (
+        <TiffPartialBlurModal onClose={() => setShowPartialBlurModal(false)} />
+      )}
 
       {/* Action Bar */}
       <div className="p-3 border-t border-border space-y-2">
@@ -350,20 +460,6 @@ function CropHintText({
   );
 }
 
-function BoundsInput({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[10px] text-text-muted font-medium w-3">{label}</span>
-      <input
-        type="number"
-        value={value}
-        onChange={(e) => onChange(parseInt(e.target.value) || 0)}
-        className="flex-1 px-2 py-1 text-xs font-mono bg-bg-elevated border border-border/50 rounded-lg text-text-primary focus:outline-none focus:border-accent-warm/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-      />
-    </div>
-  );
-}
-
 // ============================================================
 // JSON Inline Sections
 // ============================================================
@@ -448,9 +544,8 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
       const data: TiffScandataFile = JSON.parse(content);
       if (data.presetData?.selectionRanges && data.presetData.selectionRanges.length > 0) {
         setPresets(data.presetData.selectionRanges);
-      } else {
-        setError("有効なプリセットが見つかりません");
       }
+      // プリセットがなくてもエラーにしない（JSONパス選択として有効）
     } catch {
       setError("JSONの読み込みに失敗しました");
     }
@@ -478,14 +573,24 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // 検索結果クリック → JSONファイル読み込み
-  const handleSearchSelect = useCallback((result: { path: string }) => {
-    const dirPath = result.path.replace(/[\\/][^\\/]+$/, "");
-    const fileName = result.path.split(/[\\/]/).pop() || "";
-    handleSelectFile(dirPath, fileName);
+  // 検索結果クリック → JSONファイル読み込みまたはフォルダ移動
+  const handleSearchSelect = useCallback(async (result: { path: string }) => {
+    const resultPath = result.path.replace(/\\/g, "/");
     setSearchQuery("");
     setIsSearchMode(false);
-  }, [handleSelectFile]);
+
+    if (resultPath.toLowerCase().endsWith(".json")) {
+      // JSONファイルパス → 直接読み込み
+      const dirPath = resultPath.replace(/\/[^/]+$/, "");
+      const fileName = resultPath.split("/").pop() || "";
+      handleSelectFile(dirPath, fileName);
+    } else {
+      // フォルダパス → そのフォルダに移動
+      setPathHistory((prev) => [...prev, currentPath]);
+      setCurrentPath(resultPath);
+      loadContents(resultPath);
+    }
+  }, [handleSelectFile, currentPath, loadContents]);
 
   // パス表示（ベースパスからの相対）
   const displayPath = useMemo(() => {
@@ -561,21 +666,30 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
                 {searchQuery.trim() ? "見つかりませんでした" : "検索中..."}
               </div>
             ) : (
-              searchResults.map((result, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSearchSelect(result)}
-                  className="w-full text-left px-4 py-2.5 text-xs transition-colors border-b border-border/30 last:border-b-0 flex items-center gap-2.5 text-text-secondary hover:bg-bg-tertiary"
-                >
-                  <svg className="w-4 h-4 flex-shrink-0 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  <div className="truncate">
-                    <span className="text-[9px] text-accent-warm/70 mr-1.5">{result.label}</span>
-                    <span>{result.title}</span>
-                  </div>
-                </button>
-              ))
+              searchResults.map((result, i) => {
+                const isJsonFile = result.path.toLowerCase().endsWith(".json");
+                return (
+                  <button
+                    key={i}
+                    onClick={() => handleSearchSelect(result)}
+                    className="w-full text-left px-4 py-2.5 text-xs transition-colors border-b border-border/30 last:border-b-0 flex items-center gap-2.5 text-text-secondary hover:bg-bg-tertiary"
+                  >
+                    {isJsonFile ? (
+                      <svg className="w-4 h-4 flex-shrink-0 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4 flex-shrink-0 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                      </svg>
+                    )}
+                    <div className="truncate">
+                      <span className="text-[9px] text-accent-warm/70 mr-1.5">{result.label}</span>
+                      <span>{result.title}</span>
+                    </div>
+                  </button>
+                );
+              })
             )
           ) : loading ? (
             <div className="px-4 py-8 text-center text-xs text-text-muted">読み込み中...</div>
@@ -625,28 +739,48 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
         )}
 
         {/* Preset list */}
-        {presets.length > 0 && (
+        {/* Preset list or empty JSON select */}
+        {selectedFile && (
           <div className="px-5 py-2 border-t border-border/50 space-y-1 max-h-48 overflow-auto">
-            <label className="text-[10px] text-text-muted block">プリセット ({presets.length})</label>
-            {presets.map((preset, i) => (
-              <button
-                key={i}
-                onClick={() => { onLoad(preset, selectedFile ? `${currentPath}/${selectedFile}` : undefined); onClose(); }}
-                className="w-full text-left px-3 py-2.5 bg-bg-tertiary rounded-lg hover:bg-accent-warm/10 border border-transparent hover:border-accent-warm/30 transition-all group"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-text-primary font-medium truncate">{preset.label}</span>
-                  <svg className="w-4 h-4 text-text-muted group-hover:text-accent-warm transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                </div>
-                <div className="flex gap-3 text-[9px] text-text-muted mt-0.5">
-                  <span>doc: {preset.documentSize?.width}x{preset.documentSize?.height}</span>
-                  {preset.size && <span>range: {preset.size.width}x{preset.size.height}</span>}
-                  {preset.savedAt && <span>{new Date(preset.savedAt).toLocaleDateString()}</span>}
-                </div>
-              </button>
-            ))}
+            {presets.length > 0 ? (
+              <>
+                <label className="text-[10px] text-text-muted block">プリセット ({presets.length})</label>
+                {presets.map((preset, i) => (
+                  <button
+                    key={i}
+                    onClick={() => { onLoad(preset, selectedFile ? `${currentPath}/${selectedFile}` : undefined); onClose(); }}
+                    className="w-full text-left px-3 py-2.5 bg-bg-tertiary rounded-lg hover:bg-accent-warm/10 border border-transparent hover:border-accent-warm/30 transition-all group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-text-primary font-medium truncate">{preset.label}</span>
+                      <svg className="w-4 h-4 text-text-muted group-hover:text-accent-warm transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      </svg>
+                    </div>
+                    <div className="flex gap-3 text-[9px] text-text-muted mt-0.5">
+                      <span>doc: {preset.documentSize?.width}x{preset.documentSize?.height}</span>
+                      {preset.size && <span>range: {preset.size.width}x{preset.size.height}</span>}
+                      {preset.blurRadius !== undefined && <span>blur: {preset.blurRadius}px</span>}
+                      {preset.savedAt && <span>{new Date(preset.savedAt).toLocaleDateString()}</span>}
+                    </div>
+                  </button>
+                ))}
+              </>
+            ) : (
+              <div className="text-center py-2">
+                <p className="text-[10px] text-text-muted mb-2">範囲プリセットなし</p>
+                <button
+                  onClick={() => {
+                    // プリセットなしでもJSONパスだけ保存して閉じる
+                    onLoad({ label: "", units: "px", bounds: { left: 0, top: 0, right: 0, bottom: 0 }, size: { width: 0, height: 0 }, documentSize: { width: 0, height: 0 }, savedAt: "" }, `${currentPath}/${selectedFile}`);
+                    onClose();
+                  }}
+                  className="px-3 py-1.5 text-[11px] font-medium rounded-lg text-accent-secondary bg-accent-secondary/10 border border-accent-secondary/30 hover:bg-accent-secondary/20 transition-colors"
+                >
+                  このJSONを保存先に選択
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -668,6 +802,7 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
 export function CropJsonRegisterDialog({ onClose }: { onClose: () => void }) {
   const cropBounds = useTiffStore((s) => s.settings.crop.bounds);
   const referenceImageSize = useTiffStore((s) => s.referenceImageSize);
+  const blurSettings = useTiffStore((s) => s.settings.blur);
 
   const genres = Object.keys(GENRE_LABELS);
   const [selectedGenre, setSelectedGenre] = useState(genres[0]);
@@ -684,16 +819,18 @@ export function CropJsonRegisterDialog({ onClose }: { onClose: () => void }) {
     setSelectedLabel(labels[0] || "");
   }, [selectedGenre]);
 
-  // Tachimiと同じラベル自動生成: "基本範囲_{width}x{height}"
+  // 参考スクリプト互換ラベル: "基本範囲_ぼかし半径px_キャンバスサイズ"
+  const effectiveBlurRadius = blurSettings.enabled ? blurSettings.radius : 0;
   const fullRangeLabel = useMemo(() => {
     const prefix = rangeLabel.trim() || "基本範囲";
+    const blurSuffix = `_${effectiveBlurRadius}px`;
     if (referenceImageSize) {
-      return `${prefix}_${referenceImageSize.width}x${referenceImageSize.height}`;
+      return `${prefix}${blurSuffix}_${referenceImageSize.width}x${referenceImageSize.height}`;
     }
-    return prefix;
-  }, [rangeLabel, referenceImageSize]);
+    return `${prefix}${blurSuffix}`;
+  }, [rangeLabel, referenceImageSize, effectiveBlurRadius]);
 
-  // 現在の選択範囲からプリセットデータを作成（Tachimi getCurrentSelectionData互換）
+  // 現在の選択範囲からプリセットデータを作成（参考スクリプト互換）
   const currentSelectionData = useMemo(() => {
     if (!cropBounds || !referenceImageSize) return null;
     return {
@@ -705,9 +842,10 @@ export function CropJsonRegisterDialog({ onClose }: { onClose: () => void }) {
         height: cropBounds.bottom - cropBounds.top,
       },
       documentSize: { ...referenceImageSize },
+      blurRadius: effectiveBlurRadius,
       savedAt: new Date().toISOString(),
     };
-  }, [cropBounds, referenceImageSize, fullRangeLabel]);
+  }, [cropBounds, referenceImageSize, fullRangeLabel, effectiveBlurRadius]);
 
   const handleCreate = useCallback(async () => {
     if (!title.trim() || !selectedLabel) return;
@@ -718,43 +856,63 @@ export function CropJsonRegisterDialog({ onClose }: { onClose: () => void }) {
       const fileName = `${safeTitle}.json`;
       const filePath = `${JSON_BASE_PATH}/${selectedLabel}/${fileName}`;
 
-      // 既存ファイルチェック
+      // 参考スクリプト互換: 同名ラベル上書き + Scandata連動
+      const addRangeToData = (data: TiffScandataFile) => {
+        if (!data.presetData) {
+          data.presetData = { workInfo: { genre: selectedGenre, label: selectedLabel, title: title.trim() }, selectionRanges: [] };
+        }
+        if (!data.presetData.selectionRanges) {
+          data.presetData.selectionRanges = [];
+        }
+        if (currentSelectionData) {
+          // 同名ラベルを全て削除してから追加（上書き）
+          data.presetData.selectionRanges = data.presetData.selectionRanges.filter(
+            (r) => r.label !== currentSelectionData.label,
+          );
+          data.presetData.selectionRanges.push(currentSelectionData);
+        }
+        return data;
+      };
+
       const fileExists = await invoke<boolean>("path_exists", { path: filePath });
       if (fileExists) {
-        // Tachimiと同じ: 既存ファイルにプリセットを追加
-        if (currentSelectionData) {
-          try {
-            const content = await invoke<string>("read_text_file", { filePath });
-            const existingData = JSON.parse(content) as TiffScandataFile;
-            if (!existingData.presetData) {
-              existingData.presetData = { workInfo: { genre: selectedGenre, label: selectedLabel, title: title.trim() }, selectionRanges: [] };
-            }
-            if (!existingData.presetData.selectionRanges) {
-              existingData.presetData.selectionRanges = [];
-            }
-            existingData.presetData.selectionRanges.push(currentSelectionData);
-            await invoke("write_text_file", { filePath, content: JSON.stringify(existingData, null, 4) });
-            setSuccess(true);
-            setTimeout(() => onClose(), 1200);
-          } catch {
-            setError("既存ファイルへの追加に失敗しました");
+        try {
+          const content = await invoke<string>("read_text_file", { filePath });
+          let existingData = JSON.parse(content) as TiffScandataFile;
+          existingData = addRangeToData(existingData);
+          await invoke("write_text_file", { filePath, content: JSON.stringify(existingData, null, 4) });
+
+          // Scandata連動保存
+          const saveDataPath = existingData.presetData?.saveDataPath || (existingData as Record<string, unknown>).saveDataPath;
+          if (saveDataPath && currentSelectionData) {
+            try {
+              const sdContent = await invoke<string>("read_text_file", { filePath: saveDataPath as string });
+              let sdData = JSON.parse(sdContent) as TiffScandataFile;
+              sdData = addRangeToData(sdData);
+              await invoke("write_text_file", { filePath: saveDataPath as string, content: JSON.stringify(sdData, null, 4) });
+            } catch { /* Scandata保存エラーは無視 */ }
           }
-        } else {
-          setError("同名のファイルが既に存在します（選択範囲なし）");
+
+          useTiffStore.getState().setCropSourceJsonPath(filePath);
+          setSuccess(true);
+          setTimeout(() => onClose(), 1200);
+        } catch {
+          setError("既存ファイルへの追加に失敗しました");
         }
         setCreating(false);
         return;
       }
 
-      // 新規作成（Tachimi互換構造）
-      const newData: TiffScandataFile = {
+      // 新規作成（参考スクリプト互換構造）
+      const newData: TiffScandataFile = addRangeToData({
         presetData: {
           workInfo: { genre: selectedGenre, label: selectedLabel, title: title.trim() },
-          selectionRanges: currentSelectionData ? [currentSelectionData] : [],
+          selectionRanges: [],
           createdAt: new Date().toISOString(),
         },
-      };
+      });
       await invoke("write_text_file", { filePath, content: JSON.stringify(newData, null, 4) });
+      useTiffStore.getState().setCropSourceJsonPath(filePath);
       setSuccess(true);
       setTimeout(() => onClose(), 1200);
     } catch {

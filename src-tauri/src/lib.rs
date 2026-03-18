@@ -51,6 +51,7 @@ pub fn run() {
             commands::run_photoshop_tiff_convert,
             commands::launch_kenban_diff,
             commands::launch_tachimi,
+            commands::launch_progen,
             commands::resolve_font_names,
             commands::search_font_names,
             commands::list_font_folder_contents,
@@ -66,6 +67,7 @@ pub fn run() {
             commands::start_file_watcher,
             commands::stop_file_watcher,
             commands::invalidate_file_cache,
+            commands::check_handoff,
         ])
         .setup(|app| {
             // CLI引数から校正データJSONパスを検出してフロントエンドに通知

@@ -10,6 +10,7 @@ import { useGuideStore } from "../../store/guideStore";
 import { useGlobalDragDrop } from "../../hooks/useGlobalDragDrop";
 import { useOpenFolderShortcut } from "../../hooks/useOpenFolder";
 import { useFileWatcher } from "../../hooks/useFileWatcher";
+import { useHandoff } from "../../hooks/useHandoff";
 
 export function AppLayout() {
   const isEditorOpen = useGuideStore((state) => state.isEditorOpen);
@@ -25,6 +26,9 @@ export function AppLayout() {
 
   // ファイル変更検知（外部Photoshop保存を検知）
   useFileWatcher();
+
+  // Photoshop UXPプラグインからのハンドオフ検出
+  useHandoff();
 
   // Ctrl+A で全選択
   useEffect(() => {

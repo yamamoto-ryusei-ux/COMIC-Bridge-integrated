@@ -1,13 +1,15 @@
-import { useState, useMemo, useCallback, type ReactNode } from "react";
+import { useState, useMemo, useCallback, useEffect, type ReactNode } from "react";
 import { usePsdStore } from "../../store/psdStore";
 import { useTiffStore } from "../../store/tiffStore";
 import { TiffResultDialog } from "./TiffResultDialog";
 import { TiffPartialBlurModal } from "./TiffPartialBlurModal";
 import { TiffPageRulesEditor } from "./TiffPageRulesEditor";
 import { TiffAutoScanDialog } from "./TiffAutoScanDialog";
+import { CropJsonLoadDialog } from "./TiffCropSidePanel";
 import { useTiffProcessor } from "../../hooks/useTiffProcessor";
-import { usePsdLoader } from "../../hooks/usePsdLoader";
-import type { TiffColorMode } from "../../types/tiff";
+import { useCanvasSizeCheck } from "../../hooks/useCanvasSizeCheck";
+import type { TiffColorMode, TiffCropPreset } from "../../types/tiff";
+import type { LayerNode } from "../../types";
 
 const ASPECT_W = 640;
 const ASPECT_H = 909;
@@ -41,7 +43,7 @@ function Section({ id, title, badge, openSections, toggle, children }: {
   );
 }
 
-const DEFAULT_OPEN = new Set(["output", "color", "blur", "crop", "subfolder", "outputDir"]);
+const DEFAULT_OPEN = new Set(["output", "colorBlur", "cropResize", "renameOutput"]);
 
 export function TiffSettingsPanel() {
   const files = usePsdStore((state) => state.files);
@@ -58,6 +60,7 @@ export function TiffSettingsPanel() {
   const results = useTiffStore((state) => state.results);
   const setShowResultDialog = useTiffStore((state) => state.setShowResultDialog);
   const partialBlurEntries = useTiffStore((state) => state.settings.partialBlurEntries);
+  const resizeLocked = useTiffStore((state) => state.resizeLocked);
 
   // Crop
   const cropBounds = useTiffStore((s) => s.settings.crop.bounds);
@@ -76,13 +79,18 @@ export function TiffSettingsPanel() {
   const setCropStep = useTiffStore((s) => s.setCropStep);
 
   const { convertSelectedFiles, convertAllFiles } = useTiffProcessor();
-  const { loadFolderWithSubfolders, loadFiles } = usePsdLoader();
-  const droppedFolderPaths = usePsdStore((state) => state.droppedFolderPaths);
 
   const hasResults = results.length > 0;
   const [showPartialBlurModal, setShowPartialBlurModal] = useState(false);
   const [showPageRulesEditor, setShowPageRulesEditor] = useState(false);
   const [showAutoScanDialog, setShowAutoScanDialog] = useState<"selected" | "all" | null>(null);
+  const [showJsonLoadDialog, setShowJsonLoadDialog] = useState(false);
+  const [blurDiffConfirm, setBlurDiffConfirm] = useState<{ preset: TiffCropPreset; jsonPath?: string; jsonBlur: number; currentBlur: number } | null>(null);
+  const [canvasMismatch, setCanvasMismatch] = useState<{ preset: TiffCropPreset; jsonPath?: string; jsonSize: { width: number; height: number }; psdSize: { width: number; height: number } } | null>(null);
+
+  const cropSourceJsonPath = useTiffStore((s) => s.cropSourceJsonPath);
+  const loadCropPreset = useTiffStore((s) => s.loadCropPreset);
+  const canvasSizeInfo = useCanvasSizeCheck();
 
   // Accordion
   const [openSections, setOpenSections] = useState<Set<string>>(() => new Set(DEFAULT_OPEN));
@@ -112,6 +120,75 @@ export function TiffSettingsPanel() {
   const hGuideCount = cropGuides.filter((g) => g.direction === "horizontal").length;
   const vGuideCount = cropGuides.filter((g) => g.direction === "vertical").length;
   const canApplyGuides = hGuideCount >= 2 && vGuideCount >= 2;
+
+  // PSD埋め込みガイドから自動範囲設定
+  const referenceFileIndex = useTiffStore((s) => s.referenceFileIndex);
+  const refIdx = Math.max(0, Math.min(referenceFileIndex - 1, files.length - 1));
+  const refFile = files[refIdx] || null;
+
+  const guideSource = useMemo(() => {
+    if (refFile?.metadata?.guides && refFile.metadata.guides.length >= 2) return refFile;
+    return files.find((f) => f.metadata?.guides && f.metadata.guides.length >= 2) || null;
+  }, [refFile, files]);
+
+  const psdGuides = guideSource?.metadata?.guides;
+  const hasPsdGuides = !!(psdGuides && psdGuides.length >= 2);
+
+  // デバッグ: ガイド検出状況
+  useEffect(() => {
+    if (files.length > 0) {
+      console.log("[TiffSettingsPanel] PSD Guide Debug:", {
+        totalFiles: files.length,
+        refIdx, referenceFileIndex, hasPsdGuides,
+        guideSource: guideSource?.fileName ?? "none",
+        fileSamples: files.slice(0, 3).map((f) => ({
+          name: f.fileName, hasMetadata: !!f.metadata,
+          hasGuides: !!f.metadata?.hasGuides,
+          guideCount: f.metadata?.guides?.length ?? 0,
+        })),
+      });
+    }
+  }, [files, refIdx, referenceFileIndex, hasPsdGuides, guideSource]);
+
+  const handleAutoGuideSelect = useCallback(() => {
+    if (!psdGuides || !guideSource?.metadata) return;
+    const docWidth = guideSource.metadata.width ?? 0;
+    const docHeight = guideSource.metadata.height ?? 0;
+    if (!docWidth || !docHeight) return;
+
+    const hPositions = psdGuides.filter((g) => g.direction === "horizontal").map((g) => g.position);
+    const vPositions = psdGuides.filter((g) => g.direction === "vertical").map((g) => g.position);
+
+    const getOptimalRange = (positions: number[], docSize: number): [number, number] | null => {
+      const center = docSize / 2;
+      const filtered = positions.filter((p) => Math.abs(p - center) > 1);
+      const sorted = [...new Set(filtered.map((p) => Math.round(p)))].sort((a, b) => a - b);
+      if (sorted.length < 2) return null;
+      // 二重ガイド（4本以上）の場合は内側のペアを採用
+      if (sorted.length >= 4) {
+        return [sorted[1], sorted[sorted.length - 2]];
+      }
+      return [sorted[0], sorted[sorted.length - 1]];
+    };
+
+    const hRange = getOptimalRange(hPositions, docHeight);
+    const vRange = getOptimalRange(vPositions, docWidth);
+
+    if (!vRange && !hRange) return;
+
+    let left = vRange ? vRange[0] : 0;
+    let top = hRange ? hRange[0] : 0;
+    let right = vRange ? vRange[1] : docWidth;
+    let bottom = hRange ? hRange[1] : docHeight;
+
+    // 640:909アスペクト比に調整（縦を維持、左上基点で横幅を調整）
+    const height = bottom - top;
+    const targetWidth = Math.round(height * (ASPECT_W / ASPECT_H));
+    right = left + targetWidth;
+
+    pushCropHistory();
+    setCropBounds({ left, top, right, bottom });
+  }, [psdGuides, guideSource, pushCropHistory, setCropBounds]);
 
   const colorModes: { mode: TiffColorMode; label: string }[] = [
     { mode: "mono", label: "モノクロ" },
@@ -174,14 +251,22 @@ export function TiffSettingsPanel() {
           </div>
         </Section>
 
-        {/* ===== カラーモード ===== */}
-        <Section id="color" title="カラーモード" openSections={openSections} toggle={toggle}
+        {/* ===== カラーモード・ガウスぼかし ===== */}
+        <Section id="colorBlur" title="カラーモード・ぼかし" openSections={openSections} toggle={toggle}
           badge={
-            <span className="text-[10px] text-text-muted mr-1">
-              {settings.colorMode === "mono" ? "モノクロ" : settings.colorMode === "color" ? "カラー" : settings.colorMode === "perPage" ? "個別" : "維持"}
-            </span>
+            <div className="flex items-center gap-1.5 mr-1">
+              <span className="text-[10px] text-text-muted">
+                {settings.colorMode === "mono" ? "モノクロ" : settings.colorMode === "color" ? "カラー" : settings.colorMode === "perPage" ? "個別" : "維持"}
+              </span>
+              <span className="text-[10px] text-text-muted/40">|</span>
+              <span className={`text-[10px] ${settings.blur.enabled ? "text-accent-warm" : "text-text-muted"}`}>
+                {settings.blur.enabled ? `blur ${settings.blur.radius}px` : "blur OFF"}
+              </span>
+            </div>
           }
         >
+          {/* カラーモード */}
+          <label className="text-[10px] font-medium text-text-muted block mb-1">カラーモード</label>
           <div className="flex gap-0.5 bg-bg-elevated rounded-lg p-0.5">
             {colorModes.map(({ mode, label }) => (
               <button
@@ -199,90 +284,95 @@ export function TiffSettingsPanel() {
               </button>
             ))}
           </div>
-          <p className="text-[10px] text-text-muted mt-1.5 px-0.5">
+          <p className="text-[10px] text-text-muted mt-1 px-0.5">
             {settings.colorMode === "mono" ? "Grayscale に変換 (600 dpi)"
               : settings.colorMode === "color" ? "RGB を維持/変換 (350 dpi)"
               : settings.colorMode === "noChange" ? "カラーモードを維持"
               : "ページ範囲ごとに個別指定"
             }
           </p>
-          {settings.colorMode === "perPage" && (
+
+          {/* 区切り線 */}
+          <div className="my-2.5 border-t border-border/40" />
+
+          {/* ガウスぼかし */}
+          <label className="text-[10px] font-medium text-text-muted block mb-1">ガウスぼかし</label>
+          <div className="flex gap-0.5 bg-bg-elevated rounded-lg p-0.5">
             <button
-              onClick={() => setShowPageRulesEditor(true)}
-              className="mt-2 w-full px-3 py-2 text-xs font-medium text-accent-warm bg-accent-warm/10 border border-accent-warm/30 rounded-lg hover:bg-accent-warm/20 transition-colors"
+              onClick={() => setSettings({ blur: { ...settings.blur, enabled: false } })}
+              className={`
+                flex-1 px-2 py-1.5 text-[11px] rounded-md transition-all duration-200
+                ${!settings.blur.enabled
+                  ? "bg-error/80 text-white shadow-sm font-medium"
+                  : "text-text-secondary hover:text-text-primary"
+                }
+              `}
             >
-              ルールを編集 ({settings.pageRangeRules.length}/3)
+              OFF
             </button>
-          )}
-        </Section>
-
-        {/* ===== ガウスぼかし ===== */}
-        <Section id="blur" title="ガウスぼかし" openSections={openSections} toggle={toggle}
-          badge={
-            <span className={`text-[10px] mr-1 ${settings.blur.enabled ? "text-accent-warm" : "text-text-muted"}`}>
-              {settings.blur.enabled ? `${settings.blur.radius} px` : "OFF"}
-            </span>
-          }
-        >
-          <label className="flex items-center gap-2 cursor-pointer">
+            <button
+              onClick={() => setSettings({ blur: { ...settings.blur, enabled: true } })}
+              className={`
+                flex-1 px-2 py-1.5 text-[11px] rounded-md transition-all duration-200
+                ${settings.blur.enabled
+                  ? "bg-accent-warm text-white shadow-sm font-medium"
+                  : "text-text-secondary hover:text-text-primary"
+                }
+              `}
+            >
+              ON
+            </button>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <label className="text-xs text-text-secondary">半径:</label>
             <input
-              type="checkbox"
-              checked={settings.blur.enabled}
-              onChange={(e) => setSettings({ blur: { ...settings.blur, enabled: e.target.checked } })}
-              className="rounded accent-accent-warm"
+              type="number" min="0" max="100" step="0.1"
+              value={settings.blur.radius}
+              disabled={!settings.blur.enabled}
+              onChange={(e) => setSettings({ blur: { ...settings.blur, radius: parseFloat(e.target.value) || 0 } })}
+              className={`w-20 px-2 py-1.5 text-xs bg-bg-elevated border border-border/50 rounded-lg text-text-primary focus:outline-none focus:border-accent-warm/50 ${!settings.blur.enabled ? "opacity-40 cursor-not-allowed" : ""}`}
             />
-            <span className="text-xs text-text-primary">背景にぼかしを適用</span>
-          </label>
-          {settings.blur.enabled && (
-            <div className="mt-2 space-y-1.5">
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-text-secondary">半径:</label>
-                <input
-                  type="number" min="0" max="100" step="0.1"
-                  value={settings.blur.radius}
-                  onChange={(e) => setSettings({ blur: { ...settings.blur, radius: parseFloat(e.target.value) || 0 } })}
-                  className="w-20 px-2 py-1.5 text-xs bg-bg-elevated border border-border/50 rounded-lg text-text-primary focus:outline-none focus:border-accent-warm/50"
-                />
-                <span className="text-xs text-text-muted">px</span>
-              </div>
-              <button
-                onClick={() => setShowPartialBlurModal(true)}
-                className="w-full px-3 py-1.5 text-xs text-text-secondary bg-bg-elevated border border-border/50 rounded-lg hover:bg-bg-elevated/80 transition-colors"
-              >
-                部分ぼかし設定 {partialBlurEntries.length > 0 && `(${partialBlurEntries.length}ページ)`}
-              </button>
-            </div>
-          )}
+            <span className={`text-xs text-text-muted ${!settings.blur.enabled ? "opacity-40" : ""}`}>px</span>
+          </div>
+
+          {/* ルールを編集（最下位・常時表示） */}
+          <button
+            onClick={() => setShowPageRulesEditor(true)}
+            className="mt-2.5 w-full px-3 py-2 text-xs font-medium text-accent-warm bg-accent-warm/10 border border-accent-warm/30 rounded-lg hover:bg-accent-warm/20 transition-colors"
+          >
+            ルールを編集
+            {settings.colorMode === "perPage" && ` (${settings.pageRangeRules.length}/3)`}
+            {partialBlurEntries.length > 0 && ` ・部分ぼかし ${partialBlurEntries.length}P`}
+          </button>
         </Section>
 
-        {/* ===== クロップ ===== */}
-        <Section id="crop" title="クロップ範囲" openSections={openSections} toggle={toggle}
+        {/* ===== クロップ・リサイズ ===== */}
+        <Section id="cropResize" title="クロップ・リサイズ" openSections={openSections} toggle={toggle}
           badge={
             <div className="flex items-center gap-1 mr-1" onClick={(e) => e.stopPropagation()}>
-              {settings.crop.enabled && (
-                <>
-                  <button
-                    onClick={undoCropBounds}
-                    disabled={cropHistory.length === 0}
-                    className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="元に戻す (Ctrl+Z)"
-                  >
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={redoCropBounds}
-                    disabled={cropFuture.length === 0}
-                    className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="やり直す (Ctrl+Y)"
-                  >
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 10H11a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
-                    </svg>
-                  </button>
-                </>
-              )}
+              <span className="text-[10px] text-accent-warm font-medium">{dpiDisplay}</span>
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={undoCropBounds}
+                className={`p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors ${cropHistory.length === 0 ? "opacity-30 cursor-not-allowed pointer-events-none" : ""}`}
+                title="元に戻す (Ctrl+Z)"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                </svg>
+              </div>
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={redoCropBounds}
+                className={`p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-bg-elevated transition-colors ${cropFuture.length === 0 ? "opacity-30 cursor-not-allowed pointer-events-none" : ""}`}
+                title="やり直す (Ctrl+Y)"
+              >
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 10H11a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+                </svg>
+              </div>
             </div>
           }
         >
@@ -298,13 +388,82 @@ export function TiffSettingsPanel() {
               <span className="text-[10px] text-text-muted ml-auto">比率 {settings.crop.aspectRatio.w}:{settings.crop.aspectRatio.h}</span>
             </label>
 
-            {settings.crop.enabled && (
-              <>
+            <>
+                {/* 原稿サイズ一覧 */}
+                {canvasSizeInfo.totalChecked > 0 && (() => {
+                  const jsonDocSize = useTiffStore.getState().cropSourceDocumentSize;
+                  const jsonSizeStr = jsonDocSize ? `${jsonDocSize.width}×${jsonDocSize.height}` : null;
+                  const hasJsonMismatch = jsonSizeStr && jsonSizeStr !== canvasSizeInfo.majoritySize;
+                  return (
+                    <div className="px-2 py-1.5 bg-bg-elevated rounded-lg text-[10px]">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-text-muted font-medium">原稿サイズ</span>
+                        {(canvasSizeInfo.outlierFileIds.size > 0 || hasJsonMismatch) && (
+                          <span className="px-1.5 py-0.5 rounded bg-warning/10 text-warning text-[9px] font-medium">
+                            {hasJsonMismatch ? "JSON不一致" : `${canvasSizeInfo.outlierFileIds.size}件 サイズ違い`}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* JSONのdocumentSize表示 */}
+                      {jsonDocSize && (
+                        <div className={`flex items-center gap-2 py-0.5 mb-1 px-1.5 rounded ${hasJsonMismatch ? "bg-warning/10" : "bg-success/5"}`}>
+                          <span className="text-[9px] text-text-muted">JSON:</span>
+                          <span className={`font-mono ${hasJsonMismatch ? "text-warning" : "text-success"}`}>
+                            {jsonDocSize.width}×{jsonDocSize.height}
+                          </span>
+                          {hasJsonMismatch && <span className="text-[8px] text-warning">≠ PSD</span>}
+                          {!hasJsonMismatch && <span className="text-[8px] text-success">一致</span>}
+                        </div>
+                      )}
+
+                      {[...canvasSizeInfo.sizeGroups.entries()].map(([size, ids]) => {
+                        const isMajority = size === canvasSizeInfo.majoritySize;
+                        const matchesJson = size === jsonSizeStr;
+                        return (
+                          <div key={size} className={`flex items-center gap-2 py-0.5 ${isMajority ? "" : "text-warning"}`}>
+                            <span className="font-mono text-text-primary">{size}</span>
+                            <span className="text-text-muted">({ids.length}件)</span>
+                            {isMajority && <span className="text-[8px] text-success">多数派</span>}
+                            {matchesJson && !isMajority && <span className="text-[8px] text-accent-secondary">JSON一致</span>}
+                            {!isMajority && (
+                              <button
+                                onClick={() => {
+                                  for (const id of ids) {
+                                    useTiffStore.getState().toggleFileSkip(id);
+                                  }
+                                }}
+                                className="ml-auto text-[9px] text-text-muted hover:text-warning transition-colors"
+                              >
+                                スキップ切替
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+
+                {/* JSON読込 */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setShowJsonLoadDialog(true)}
+                    className="flex-1 px-2.5 py-1.5 text-[11px] font-medium rounded-lg text-accent-secondary bg-accent-secondary/10 border border-accent-secondary/30 hover:bg-accent-secondary/20 transition-colors"
+                  >
+                    JSONから読込
+                  </button>
+                  {cropSourceJsonPath && (
+                    <span className="text-[9px] text-text-muted truncate max-w-[140px]" title={cropSourceJsonPath}>
+                      {cropSourceJsonPath.split(/[\\/]/).pop()?.replace(/\.json$/, "")}
+                    </span>
+                  )}
+                </div>
+
                 {/* Bounds editing */}
                 {cropBounds ? (
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] text-text-muted font-medium">範囲</span>
                       {ratioValid !== null && (
                         <span className={`px-2 py-0.5 text-[10px] font-medium rounded ${
                           ratioValid ? "bg-success/10 text-success" : "bg-error/10 text-error"
@@ -312,20 +471,12 @@ export function TiffSettingsPanel() {
                           {ratioValid ? "比率OK" : "比率NG"}
                         </span>
                       )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <BoundsField label="L" value={cropBounds.left} onChange={(v) => { pushCropHistory(); setCropBounds({ ...cropBounds, left: v }); }} />
-                      <BoundsField label="T" value={cropBounds.top} onChange={(v) => { pushCropHistory(); setCropBounds({ ...cropBounds, top: v }); }} />
-                      <BoundsField label="R" value={cropBounds.right} onChange={(v) => { pushCropHistory(); setCropBounds({ ...cropBounds, right: v }); }} />
-                      <BoundsField label="B" value={cropBounds.bottom} onChange={(v) => { pushCropHistory(); setCropBounds({ ...cropBounds, bottom: v }); }} />
-                    </div>
-                    <div className="flex items-center justify-between text-[10px]">
-                      <span className="text-text-muted">
+                      <span className="text-[10px] text-text-muted">
                         サイズ: <span className="font-mono text-accent-warm">{cropBounds.right - cropBounds.left} x {cropBounds.bottom - cropBounds.top}</span>
                       </span>
                       <button
                         onClick={() => { pushCropHistory(); setCropBounds(null); setCropStep("select"); }}
-                        className="text-text-muted hover:text-error transition-colors"
+                        className="text-[10px] text-text-muted hover:text-error transition-colors"
                       >
                         クリア
                       </button>
@@ -333,6 +484,26 @@ export function TiffSettingsPanel() {
                   </div>
                 ) : (
                   <p className="text-xs text-text-muted/60 px-1">範囲未設定 — プレビューでクリックして作成</p>
+                )}
+
+                {/* PSD Guide Auto-Select */}
+                {files.length > 0 && (
+                  <button
+                    onClick={handleAutoGuideSelect}
+                    disabled={!hasPsdGuides}
+                    className={`w-full mt-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+                      hasPsdGuides
+                        ? "text-accent-secondary bg-accent-secondary/10 border border-accent-secondary/30 hover:bg-accent-secondary/20"
+                        : "text-text-muted/50 bg-bg-primary border border-transparent cursor-not-allowed"
+                    }`}
+                  >
+                    PSDガイドから自動設定
+                    {hasPsdGuides ? (
+                      <span className="ml-1 text-[10px] text-text-muted">({psdGuides!.length}本)</span>
+                    ) : (
+                      <span className="ml-1 text-[10px] text-text-muted/40">(ガイド未検出)</span>
+                    )}
+                  </button>
                 )}
 
                 {/* Guides */}
@@ -389,106 +560,57 @@ export function TiffSettingsPanel() {
                 )}
 
               </>
-            )}
+
+            {/* ===== リサイズ ===== */}
+            <div className="pt-2 border-t border-border/40">
+              <label className="text-[10px] font-medium text-text-muted block mb-1.5">リサイズ・解像度</label>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="text-[10px] text-text-muted block mb-1">幅 (px)</label>
+                  <input
+                    type="number"
+                    value={settings.resize.targetWidth}
+                    onChange={(e) => setSettings({ resize: { ...settings.resize, targetWidth: parseInt(e.target.value) || 1280 } })}
+                    disabled={resizeLocked}
+                    className={`w-full px-2 py-1.5 text-xs bg-bg-elevated border border-border/50 rounded-lg text-text-primary focus:outline-none focus:border-accent-warm/50 font-mono ${resizeLocked ? "opacity-50 cursor-not-allowed" : ""}`}
+                  />
+                </div>
+                <div className="flex flex-col items-center justify-end gap-0.5 pb-1">
+                  <button
+                    onClick={() => useTiffStore.getState().setResizeLocked(!resizeLocked)}
+                    className={`p-1 rounded-md transition-colors hover:bg-bg-elevated ${resizeLocked ? "text-accent-warm" : "text-text-muted"}`}
+                    title={resizeLocked ? "ロック解除" : "ロック"}
+                  >
+                    {resizeLocked ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
+                    ) : (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                        <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] text-text-muted block mb-1">高さ (px)</label>
+                  <input
+                    type="number"
+                    value={settings.resize.targetHeight}
+                    onChange={(e) => setSettings({ resize: { ...settings.resize, targetHeight: parseInt(e.target.value) || 1818 } })}
+                    disabled={resizeLocked}
+                    className={`w-full px-2 py-1.5 text-xs bg-bg-elevated border border-border/50 rounded-lg text-text-primary focus:outline-none focus:border-accent-warm/50 font-mono ${resizeLocked ? "opacity-50 cursor-not-allowed" : ""}`}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </Section>
 
-        {/* ===== リサイズ ===== */}
-        <Section id="resize" title="リサイズ・解像度" openSections={openSections} toggle={toggle}
-          badge={<span className="text-[10px] text-accent-warm font-medium mr-1">{dpiDisplay}</span>}
-        >
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <label className="text-[10px] text-text-muted block mb-1">幅 (px)</label>
-              <input
-                type="number"
-                value={settings.resize.targetWidth}
-                onChange={(e) => setSettings({ resize: { ...settings.resize, targetWidth: parseInt(e.target.value) || 1280 } })}
-                className="w-full px-2 py-1.5 text-xs bg-bg-elevated border border-border/50 rounded-lg text-text-primary focus:outline-none focus:border-accent-warm/50 font-mono"
-              />
-            </div>
-            <div className="flex items-end pb-1 text-text-muted text-xs">x</div>
-            <div className="flex-1">
-              <label className="text-[10px] text-text-muted block mb-1">高さ (px)</label>
-              <input
-                type="number"
-                value={settings.resize.targetHeight}
-                onChange={(e) => setSettings({ resize: { ...settings.resize, targetHeight: parseInt(e.target.value) || 1818 } })}
-                className="w-full px-2 py-1.5 text-xs bg-bg-elevated border border-border/50 rounded-lg text-text-primary focus:outline-none focus:border-accent-warm/50 font-mono"
-              />
-            </div>
-          </div>
-        </Section>
-
-        {/* ===== テキスト整理 ===== */}
-        <Section id="text" title="テキスト整理" openSections={openSections} toggle={toggle}
-          badge={
-            <span className={`text-[10px] mr-1 ${settings.text.reorganize ? "text-accent-warm" : "text-text-muted"}`}>
-              {settings.text.reorganize ? "ON" : "OFF"}
-            </span>
-          }
-        >
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={settings.text.reorganize}
-              onChange={(e) => setSettings({ text: { ...settings.text, reorganize: e.target.checked } })}
-              className="rounded accent-accent-warm"
-            />
-            <div>
-              <span className="text-xs text-text-primary">テキスト整理を行う</span>
-              <p className="text-[10px] text-text-muted">散在するテキストレイヤーを1グループに統合</p>
-            </div>
-          </label>
-        </Section>
-
-        {/* ===== サブフォルダ ===== */}
-        <Section id="subfolder" title="ファイル読み込み" openSections={openSections} toggle={toggle}
-          badge={
-            <span className={`text-[10px] mr-1 ${settings.includeSubfolders ? "text-accent-warm" : "text-text-muted"}`}>
-              {settings.includeSubfolders ? "サブフォルダ含む" : "ルートのみ"}
-            </span>
-          }
-        >
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={settings.includeSubfolders}
-              onChange={async (e) => {
-                const newVal = e.target.checked;
-                setSettings({ includeSubfolders: newVal });
-                if (droppedFolderPaths.length > 0) {
-                  if (newVal) {
-                    await loadFolderWithSubfolders(droppedFolderPaths);
-                  } else {
-                    const { readDir } = await import("@tauri-apps/plugin-fs");
-                    const { isSupportedFile } = await import("../../types");
-                    const imageFiles: string[] = [];
-                    for (const fp of droppedFolderPaths) {
-                      try {
-                        const entries = await readDir(fp);
-                        for (const entry of entries) {
-                          if (entry.isFile && entry.name && isSupportedFile(entry.name)) {
-                            imageFiles.push(`${fp}\\${entry.name}`);
-                          }
-                        }
-                      } catch { /* ignore */ }
-                    }
-                    if (imageFiles.length > 0) await loadFiles(imageFiles);
-                  }
-                }
-              }}
-              className="rounded accent-accent-warm"
-            />
-            <div>
-              <span className="text-xs text-text-primary">サブフォルダも含める</span>
-              <p className="text-[10px] text-text-muted">親フォルダ内のサブフォルダを1階層まで走査</p>
-            </div>
-          </label>
-        </Section>
-
-        {/* ===== リネーム ===== */}
-        <Section id="rename" title="リネーム設定" openSections={openSections} toggle={toggle}
+        {/* ===== リネーム・出力先 ===== */}
+        <Section id="renameOutput" title="リネーム・出力先" openSections={openSections} toggle={toggle}
           badge={
             <span className="text-[10px] text-text-muted mr-1">
               {settings.rename.keepOriginalName ? "維持" : "リネーム"}
@@ -561,72 +683,77 @@ export function TiffSettingsPanel() {
                 )}
               </>
             )}
-          </div>
-        </Section>
 
-        {/* ===== 出力先・中間PSD ===== */}
-        <Section id="outputDir" title="出力先" openSections={openSections} toggle={toggle}
-          badge={
-            <span className="text-[10px] text-text-muted font-mono mr-1 truncate max-w-[120px]">
-              {settings.output.outputDirectory
-                ? settings.output.outputDirectory.split(/[/\\]/).pop()
-                : "Script_Output"}
-            </span>
-          }
-        >
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5">
-              <div className="flex-1 px-2 py-1 text-xs bg-bg-elevated border border-border/50 rounded-lg text-text-secondary truncate font-mono">
-                {settings.output.outputDirectory
-                  ? settings.output.outputDirectory.split(/[/\\]/).slice(-2).join("/")
-                  : "Desktop/Script_Output"}
-              </div>
-              <button
-                onClick={async () => {
-                  const { open } = await import("@tauri-apps/plugin-dialog");
-                  const dir = await open({ directory: true });
-                  if (dir) setSettings({ output: { ...settings.output, outputDirectory: dir as string } });
-                }}
-                className="px-2 py-1.5 text-xs text-text-secondary bg-bg-elevated border border-border/50 rounded-lg hover:bg-bg-elevated/80 transition-colors flex-shrink-0"
-              >
-                変更
-              </button>
-              {settings.output.outputDirectory && (
+            {/* 出力先 */}
+            <div className="pt-2 border-t border-border/40 space-y-2">
+              <label className="text-[10px] font-medium text-text-muted block">出力先</label>
+              <div className="flex items-center gap-1.5">
+                <div className="flex-1 px-2 py-1 text-xs bg-bg-elevated border border-border/50 rounded-lg text-text-secondary truncate font-mono">
+                  {settings.output.outputDirectory
+                    ? settings.output.outputDirectory.split(/[/\\]/).slice(-2).join("/")
+                    : "Desktop/Script_Output"}
+                </div>
                 <button
-                  onClick={() => setSettings({ output: { ...settings.output, outputDirectory: null } })}
-                  className="text-[10px] text-text-muted hover:text-error transition-colors flex-shrink-0"
+                  onClick={async () => {
+                    const { open } = await import("@tauri-apps/plugin-dialog");
+                    const dir = await open({ directory: true });
+                    if (dir) setSettings({ output: { ...settings.output, outputDirectory: dir as string } });
+                  }}
+                  className="px-2 py-1.5 text-xs text-text-secondary bg-bg-elevated border border-border/50 rounded-lg hover:bg-bg-elevated/80 transition-colors flex-shrink-0"
                 >
-                  reset
+                  変更
                 </button>
-              )}
-            </div>
-
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={settings.output.saveIntermediatePsd}
-                onChange={(e) => setSettings({ output: { ...settings.output, saveIntermediatePsd: e.target.checked } })}
-                className="rounded accent-accent-warm"
-              />
-              <div>
-                <span className="text-xs text-text-primary">中間PSDを保存する</span>
-                <p className="text-[10px] text-text-muted">カラー変換後のPSDを別途保存</p>
+                {settings.output.outputDirectory && (
+                  <button
+                    onClick={() => setSettings({ output: { ...settings.output, outputDirectory: null } })}
+                    className="text-[10px] text-text-muted hover:text-error transition-colors flex-shrink-0"
+                  >
+                    reset
+                  </button>
+                )}
               </div>
-            </label>
-            {settings.output.saveIntermediatePsd && (
-              <label className="flex items-center gap-2 cursor-pointer pl-6">
+
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={settings.output.mergeAfterColorConvert}
-                  onChange={(e) => setSettings({ output: { ...settings.output, mergeAfterColorConvert: e.target.checked } })}
+                  checked={settings.output.saveIntermediatePsd}
+                  onChange={(e) => setSettings({ output: { ...settings.output, saveIntermediatePsd: e.target.checked } })}
                   className="rounded accent-accent-warm"
                 />
                 <div>
-                  <span className="text-xs text-text-primary">画像レイヤーを統合する</span>
-                  <p className="text-[10px] text-text-muted">*_merged.psd として保存</p>
+                  <span className="text-xs text-text-primary">中間PSDを保存する</span>
+                  <p className="text-[10px] text-text-muted">カラー変換後のPSDを別途保存</p>
                 </div>
               </label>
-            )}
+              {settings.output.saveIntermediatePsd && (
+                <label className="flex items-center gap-2 cursor-pointer pl-6">
+                  <input
+                    type="checkbox"
+                    checked={settings.output.mergeAfterColorConvert}
+                    onChange={(e) => setSettings({ output: { ...settings.output, mergeAfterColorConvert: e.target.checked } })}
+                    className="rounded accent-accent-warm"
+                  />
+                  <div>
+                    <span className="text-xs text-text-primary">画像レイヤーを統合する</span>
+                    <p className="text-[10px] text-text-muted">*_merged.psd として保存</p>
+                  </div>
+                </label>
+              )}
+
+              {/* テキスト整理 */}
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={settings.text.reorganize}
+                  onChange={(e) => setSettings({ text: { ...settings.text, reorganize: e.target.checked } })}
+                  className="rounded accent-accent-warm"
+                />
+                <div>
+                  <span className="text-xs text-text-primary">テキスト整理を行う</span>
+                  <p className="text-[10px] text-text-muted">散在するテキストレイヤーを1グループに統合</p>
+                </div>
+              </label>
+            </div>
           </div>
         </Section>
 
@@ -675,6 +802,54 @@ export function TiffSettingsPanel() {
 
         <TiffResultDialog />
       </div>
+
+      {/* Text Overflow Warning */}
+      {(() => {
+        const bounds = cropBounds;
+        const cropOn = settings.crop.enabled;
+        if (!cropOn || !bounds || files.length === 0) return null;
+
+        const walkLayers = (nodes: LayerNode[]): string[] => {
+          const names: string[] = [];
+          for (const node of nodes) {
+            if (node.type === "text" && node.visible && node.bounds) {
+              const b = node.bounds;
+              if (b.left < bounds.left || b.top < bounds.top || b.right > bounds.right || b.bottom > bounds.bottom) {
+                names.push(node.name);
+              }
+            }
+            if (node.children) names.push(...walkLayers(node.children));
+          }
+          return names;
+        };
+
+        let totalOverflows = 0;
+        const overflowFiles: string[] = [];
+        for (const file of files) {
+          if (!file.metadata?.layerTree) continue;
+          const overflows = walkLayers(file.metadata.layerTree);
+          if (overflows.length > 0) {
+            totalOverflows += overflows.length;
+            overflowFiles.push(file.fileName);
+          }
+        }
+        if (totalOverflows === 0) return null;
+
+        return (
+          <div className="mx-2 mb-1 px-3 py-2 rounded-lg bg-warning/10 border border-warning/30">
+            <div className="flex items-center gap-1.5 text-warning text-[11px] font-medium">
+              <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+              テキストはみ出し検出: {totalOverflows}件 ({overflowFiles.length}ファイル)
+            </div>
+            <div className="mt-1 text-[9px] text-text-muted leading-relaxed max-h-12 overflow-auto">
+              {overflowFiles.slice(0, 5).join(", ")}
+              {overflowFiles.length > 5 && ` 他${overflowFiles.length - 5}件`}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Action Bar */}
       <div className="px-2 py-2 border-t border-border space-y-1.5">
@@ -728,6 +903,138 @@ export function TiffSettingsPanel() {
       </div>
 
       {/* Modals */}
+      {showJsonLoadDialog && (
+        <CropJsonLoadDialog
+          onLoad={(preset, jsonPath) => {
+            if (jsonPath) {
+              useTiffStore.getState().setCropSourceJsonPath(jsonPath);
+            }
+
+            // キャンバスサイズ不一致チェック（参考スクリプト互換）
+            const jsonDocSize = preset.documentSize;
+            const psdMajority = canvasSizeInfo.majoritySize
+              ? { width: canvasSizeInfo.majorityWidth, height: canvasSizeInfo.majorityHeight }
+              : null;
+            if (jsonDocSize && psdMajority && jsonDocSize.width > 0 && jsonDocSize.height > 0 &&
+                (jsonDocSize.width !== psdMajority.width || jsonDocSize.height !== psdMajority.height)) {
+              setCanvasMismatch({ preset, jsonPath, jsonSize: jsonDocSize, psdSize: psdMajority });
+              setShowJsonLoadDialog(false);
+              return;
+            }
+
+            // ぼかし値差異チェック（参考スクリプト互換）
+            const currentBlur = settings.blur.enabled ? settings.blur.radius : 0;
+            const jsonBlur = preset.blurRadius;
+            if (jsonBlur !== undefined && jsonBlur !== currentBlur) {
+              setBlurDiffConfirm({ preset, jsonPath, jsonBlur, currentBlur });
+            } else {
+              loadCropPreset(preset);
+            }
+            setShowJsonLoadDialog(false);
+          }}
+          onClose={() => setShowJsonLoadDialog(false)}
+        />
+      )}
+      {blurDiffConfirm && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) setBlurDiffConfirm(null); }}>
+          <div className="bg-bg-secondary border border-border rounded-2xl shadow-xl max-w-sm w-full mx-4 p-5">
+            <h3 className="text-sm font-display font-bold text-warning mb-3">ぼかし値の差異を検出</h3>
+            <div className="space-y-1.5 text-xs text-text-secondary mb-4">
+              <p>JSONに保存されたぼかし値: <span className="font-mono font-bold text-text-primary">{blurDiffConfirm.jsonBlur} px</span></p>
+              <p>現在の設定値: <span className="font-mono font-bold text-text-primary">{blurDiffConfirm.currentBlur} px</span></p>
+            </div>
+            <p className="text-xs text-text-muted mb-4">JSONの値に合わせますか？</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  // JSONのblurRadius値を採用
+                  loadCropPreset(blurDiffConfirm.preset);
+                  setBlurDiffConfirm(null);
+                }}
+                className="flex-1 px-3 py-2 text-xs font-medium rounded-xl text-white bg-gradient-to-r from-accent-warm to-accent hover:opacity-90 transition-opacity"
+              >
+                はい（JSON値に変更）
+              </button>
+              <button
+                onClick={() => {
+                  // 現在の設定値を維持してクロップ範囲だけ適用
+                  const { blurRadius: _, ...presetWithoutBlur } = blurDiffConfirm.preset;
+                  loadCropPreset(presetWithoutBlur);
+                  setBlurDiffConfirm(null);
+                }}
+                className="flex-1 px-3 py-2 text-xs font-medium rounded-xl text-text-primary bg-bg-tertiary border border-border hover:bg-bg-elevated transition-colors"
+              >
+                いいえ（現在値を維持）
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {canvasMismatch && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-bg-secondary border border-border rounded-2xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="px-6 py-4 border-b border-border">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-display font-bold text-text-primary">キャンバスサイズの不一致</h3>
+                  <p className="text-[10px] text-text-muted">JSONと読み込みPSDのサイズが異なります</p>
+                </div>
+              </div>
+            </div>
+            <div className="px-6 py-4">
+              <div className="flex items-center gap-4 justify-center mb-4">
+                <div className="text-center">
+                  <span className="text-[10px] text-text-muted block">JSONのサイズ</span>
+                  <span className="text-sm font-mono text-text-primary">{canvasMismatch.jsonSize.width} x {canvasMismatch.jsonSize.height}</span>
+                </div>
+                <svg className="w-4 h-4 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+                <div className="text-center">
+                  <span className="text-[10px] text-text-muted block">PSD多数派サイズ</span>
+                  <span className="text-sm font-mono text-error">{canvasMismatch.psdSize.width} x {canvasMismatch.psdSize.height}</span>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <button
+                  onClick={() => {
+                    // そのまま適用
+                    loadCropPreset(canvasMismatch.preset);
+                    setCanvasMismatch(null);
+                  }}
+                  className="w-full text-left px-4 py-2.5 rounded-xl border bg-bg-tertiary border-accent-warm/20 hover:border-accent-warm/40 hover:bg-accent-warm/5 transition-all"
+                >
+                  <span className="text-sm text-text-primary">そのまま適用</span>
+                  <p className="text-[10px] text-text-muted">現在の範囲でクロップを適用（推奨しません）</p>
+                </button>
+                <button
+                  onClick={() => {
+                    // 別のラベルを選択
+                    setCanvasMismatch(null);
+                    setShowJsonLoadDialog(true);
+                  }}
+                  className="w-full text-left px-4 py-2.5 rounded-xl border bg-bg-tertiary border-accent-warm/20 hover:border-accent-warm/40 hover:bg-accent-warm/5 transition-all"
+                >
+                  <span className="text-sm text-text-primary">別のラベルを選択</span>
+                  <p className="text-[10px] text-text-muted">JSONから別のプリセットを選択</p>
+                </button>
+                <button
+                  onClick={() => setCanvasMismatch(null)}
+                  className="w-full text-left px-4 py-2.5 rounded-xl border bg-bg-tertiary border-border/50 hover:border-text-muted/30 transition-all"
+                >
+                  <span className="text-sm text-text-primary">キャンセル</span>
+                  <p className="text-[10px] text-text-muted">範囲を適用しない</p>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {showPartialBlurModal && (
         <TiffPartialBlurModal onClose={() => setShowPartialBlurModal(false)} />
       )}
@@ -738,10 +1045,7 @@ export function TiffSettingsPanel() {
         <TiffAutoScanDialog
           mode={showAutoScanDialog}
           fileCount={showAutoScanDialog === "selected" ? selectedFileIds.length : files.length}
-          onExecute={() => {
-            if (showAutoScanDialog === "selected") convertSelectedFiles();
-            else convertAllFiles();
-          }}
+          onExecute={showAutoScanDialog === "selected" ? convertSelectedFiles : convertAllFiles}
           onClose={() => setShowAutoScanDialog(null)}
         />
       )}
@@ -750,17 +1054,3 @@ export function TiffSettingsPanel() {
 }
 
 // --- Sub-components ---
-
-function BoundsField({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <span className="text-[10px] text-text-muted font-medium w-3">{label}</span>
-      <input
-        type="number"
-        value={value}
-        onChange={(e) => onChange(parseInt(e.target.value) || 0)}
-        className="flex-1 px-2 py-1 text-xs font-mono bg-bg-elevated border border-border/50 rounded-lg text-text-primary focus:outline-none focus:border-accent-warm/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-      />
-    </div>
-  );
-}

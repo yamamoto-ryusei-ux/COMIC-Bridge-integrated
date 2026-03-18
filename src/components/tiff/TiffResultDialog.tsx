@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useTiffStore } from "../../store/tiffStore";
 import { usePsdStore } from "../../store/psdStore";
@@ -55,6 +55,12 @@ export function TiffResultDialog() {
     return lastOutputDir;
   }, [results, lastOutputDir, effectivePsdFolder, cropBounds]);
 
+  const handleClose = useCallback(() => {
+    setShowResultDialog(false);
+    useTiffStore.getState().resetAfterConvert();
+    usePsdStore.getState().clearFiles();
+  }, [setShowResultDialog]);
+
   if (!showResultDialog || results.length === 0) return null;
 
   const successCount = results.filter((r) => r.success).length;
@@ -70,7 +76,7 @@ export function TiffResultDialog() {
   return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) setShowResultDialog(false); }}
+      onClick={(e) => { if (e.target === e.currentTarget) { handleClose(); } }}
     >
       <div className="bg-bg-secondary border border-border rounded-2xl shadow-xl max-w-lg w-full mx-4 max-h-[80vh] flex flex-col overflow-hidden">
         {/* Header */}
@@ -102,7 +108,7 @@ export function TiffResultDialog() {
           </div>
           <div className="flex-1" />
           <button
-            onClick={() => setShowResultDialog(false)}
+            onClick={() => { handleClose(); }}
             className="p-1.5 text-text-muted hover:text-text-primary rounded-lg hover:bg-bg-tertiary transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -126,7 +132,30 @@ export function TiffResultDialog() {
                   </svg>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-text-primary truncate">{result.fileName}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm text-text-primary truncate">{result.fileName}</p>
+                    {result.success && result.colorMode && (
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <span className={`px-1.5 py-0.5 text-[9px] font-medium rounded ${
+                          result.colorMode === "mono"
+                            ? "bg-text-muted/15 text-text-secondary"
+                            : "bg-accent/15 text-accent"
+                        }`}>
+                          {result.colorMode === "mono" ? "モノクロ" : "カラー"}
+                        </span>
+                        {result.finalWidth != null && result.finalHeight != null && (
+                          <span className="text-[10px] text-text-muted font-mono">
+                            {result.finalWidth}x{result.finalHeight}
+                          </span>
+                        )}
+                        {result.dpi != null && (
+                          <span className="text-[10px] text-text-muted">
+                            {result.dpi}dpi
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   {result.error && (
                     <p className="text-[10px] text-error truncate">{result.error}</p>
                   )}
@@ -255,7 +284,7 @@ export function TiffResultDialog() {
             </button>
           )}
           <button
-            onClick={() => setShowResultDialog(false)}
+            onClick={() => { handleClose(); }}
             className="px-4 py-2 text-sm font-medium text-text-primary bg-bg-tertiary rounded-xl hover:bg-bg-tertiary/80 transition-colors"
           >
             閉じる

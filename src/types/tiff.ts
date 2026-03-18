@@ -14,6 +14,7 @@ export interface PageRangeRule {
   toPage: number;
   colorMode: "mono" | "color" | "noChange";
   applyBlur: boolean;
+  blurRadius?: number; // 個別ぼかし半径（未指定時はグローバル設定を使用）
 }
 
 // --- ぼかし ---
@@ -23,10 +24,19 @@ export interface TiffBlurSettings {
   radius: number; // デフォルト 2.5px
 }
 
+/** ぼかし適用領域（多角形） */
+export interface BlurRegion {
+  id: string;
+  points: Array<{ x: number; y: number }>; // ドキュメント座標のポリゴン頂点
+  blurRadius: number;
+}
+
 /** 部分ぼかし（ページ別、最大5件） */
 export interface PartialBlurEntry {
   pageNumber: number;
   blurRadius: number; // 選択範囲内のぼかし半径
+  bounds?: TiffCropBounds; // レガシー: 矩形範囲（後方互換）
+  regions?: BlurRegion[]; // 新: 複数ポリゴン領域（矩形・多角形対応）
 }
 
 // --- クロップ ---
@@ -58,6 +68,7 @@ export interface TiffCropPreset {
   size: { width: number; height: number }; // right-left, bottom-top
   documentSize: { width: number; height: number }; // 基準画像サイズ
   savedAt: string; // ISO timestamp
+  blurRadius?: number; // ガウスぼかし半径（px）。0=OFF
 }
 
 /** クロップ設定 */
@@ -76,11 +87,13 @@ export interface TiffScandataWorkInfo {
 }
 
 export interface TiffScandataFile {
-  presetData: {
-    workInfo: TiffScandataWorkInfo;
-    selectionRanges: TiffCropPreset[];
+  presetData?: {
+    workInfo?: TiffScandataWorkInfo;
+    selectionRanges?: TiffCropPreset[];
     createdAt?: string; // ISO timestamp
+    saveDataPath?: string; // Scandataファイルパス（連動保存用）
   };
+  saveDataPath?: string; // トップレベルのsaveDataPath（互換）
 }
 
 /** ジャンル→レーベル階層（Tachimi LABELS_BY_GENRE 互換） */
@@ -137,6 +150,8 @@ export interface TiffFileOverride {
   colorMode?: TiffColorMode;
   blurEnabled?: boolean;
   blurRadius?: number;
+  cropBounds?: TiffCropBounds | null; // null=クロップスキップ, undefined=グローバル設定を使用
+  partialBlurEntries?: PartialBlurEntry[]; // ファイル別部分ぼかし設定
 }
 
 // --- 全設定 ---
@@ -198,6 +213,10 @@ export interface TiffResult {
   success: boolean;
   outputPath?: string;
   error?: string;
+  colorMode?: string;
+  finalWidth?: number;
+  finalHeight?: number;
+  dpi?: number;
 }
 
 // --- 処理フェーズ ---

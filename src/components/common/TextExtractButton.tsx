@@ -14,7 +14,7 @@ export function TextExtractButton({ compact = false }: { compact?: boolean }) {
   const [showOptions, setShowOptions] = useState(false);
   const [sortMode, setSortMode] = useState<"bottomToTop" | "topToBottom">("bottomToTop");
   const [includeHidden, setIncludeHidden] = useState(false);
-  const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [result, setResult] = useState<{ success: boolean; message: string; filePath?: string } | null>(null);
 
   const psdFiles = files.filter((f) => f.metadata?.layerTree?.length);
 
@@ -66,6 +66,7 @@ export function TextExtractButton({ compact = false }: { compact?: boolean }) {
       setResult({
         success: true,
         message: `${fileName} に保存しました`,
+        filePath,
       });
 
       // 出力フォルダを開く
@@ -197,6 +198,20 @@ export function TextExtractButton({ compact = false }: { compact?: boolean }) {
           style={{ animation: "toast-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)" }}
         >
           {result.message}
+          {result.success && result.filePath && (
+            <button
+              onClick={async () => {
+                try {
+                  await invoke("launch_progen", { handoffTextPath: result.filePath });
+                } catch (err) {
+                  console.error("ProGen launch failed:", err);
+                }
+              }}
+              className="ml-2 px-2 py-0.5 rounded bg-accent-secondary/20 text-accent-secondary hover:bg-accent-secondary/30 transition-colors font-medium"
+            >
+              ProGenへ
+            </button>
+          )}
           <button onClick={() => setResult(null)} className="ml-2 underline">
             閉じる
           </button>

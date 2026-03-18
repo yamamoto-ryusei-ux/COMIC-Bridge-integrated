@@ -100,9 +100,9 @@ const defaultFileSettings: FileRenameSettings = {
   mode: "sequential",
   sequential: {
     baseName: "",
-    startNumber: 1,
-    padding: 3,
-    separator: "_",
+    startNumber: 3,
+    padding: 4,
+    separator: "",
   },
   replaceString: {
     searchText: "",

@@ -11,42 +11,73 @@ import { buildScanDataFromFiles, mergeScanData } from "../lib/agPsdScanner";
 import { performPresetJsonSave, performExportTextLog } from "./useScanPsdProcessor";
 import { getAutoSubName } from "../types/scanPsd";
 
-/** 選択範囲をプリセットJSONのselectionRangesに追記する */
+/**
+ * 選択範囲をプリセットJSONのselectionRangesに追記する（参考スクリプト互換）
+ * 同名ラベルがあれば上書き（削除→追加）
+ */
 async function appendSelectionRangeToJson(
   jsonPath: string,
   bounds: TiffCropBounds,
   docSize: { width: number; height: number } | null,
+  blurRadius: number,
+  labelPrefix?: string,
 ): Promise<void> {
   const content = await invoke<string>("read_text_file", { filePath: jsonPath });
   const data = JSON.parse(content);
   if (!data.presetData) data.presetData = {};
-  const ranges = Array.isArray(data.presetData.selectionRanges)
-    ? data.presetData.selectionRanges
-    : [];
+  if (!Array.isArray(data.presetData.selectionRanges)) {
+    data.presetData.selectionRanges = [];
+  }
 
-  // 同じboundsが既にあればスキップ
-  const exists = ranges.some(
-    (r: { bounds?: TiffCropBounds }) =>
-      r.bounds &&
-      r.bounds.left === bounds.left &&
-      r.bounds.top === bounds.top &&
-      r.bounds.right === bounds.right &&
-      r.bounds.bottom === bounds.bottom,
+  const w = bounds.right - bounds.left;
+  const h = bounds.bottom - bounds.top;
+  const ds = docSize ?? { width: bounds.right, height: bounds.bottom };
+  const prefix = labelPrefix || "基本範囲";
+  const labelName = `${prefix}_${blurRadius}px_${ds.width}x${ds.height}`;
+
+  // 参考スクリプト互換: 同名ラベルを全て削除してから追加（上書き）
+  data.presetData.selectionRanges = data.presetData.selectionRanges.filter(
+    (r: { label?: string }) => r.label !== labelName,
   );
-  if (!exists) {
-    ranges.push({
-      label: `${bounds.right - bounds.left}x${bounds.bottom - bounds.top}`,
-      units: "px",
-      bounds,
-      size: { width: bounds.right - bounds.left, height: bounds.bottom - bounds.top },
-      documentSize: docSize ?? { width: bounds.right, height: bounds.bottom },
-      savedAt: new Date().toISOString(),
-    });
-    data.presetData.selectionRanges = ranges;
-    await invoke("write_text_file", {
-      filePath: jsonPath,
-      content: JSON.stringify(data, null, 2),
-    });
+
+  data.presetData.selectionRanges.push({
+    label: labelName,
+    units: "px",
+    bounds,
+    size: { width: w, height: h },
+    documentSize: ds,
+    blurRadius,
+    savedAt: new Date().toISOString(),
+  });
+
+  await invoke("write_text_file", {
+    filePath: jsonPath,
+    content: JSON.stringify(data, null, 4),
+  });
+
+  // Scandata連動保存（saveDataPathがあれば）
+  const saveDataPath = data.presetData?.saveDataPath || data.saveDataPath;
+  if (saveDataPath) {
+    try {
+      const sdContent = await invoke<string>("read_text_file", { filePath: saveDataPath });
+      const sdData = JSON.parse(sdContent);
+      if (!sdData.presetData) sdData.presetData = {};
+      if (!Array.isArray(sdData.presetData.selectionRanges)) {
+        sdData.presetData.selectionRanges = [];
+      }
+      sdData.presetData.selectionRanges = sdData.presetData.selectionRanges.filter(
+        (r: { label?: string }) => r.label !== labelName,
+      );
+      sdData.presetData.selectionRanges.push({
+        label: labelName, units: "px", bounds,
+        size: { width: w, height: h }, documentSize: ds,
+        blurRadius, savedAt: new Date().toISOString(),
+      });
+      sdData.timestamp = new Date().toISOString();
+      await invoke("write_text_file", { filePath: saveDataPath, content: JSON.stringify(sdData, null, 4) });
+    } catch {
+      // Scandata保存エラーは無視（参考スクリプト準拠）
+    }
   }
 }
 
@@ -55,6 +86,10 @@ interface TiffConvertResult {
   success: boolean;
   outputPath: string | null;
   error: string | null;
+  colorMode?: string;
+  finalWidth?: number;
+  finalHeight?: number;
+  dpi?: number;
 }
 
 interface TiffConvertResponse {
@@ -85,6 +120,8 @@ export function useTiffProcessor() {
     const fileOverrides = store.fileOverrides;
     const outputDir = await getOutputDir();
     const flatten = settings.rename.flattenSubfolders;
+    // 部分ぼかし照合用: グローバルファイル一覧（選択ファイルのみ処理時でも正確なページ番号を使用）
+    const allPsdFiles = usePsdStore.getState().files;
 
     // サブフォルダ別インデックスを事前計算（flatten=false時に各サブフォルダで連番リセット）
     const subfolderIndices: number[] = [];
@@ -118,13 +155,27 @@ export function useTiffProcessor() {
         colorMode = override.colorMode;
       }
 
-      // ぼかし解決
+      // ぼかし解決（OFF時はradiusを0に強制）
       const applyBlur = override?.blurEnabled ?? settings.blur.enabled;
-      const blurRadius = override?.blurRadius ?? settings.blur.radius;
+      // ぼかし半径: ファイル別上書き > ルール個別半径 > グローバル設定
+      let resolvedBlurRadius = override?.blurRadius ?? settings.blur.radius;
+      if (!override?.blurRadius && settings.colorMode === "perPage") {
+        const ruleForFile = settings.pageRangeRules.find(
+          (r) => (fileIndex + 1) >= r.fromPage && (fileIndex + 1) <= r.toPage
+        );
+        if (ruleForFile?.applyBlur && ruleForFile.blurRadius !== undefined) {
+          resolvedBlurRadius = ruleForFile.blurRadius;
+        }
+      }
+      const blurRadius = applyBlur ? resolvedBlurRadius : 0;
 
-      // 部分ぼかし
-      const pageNum = fileIndex + 1;
-      const partialBlurEntry = settings.partialBlurEntries.find((e) => e.pageNumber === pageNum);
+      // 部分ぼかし: ファイル別設定が優先、なければグローバル設定からページ番号で検索
+      // グローバルページ番号を使用（選択ファイルのみ処理時でもpsdStore上の順番で照合）
+      const globalFileIndex = allPsdFiles.findIndex((f) => f.id === file.id);
+      const pageNumForPartialBlur = globalFileIndex >= 0 ? globalFileIndex + 1 : fileIndex + 1;
+      const partialBlurEntry = override?.partialBlurEntries !== undefined
+        ? override.partialBlurEntries.find((e) => e.pageNumber > 0)
+        : settings.partialBlurEntries.find((e) => e.pageNumber === pageNumForPartialBlur);
 
       // リネーム解決
       // 拡張子: TIFF ON → .tif、JPGのみ → .jpg、PSD → .psd
@@ -163,6 +214,17 @@ export function useTiffProcessor() {
         jpgOutputPath = jpgFileDir.replace(/\\/g, "/");
       }
 
+      // ファイル別クロップ設定の解決
+      // override.cropBounds が undefined → グローバル設定を使用
+      // override.cropBounds が null → このファイルはクロップをスキップ
+      // override.cropBounds が TiffCropBounds → この範囲でクロップ
+      const hasPerFileCrop = override !== undefined && override.cropBounds !== undefined;
+      const perFileCropBounds = hasPerFileCrop ? override!.cropBounds : undefined;
+      const skipCropFinal = skip || !settings.crop.enabled || (hasPerFileCrop && perFileCropBounds === null);
+      const cropBoundsValue = (hasPerFileCrop && perFileCropBounds !== null && perFileCropBounds !== undefined)
+        ? perFileCropBounds
+        : settings.crop.bounds;
+
       return {
         path: file.filePath.replace(/\\/g, "/"),
         outputPath: fileOutputDir.replace(/\\/g, "/"),
@@ -173,11 +235,15 @@ export function useTiffProcessor() {
         partialBlur: partialBlurEntry
           ? {
               blurRadius: partialBlurEntry.blurRadius,
-              bounds: settings.crop.bounds,
+              bounds: partialBlurEntry.bounds ?? null,
+              regions: (partialBlurEntry.regions ?? []).map((r) => ({
+                blurRadius: r.blurRadius,
+                points: r.points.map((p) => [p.x, p.y]),
+              })),
             }
           : null,
-        skipCrop: skip || !settings.crop.enabled,
-        cropBounds: settings.crop.bounds,
+        skipCrop: skipCropFinal,
+        cropBounds: cropBoundsValue,
         psbConvert: settings.psbConvertToTiff,
         subfolderName: file.subfolderName || "",
         jpgOutputPath,
@@ -321,7 +387,8 @@ export function useTiffProcessor() {
           try {
             const jsonPath = useScanPsdStore.getState().currentJsonFilePath;
             if (jsonPath) {
-              await appendSelectionRangeToJson(jsonPath, tiffState.settings.crop.bounds, tiffState.referenceImageSize);
+              const effectiveBlur = tiffState.settings.blur.enabled ? tiffState.settings.blur.radius : 0;
+              await appendSelectionRangeToJson(jsonPath, tiffState.settings.crop.bounds, tiffState.referenceImageSize, effectiveBlur);
             }
           } catch {
             // 選択範囲登録失敗はJSON成功に影響させない
@@ -415,6 +482,10 @@ export function useTiffProcessor() {
           success: r.success,
           outputPath: r.outputPath ?? undefined,
           error: r.error ?? undefined,
+          colorMode: r.colorMode ?? undefined,
+          finalWidth: r.finalWidth ?? undefined,
+          finalHeight: r.finalHeight ?? undefined,
+          dpi: r.dpi ?? undefined,
         };
         store.addResult(result);
       }

@@ -65,6 +65,7 @@ interface TiffState {
   settings: TiffSettings;
   fileOverrides: Map<string, TiffFileOverride>; // fileId → override
   cropPresets: TiffCropPreset[];
+  resizeLocked: boolean; // リサイズフィールドのロック状態
 
   // --- JSON自動登録 ---
   autoScanEnabled: boolean;
@@ -157,9 +158,17 @@ interface TiffState {
   setAutoScanVolume: (volume: number) => void;
   setAutoScanJsonResult: (result: AutoScanJsonResult | null) => void;
   setCropSourceJsonPath: (path: string | null) => void;
+  cropSourceDocumentSize: { width: number; height: number } | null;
+  setCropSourceDocumentSize: (size: { width: number; height: number } | null) => void;
   setRegisterSelectionRange: (enabled: boolean) => void;
+  setResizeLocked: (locked: boolean) => void;
+
+  // --- アクション: ファイル別クロップ編集モード ---
+  perFileEditTarget: string | null; // 個別クロップ編集中のfileId
+  setPerFileEditTarget: (fileId: string | null) => void;
 
   reset: () => void;
+  resetAfterConvert: () => void;
 }
 
 // 直近の設定を復元してデフォルトとマージ
@@ -171,11 +180,15 @@ export const useTiffStore = create<TiffState>((set) => ({
   fileOverrides: new Map(),
   cropPresets: loadCropPresetsFromStorage(),
 
+  resizeLocked: true,
+
   autoScanEnabled: false,
   autoScanVolume: 1,
   autoScanJsonResult: null,
   cropSourceJsonPath: null,
+  cropSourceDocumentSize: null,
   registerSelectionRange: false,
+  perFileEditTarget: null,
 
   phase: "idle",
   isProcessing: false,
@@ -271,7 +284,12 @@ export const useTiffStore = create<TiffState>((set) => ({
     set((state) => {
       const newMap = new Map(state.fileOverrides);
       const existing = newMap.get(fileId) || { fileId, skip: false };
-      newMap.set(fileId, { ...existing, ...partial });
+      const merged = { ...existing, ...partial };
+      // undefinedのキーは削除してオーバーライドを解除できるようにする
+      (Object.keys(merged) as (keyof typeof merged)[]).forEach((k) => {
+        if (merged[k] === undefined) delete merged[k];
+      });
+      newMap.set(fileId, merged);
       return { fileOverrides: newMap };
     }),
 
@@ -309,16 +327,28 @@ export const useTiffStore = create<TiffState>((set) => ({
 
   loadCropPreset: (preset) =>
     set((state) => {
+      // boundsが全て0の場合はクロップ範囲を設定しない（JSONパス選択のみ）
+      const hasValidBounds = preset.bounds &&
+        (preset.bounds.left !== 0 || preset.bounds.top !== 0 || preset.bounds.right !== 0 || preset.bounds.bottom !== 0);
+
+      // blurRadius反映（参考スクリプト互換: JSON内のblurRadiusをぼかし設定に復元）
+      const blurUpdate = preset.blurRadius !== undefined
+        ? { blur: { enabled: preset.blurRadius > 0, radius: preset.blurRadius > 0 ? preset.blurRadius : state.settings.blur.radius } }
+        : {};
+
       const newSettings = {
         ...state.settings,
+        ...blurUpdate,
         crop: {
           ...state.settings.crop,
-          bounds: preset.bounds,
-          enabled: true,
+          ...(hasValidBounds ? { bounds: preset.bounds, enabled: true } : {}),
         },
       };
       saveSettingsToStorage(newSettings);
-      return { settings: newSettings };
+      // JSONのdocumentSizeを保存（キャンバスサイズ比較用）
+      const docSize = (preset.documentSize && preset.documentSize.width > 0)
+        ? preset.documentSize : null;
+      return { settings: newSettings, cropSourceDocumentSize: docSize };
     }),
 
   // --- クロップガイド ---
@@ -461,7 +491,10 @@ export const useTiffStore = create<TiffState>((set) => ({
   setAutoScanVolume: (volume) => set({ autoScanVolume: volume }),
   setAutoScanJsonResult: (result) => set({ autoScanJsonResult: result }),
   setCropSourceJsonPath: (path) => set({ cropSourceJsonPath: path }),
+  setCropSourceDocumentSize: (size) => set({ cropSourceDocumentSize: size }),
   setRegisterSelectionRange: (enabled) => set({ registerSelectionRange: enabled }),
+  setResizeLocked: (locked) => set({ resizeLocked: locked }),
+  setPerFileEditTarget: (fileId) => set({ perFileEditTarget: fileId }),
 
   reset: () =>
     set({
@@ -470,5 +503,29 @@ export const useTiffStore = create<TiffState>((set) => ({
       totalFiles: 0,
       currentFile: null,
       results: [],
+    }),
+
+  resetAfterConvert: () =>
+    set(() => {
+      saveSettingsToStorage(defaults);
+      return {
+        settings: { ...defaults },
+        fileOverrides: new Map(),
+        cropSourceJsonPath: null,
+        cropSourceDocumentSize: null,
+        results: [],
+        cropGuides: [],
+        selectedCropGuideIndex: null,
+        cropHistory: [],
+        cropFuture: [],
+        autoScanJsonResult: null,
+        progress: 0,
+        totalFiles: 0,
+        currentFile: null,
+        referenceFileIndex: 1,
+        referenceImageSize: null,
+        cropStep: "select",
+        cropMethod: "drag",
+      };
     }),
 }));
