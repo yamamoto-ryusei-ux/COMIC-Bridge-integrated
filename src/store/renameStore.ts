@@ -171,9 +171,7 @@ export const useRenameStore = create<RenameState>((set) => ({
     set((s) => ({
       layerSettings: {
         ...s.layerSettings,
-        rules: s.layerSettings.rules.map((r) =>
-          r.id === id ? { ...r, ...updates } : r
-        ),
+        rules: s.layerSettings.rules.map((r) => (r.id === id ? { ...r, ...updates } : r)),
       },
     })),
   removeRule: (id) =>
@@ -330,9 +328,7 @@ export const useRenameStore = create<RenameState>((set) => ({
   clearFileEntries: () => set({ fileEntries: [] }),
   toggleEntrySelected: (id) =>
     set((s) => ({
-      fileEntries: s.fileEntries.map((e) =>
-        e.id === id ? { ...e, selected: !e.selected } : e
-      ),
+      fileEntries: s.fileEntries.map((e) => (e.id === id ? { ...e, selected: !e.selected } : e)),
     })),
   toggleAllSelected: (selected) =>
     set((s) => ({
@@ -340,9 +336,7 @@ export const useRenameStore = create<RenameState>((set) => ({
     })),
   setEntryCustomName: (id, customName) =>
     set((s) => ({
-      fileEntries: s.fileEntries.map((e) =>
-        e.id === id ? { ...e, customName } : e
-      ),
+      fileEntries: s.fileEntries.map((e) => (e.id === id ? { ...e, customName } : e)),
     })),
   reorderEntries: (fromIndex, toIndex) =>
     set((s) => {
@@ -375,8 +369,7 @@ export const useRenameStore = create<RenameState>((set) => ({
   // 処理
   setPhase: (phase) => set({ phase }),
   setProgress: (current, total) => set({ progress: current, totalFiles: total }),
-  addResult: (result) =>
-    set((s) => ({ results: [...s.results, result] })),
+  addResult: (result) => set((s) => ({ results: [...s.results, result] })),
   clearResults: () => set({ results: [] }),
   setShowResultDialog: (showResultDialog) => set({ showResultDialog }),
   reset: () =>

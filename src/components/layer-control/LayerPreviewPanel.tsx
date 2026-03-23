@@ -4,7 +4,11 @@ import { useLayerStore, PRESET_CONDITIONS } from "../../store/layerStore";
 import type { LayerActionMode, CustomVisibilityOp, CustomMoveOp } from "../../store/layerStore";
 import { useOpenFolder } from "../../hooks/useOpenFolder";
 import { invoke } from "@tauri-apps/api/core";
-import { useHighResPreview, prefetchPreview, invalidateUrlCache } from "../../hooks/useHighResPreview";
+import {
+  useHighResPreview,
+  prefetchPreview,
+  invalidateUrlCache,
+} from "../../hooks/useHighResPreview";
 import { classifyLayerRisk, isTextFolder, type MatchRisk } from "../../lib/layerMatcher";
 import { buildPathKey, applyVirtualMoves } from "../../lib/layerTreeOps";
 import type { LayerNode } from "../../types";
@@ -58,7 +62,7 @@ function annotateTree(
   conditions: HideCondition[],
   isHideMode: boolean,
   parentIsTextFolder = false,
-  parentVisible = true
+  parentVisible = true,
 ): AnnotatedLayer[] {
   const tree = annotateTreePass1(layers, conditions, isHideMode, parentIsTextFolder, parentVisible);
   // Show mode: propagate willChange upward to parent groups (mirrors ensureParentsVisible in JSX)
@@ -74,7 +78,7 @@ function annotateTreePass1(
   conditions: HideCondition[],
   isHideMode: boolean,
   parentIsTextFolder: boolean,
-  parentVisible: boolean
+  parentVisible: boolean,
 ): AnnotatedLayer[] {
   return [...layers].reverse().map((layer) => {
     const textFolder = isTextFolder(layer);
@@ -89,7 +93,13 @@ function annotateTreePass1(
       risk,
       willChange,
       children: layer.children
-        ? annotateTreePass1(layer.children, conditions, isHideMode, parentIsTextFolder || textFolder, effectivelyVisible)
+        ? annotateTreePass1(
+            layer.children,
+            conditions,
+            isHideMode,
+            parentIsTextFolder || textFolder,
+            effectivelyVisible,
+          )
         : [],
     };
   });
@@ -103,7 +113,12 @@ function propagateParentVisibility(tree: AnnotatedLayer[]): boolean {
     const descendantWillChange = propagateParentVisibility(item.children);
     if (item.willChange || descendantWillChange) {
       // If this is a hidden group and a descendant will be shown, this group will also be shown
-      if (item.node.type === "group" && !item.node.visible && !item.willChange && descendantWillChange) {
+      if (
+        item.node.type === "group" &&
+        !item.node.visible &&
+        !item.willChange &&
+        descendantWillChange
+      ) {
         item.willChange = true;
       }
       anyChildWillChange = true;
@@ -147,7 +162,7 @@ function groupHasVisibleText(group: LayerNode): boolean {
 function isOrganizeCandidate(
   layer: LayerNode,
   targetName: string,
-  includeSpecial: boolean
+  includeSpecial: boolean,
 ): boolean {
   // Skip the target group itself
   if (layer.type === "group" && layer.name === targetName) return false;
@@ -165,7 +180,11 @@ function isOrganizeCandidate(
 // --- Lock mode annotation ---
 
 /** Annotate tree for lock mode: mark the bottom-most layer (last in original order, first after reverse) as willChange */
-function annotateTreeLock(layers: LayerNode[], lockBottom: boolean, unlockAll: boolean): AnnotatedLayer[] {
+function annotateTreeLock(
+  layers: LayerNode[],
+  lockBottom: boolean,
+  unlockAll: boolean,
+): AnnotatedLayer[] {
   const reversed = [...layers].reverse();
   return reversed.map((layer, idx) => {
     const isBottomLayer = idx === reversed.length - 1; // last after reverse = bottom in original
@@ -203,9 +222,7 @@ const MERGE_TEXT_GROUP_NAMES = ["#text#", "text", "写植", "セリフ", "テキ
 function isMergeTextGroup(layer: LayerNode): boolean {
   return (
     layer.type === "group" &&
-    MERGE_TEXT_GROUP_NAMES.some(
-      (p) => layer.name.toLowerCase() === p.toLowerCase()
-    )
+    MERGE_TEXT_GROUP_NAMES.some((p) => layer.name.toLowerCase() === p.toLowerCase())
   );
 }
 
@@ -219,9 +236,7 @@ function annotateTreeMerge(layers: LayerNode[]): AnnotatedLayer[] {
       risk: "safe" as MatchRisk,
       willChange: true,
       mergeRole: isText ? "text" : "background",
-      children: layer.children
-        ? annotateChildrenMerge(layer.children, isText)
-        : [],
+      children: layer.children ? annotateChildrenMerge(layer.children, isText) : [],
     };
   });
 }
@@ -237,9 +252,7 @@ function annotateChildrenMerge(layers: LayerNode[], parentIsText: boolean): Anno
       risk: "none" as MatchRisk,
       willChange: false,
       mergeRole: role,
-      children: layer.children
-        ? annotateChildrenMerge(layer.children, role === "text")
-        : [],
+      children: layer.children ? annotateChildrenMerge(layer.children, role === "text") : [],
     };
   });
 }
@@ -259,7 +272,7 @@ function annotateChildrenPlain(layers: LayerNode[]): AnnotatedLayer[] {
 function annotateTreeOrganize(
   layers: LayerNode[],
   targetName: string,
-  includeSpecial: boolean
+  includeSpecial: boolean,
 ): AnnotatedLayer[] {
   return [...layers].reverse().map((layer) => {
     const willMove = isOrganizeCandidate(layer, targetName, includeSpecial);
@@ -294,7 +307,7 @@ function matchesLayerMoveConditions(
   parentNode: LayerNode | null,
   siblings: LayerNode[],
   originalIndex: number,
-  isSearchRoot: boolean
+  isSearchRoot: boolean,
 ): boolean {
   // Text layer condition
   if (cond.textLayer && layer.type !== "text") return false;
@@ -326,7 +339,7 @@ function annotateLayerMoveRecursive(
   cond: LayerMoveConditions,
   parentNode: LayerNode | null,
   inSearchScope: boolean,
-  isSearchRoot: boolean
+  isSearchRoot: boolean,
 ): AnnotatedLayer[] {
   return [...layers].reverse().map((layer, reversedIndex) => {
     const originalIndex = layers.length - 1 - reversedIndex;
@@ -344,16 +357,14 @@ function annotateLayerMoveRecursive(
 
     // Determine if this group enters the search scope
     const isThisSearchGroup =
-      cond.searchScope === "group" &&
-      layer.type === "group" &&
-      layer.name === cond.searchGroupName;
+      cond.searchScope === "group" && layer.type === "group" && layer.name === cond.searchGroupName;
 
     // Can this layer be matched?
     const canMatch = inSearchScope;
 
-    const matched = canMatch && matchesLayerMoveConditions(
-      layer, cond, parentNode, layers, originalIndex, isSearchRoot
-    );
+    const matched =
+      canMatch &&
+      matchesLayerMoveConditions(layer, cond, parentNode, layers, originalIndex, isSearchRoot);
 
     // Children scope
     const childInScope = inSearchScope || isThisSearchGroup;
@@ -369,7 +380,7 @@ function annotateLayerMoveRecursive(
             cond,
             layer,
             childInScope,
-            isThisSearchGroup // children of search group: this is their search root
+            isThisSearchGroup, // children of search group: this is their search root
           )
         : [],
     };
@@ -377,10 +388,7 @@ function annotateLayerMoveRecursive(
 }
 
 /** Annotate tree for "layerMove" mode */
-function annotateTreeLayerMove(
-  layers: LayerNode[],
-  cond: LayerMoveConditions
-): AnnotatedLayer[] {
+function annotateTreeLayerMove(layers: LayerNode[], cond: LayerMoveConditions): AnnotatedLayer[] {
   const inScope = cond.searchScope === "all";
   return annotateLayerMoveRecursive(layers, cond, null, inScope, false);
 }
@@ -398,7 +406,7 @@ function annotateTreeCustom(
   visOps: CustomVisibilityOp[],
   movedIds: Set<string> = new Set(),
   currentPath: string[] = [],
-  parentVisible = true
+  parentVisible = true,
 ): AnnotatedLayer[] {
   const opMap = new Map<string, CustomVisibilityOp>();
   for (const op of visOps) {
@@ -412,7 +420,7 @@ function annotateTreeCustomRecursive(
   opMap: Map<string, CustomVisibilityOp>,
   movedIds: Set<string>,
   currentPath: string[],
-  parentVisible: boolean
+  parentVisible: boolean,
 ): AnnotatedLayer[] {
   // Track same-name counts at this level for index disambiguation
   const nameCounts = new Map<string, number>();
@@ -428,7 +436,8 @@ function annotateTreeCustomRecursive(
     const effectiveVisible = layer.visible && parentVisible;
     const willChange = !!visOp || isMoved;
     const matched = willChange;
-    const customAction: "show" | "hide" | "move" | undefined = visOp?.action ?? (isMoved ? "move" : undefined);
+    const customAction: "show" | "hide" | "move" | undefined =
+      visOp?.action ?? (isMoved ? "move" : undefined);
 
     return {
       node: layer,
@@ -550,7 +559,11 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
   const isCustomMode = actionMode === "custom";
   const isLockMode = actionMode === "lock";
   const isMergeMode = actionMode === "merge";
-  const hasAnyLayerMoveCondition = layerMoveCondTextLayer || layerMoveCondSubgroupTop || layerMoveCondSubgroupBottom || layerMoveCondNameEnabled;
+  const hasAnyLayerMoveCondition =
+    layerMoveCondTextLayer ||
+    layerMoveCondSubgroupTop ||
+    layerMoveCondSubgroupBottom ||
+    layerMoveCondNameEnabled;
 
   // Whether any mode has enough settings to show annotated preview
   const hasAnnotations = useMemo(() => {
@@ -561,7 +574,21 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
     if (isLayerMoveMode) return hasAnyLayerMoveCondition && layerMoveTargetName.trim() !== "";
     if (isHideMode && deleteHiddenText) return true;
     return hasConditions; // hide/show
-  }, [isMergeMode, isLockMode, lockBottomLayer, unlockAllLayers, isCustomMode, isOrganizeMode, isLayerMoveMode, isHideMode, organizeTargetName, layerMoveTargetName, hasAnyLayerMoveCondition, hasConditions, deleteHiddenText]);
+  }, [
+    isMergeMode,
+    isLockMode,
+    lockBottomLayer,
+    unlockAllLayers,
+    isCustomMode,
+    isOrganizeMode,
+    isLayerMoveMode,
+    isHideMode,
+    organizeTargetName,
+    layerMoveTargetName,
+    hasAnyLayerMoveCondition,
+    hasConditions,
+    deleteHiddenText,
+  ]);
 
   const fileAnnotations = useMemo((): FileAnnotation[] => {
     return targetFiles.map((file) => {
@@ -604,19 +631,38 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
         annotatedTree = markDeleteTargets(annotatedTree, true);
       }
 
-      const stats = annotatedTree.length > 0 ? countStats(annotatedTree) : { matched: 0, warnings: 0, willChange: 0, willDelete: 0 };
+      const stats =
+        annotatedTree.length > 0
+          ? countStats(annotatedTree)
+          : { matched: 0, warnings: 0, willChange: 0, willDelete: 0 };
       return { file, layerTree, annotatedTree, stats };
     });
   }, [
-    targetFiles, conditions, hasConditions, isHideMode, isMergeMode,
-    isLockMode, lockBottomLayer, unlockAllLayers,
-    isCustomMode, customVisibilityOps, customMoveOps,
-    isOrganizeMode, organizeTargetName, organizeIncludeSpecial,
-    isLayerMoveMode, hasAnyLayerMoveCondition, layerMoveTargetName,
-    layerMoveSearchScope, layerMoveSearchGroupName,
-    layerMoveCondTextLayer, layerMoveCondSubgroupTop,
-    layerMoveCondSubgroupBottom, layerMoveCondNameEnabled,
-    layerMoveCondName, layerMoveCondNamePartial,
+    targetFiles,
+    conditions,
+    hasConditions,
+    isHideMode,
+    isMergeMode,
+    isLockMode,
+    lockBottomLayer,
+    unlockAllLayers,
+    isCustomMode,
+    customVisibilityOps,
+    customMoveOps,
+    isOrganizeMode,
+    organizeTargetName,
+    organizeIncludeSpecial,
+    isLayerMoveMode,
+    hasAnyLayerMoveCondition,
+    layerMoveTargetName,
+    layerMoveSearchScope,
+    layerMoveSearchGroupName,
+    layerMoveCondTextLayer,
+    layerMoveCondSubgroupTop,
+    layerMoveCondSubgroupBottom,
+    layerMoveCondNameEnabled,
+    layerMoveCondName,
+    layerMoveCondNamePartial,
     deleteHiddenText,
   ]);
 
@@ -628,7 +674,7 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
         willChange: acc.willChange + fa.stats.willChange,
         willDelete: acc.willDelete + fa.stats.willDelete,
       }),
-      { matched: 0, warnings: 0, willChange: 0, willDelete: 0 }
+      { matched: 0, warnings: 0, willChange: 0, willDelete: 0 },
     );
   }, [fileAnnotations]);
 
@@ -815,8 +861,18 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
     return (
       <div className="flex flex-col items-center justify-center h-full text-center px-6">
         <div className="w-12 h-12 rounded-2xl bg-bg-tertiary flex items-center justify-center mb-3">
-          <svg className="w-6 h-6 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          <svg
+            className="w-6 h-6 text-text-muted"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+            />
           </svg>
         </div>
         <p className="text-[11px] text-text-muted">ファイルを選択</p>
@@ -842,8 +898,18 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
                   : "text-text-muted hover:text-text-secondary"
               }`}
             >
-              <svg className="w-3 h-3 inline mr-0.5 -mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              <svg
+                className="w-3 h-3 inline mr-0.5 -mt-px"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                />
               </svg>
               レイヤー構造
             </button>
@@ -855,9 +921,23 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
                   : "text-text-muted hover:text-text-secondary"
               }`}
             >
-              <svg className="w-3 h-3 inline mr-0.5 -mt-px" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              <svg
+                className="w-3 h-3 inline mr-0.5 -mt-px"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                />
               </svg>
               ビューアー
             </button>
@@ -872,7 +952,9 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
                 </span>
               )}
               <span className="text-[10px] text-text-muted ml-auto flex-shrink-0">
-                {isMulti ? `${targetFiles.length} ファイル` : `${targetFiles[0].metadata?.layerCount ?? 0} レイヤー`}
+                {isMulti
+                  ? `${targetFiles.length} ファイル`
+                  : `${targetFiles[0].metadata?.layerCount ?? 0} レイヤー`}
               </span>
             </>
           )}
@@ -912,8 +994,18 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
               }}
               title={`${checkedFileIds.size}件をエクスプローラーで選択 (F)`}
             >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                />
               </svg>
               {checkedFileIds.size}件
             </button>
@@ -947,27 +1039,54 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
           <div className="flex items-center gap-2.5 mt-0.5">
             {isMergeMode ? (
               (() => {
-                const textCount = fileAnnotations.reduce((sum, fa) => sum + fa.annotatedTree.filter(i => i.mergeRole === "text").length, 0);
-                const bgCount = fileAnnotations.reduce((sum, fa) => sum + fa.annotatedTree.filter(i => i.mergeRole === "background").length, 0);
+                const textCount = fileAnnotations.reduce(
+                  (sum, fa) => sum + fa.annotatedTree.filter((i) => i.mergeRole === "text").length,
+                  0,
+                );
+                const bgCount = fileAnnotations.reduce(
+                  (sum, fa) =>
+                    sum + fa.annotatedTree.filter((i) => i.mergeRole === "background").length,
+                  0,
+                );
                 return (
                   <>
-                    {textCount > 0 && <span className="text-[11px] font-medium text-emerald-500">テキスト {textCount}</span>}
-                    {bgCount > 0 && <span className="text-[11px] font-medium text-blue-500">背景 {bgCount}</span>}
+                    {textCount > 0 && (
+                      <span className="text-[11px] font-medium text-emerald-500">
+                        テキスト {textCount}
+                      </span>
+                    )}
+                    {bgCount > 0 && (
+                      <span className="text-[11px] font-medium text-blue-500">背景 {bgCount}</span>
+                    )}
                   </>
                 );
               })()
             ) : totalStats.willChange > 0 ? (
-              <span className={`text-[11px] font-medium ${
-                isCustomMode ? "text-sky-500"
-                : isOrganizeMode ? "text-warning"
-                : isLayerMoveMode ? "text-violet-500"
-                : isHideMode ? "text-accent"
-                : "text-accent-tertiary"
-              }`}>
+              <span
+                className={`text-[11px] font-medium ${
+                  isCustomMode
+                    ? "text-sky-500"
+                    : isOrganizeMode
+                      ? "text-warning"
+                      : isLayerMoveMode
+                        ? "text-violet-500"
+                        : isHideMode
+                          ? "text-accent"
+                          : "text-accent-tertiary"
+                }`}
+              >
                 {totalStats.willChange} 件
-                {isCustomMode ? "操作登録中" : isOrganizeMode ? "格納予定" : isLayerMoveMode ? "移動予定" : isHideMode ? "非表示予定" : "表示予定"}
+                {isCustomMode
+                  ? "操作登録中"
+                  : isOrganizeMode
+                    ? "格納予定"
+                    : isLayerMoveMode
+                      ? "移動予定"
+                      : isHideMode
+                        ? "非表示予定"
+                        : "表示予定"}
               </span>
-            ) : (isOrganizeMode || isLayerMoveMode) ? (
+            ) : isOrganizeMode || isLayerMoveMode ? (
               <span className="text-[11px] text-text-muted">
                 {isOrganizeMode ? "格納対象なし" : "移動対象なし"}
               </span>
@@ -981,11 +1100,12 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
                 {totalStats.willDelete} 件削除予定
               </span>
             )}
-            {!isOrganizeMode && !isLayerMoveMode && noChangeCount > 0 && totalStats.willChange > 0 && (
-              <span className="text-[11px] text-text-muted">
-                {noChangeCount} 件済
-              </span>
-            )}
+            {!isOrganizeMode &&
+              !isLayerMoveMode &&
+              noChangeCount > 0 &&
+              totalStats.willChange > 0 && (
+                <span className="text-[11px] text-text-muted">{noChangeCount} 件済</span>
+              )}
             {totalStats.warnings > 0 && (
               <span className="text-[11px] font-medium text-amber-500 flex items-center gap-0.5">
                 <WarnIcon className="w-2.5 h-2.5" />
@@ -999,12 +1119,8 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
             <span className="text-[10px] text-text-muted">
               {viewerFile.metadata.width} x {viewerFile.metadata.height}
             </span>
-            <span className="text-[10px] text-text-muted">
-              {viewerFile.metadata.dpi} dpi
-            </span>
-            <span className="text-[10px] text-text-muted">
-              {viewerFile.metadata.colorMode}
-            </span>
+            <span className="text-[10px] text-text-muted">{viewerFile.metadata.dpi} dpi</span>
+            <span className="text-[10px] text-text-muted">{viewerFile.metadata.colorMode}</span>
           </div>
         )}
       </div>
@@ -1018,8 +1134,23 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
                 annotation={fileAnnotations[0]}
                 hasAnnotations={hasAnnotations}
                 actionMode={actionMode}
-                onToggleCustomVisibility={isCustomMode ? (path, index, vis, layerId) => toggleCustomVisibility(fileAnnotations[0].file.id, path, index, vis, layerId) : undefined}
-                onAddCustomMove={isCustomMode ? (move) => addCustomMove(fileAnnotations[0].file.id, move) : undefined}
+                onToggleCustomVisibility={
+                  isCustomMode
+                    ? (path, index, vis, layerId) =>
+                        toggleCustomVisibility(
+                          fileAnnotations[0].file.id,
+                          path,
+                          index,
+                          vis,
+                          layerId,
+                        )
+                    : undefined
+                }
+                onAddCustomMove={
+                  isCustomMode
+                    ? (move) => addCustomMove(fileAnnotations[0].file.id, move)
+                    : undefined
+                }
               />
             </div>
           ) : (
@@ -1037,10 +1168,19 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
                   actionMode={actionMode}
                   isChecked={checkedFileIds.has(fa.file.id)}
                   onToggleCheck={(shiftKey) => handleCheck(fa.file.id, shiftKey)}
-                  onOpenInPhotoshop={onOpenInPhotoshop ? () => onOpenInPhotoshop(fa.file.filePath) : undefined}
+                  onOpenInPhotoshop={
+                    onOpenInPhotoshop ? () => onOpenInPhotoshop(fa.file.filePath) : undefined
+                  }
                   onOpenFolder={() => openFolderForFile(fa.file.filePath)}
-                  onToggleCustomVisibility={isCustomMode ? (path, index, vis, layerId) => toggleCustomVisibility(fa.file.id, path, index, vis, layerId) : undefined}
-                  onAddCustomMove={isCustomMode ? (move) => addCustomMove(fa.file.id, move) : undefined}
+                  onToggleCustomVisibility={
+                    isCustomMode
+                      ? (path, index, vis, layerId) =>
+                          toggleCustomVisibility(fa.file.id, path, index, vis, layerId)
+                      : undefined
+                  }
+                  onAddCustomMove={
+                    isCustomMode ? (move) => addCustomMove(fa.file.id, move) : undefined
+                  }
                 />
               ))}
             </div>
@@ -1050,7 +1190,10 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
 
       {/* Content - Viewer Mode */}
       {viewMode === "viewer" && (
-        <div ref={viewerRef} className="flex-1 overflow-hidden min-h-0 relative flex items-center justify-center bg-[#1a1a1e]">
+        <div
+          ref={viewerRef}
+          className="flex-1 overflow-hidden min-h-0 relative flex items-center justify-center bg-[#1a1a1e]"
+        >
           {/* メイン画像 — ロード中も前の画像を維持してちらつき防止 */}
           {viewerImageUrl ? (
             <img
@@ -1076,8 +1219,18 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
           )}
           {viewerError && !viewerImageUrl && (
             <div className="flex flex-col items-center gap-2 text-center px-6">
-              <svg className="w-8 h-8 text-error/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              <svg
+                className="w-8 h-8 text-error/50"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                />
               </svg>
               <p className="text-[11px] text-text-muted">プレビューの読み込みに失敗</p>
               <button
@@ -1088,9 +1241,7 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
               </button>
             </div>
           )}
-          {!viewerFile && (
-            <p className="text-[11px] text-text-muted">ファイルを選択</p>
-          )}
+          {!viewerFile && <p className="text-[11px] text-text-muted">ファイルを選択</p>}
 
           {/* Navigation arrows for multi-file */}
           {viewerFiles.length > 1 && (
@@ -1100,7 +1251,13 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
                   onClick={() => setViewerFileIndex((i) => i - 1)}
                   className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white/70 hover:text-white transition-all backdrop-blur-sm"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                   </svg>
                 </button>
@@ -1110,7 +1267,13 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
                   onClick={() => setViewerFileIndex((i) => i + 1)}
                   className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white/70 hover:text-white transition-all backdrop-blur-sm"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
                 </button>
@@ -1168,14 +1331,25 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
               )}
               {(hasConditions || isOrganizeMode || isLayerMoveMode) && (
                 <div className="flex items-center gap-1">
-                  <span className={`w-2 h-2 rounded-sm ${
-                    isOrganizeMode ? "bg-warning/30"
-                    : isLayerMoveMode ? "bg-violet-500/30"
-                    : isHideMode ? "bg-accent/30"
-                    : "bg-accent-tertiary/30"
-                  }`} />
+                  <span
+                    className={`w-2 h-2 rounded-sm ${
+                      isOrganizeMode
+                        ? "bg-warning/30"
+                        : isLayerMoveMode
+                          ? "bg-violet-500/30"
+                          : isHideMode
+                            ? "bg-accent/30"
+                            : "bg-accent-tertiary/30"
+                    }`}
+                  />
                   <span className="text-[9px] text-text-muted">
-                    {isOrganizeMode ? "→格納" : isLayerMoveMode ? "→移動" : isHideMode ? "→非表示" : "→表示"}
+                    {isOrganizeMode
+                      ? "→格納"
+                      : isLayerMoveMode
+                        ? "→移動"
+                        : isHideMode
+                          ? "→非表示"
+                          : "→表示"}
                   </span>
                 </div>
               )}
@@ -1194,7 +1368,7 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
               <div className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-sm bg-text-muted/20" />
                 <span className="text-[9px] text-text-muted">
-                  {(isOrganizeMode || isLayerMoveMode) ? "対象外" : "済"}
+                  {isOrganizeMode || isLayerMoveMode ? "対象外" : "済"}
                 </span>
               </div>
             </>
@@ -1207,11 +1381,22 @@ export function LayerPreviewPanel({ onOpenInPhotoshop }: LayerPreviewPanelProps)
 
 // --- Single file tree ---
 
-function SingleFileTree({ annotation, hasAnnotations, actionMode, onToggleCustomVisibility, onAddCustomMove }: {
+function SingleFileTree({
+  annotation,
+  hasAnnotations,
+  actionMode,
+  onToggleCustomVisibility,
+  onAddCustomMove,
+}: {
   annotation: FileAnnotation;
   hasAnnotations: boolean;
   actionMode: LayerActionMode;
-  onToggleCustomVisibility?: (path: string[], index: number, currentVisible: boolean, layerId?: string) => void;
+  onToggleCustomVisibility?: (
+    path: string[],
+    index: number,
+    currentVisible: boolean,
+    layerId?: string,
+  ) => void;
   onAddCustomMove?: (move: CustomMoveOp) => void;
 }) {
   if (annotation.layerTree.length === 0) {
@@ -1226,11 +1411,22 @@ function SingleFileTree({ annotation, hasAnnotations, actionMode, onToggleCustom
     return <PlainTree layers={annotation.layerTree} depth={0} parentVisible />;
   }
 
-  const tree = <AnnotatedTree items={annotation.annotatedTree} depth={0} actionMode={actionMode} parentVisible onToggleCustomVisibility={onToggleCustomVisibility} isDndEnabled={!!onAddCustomMove} />;
+  const tree = (
+    <AnnotatedTree
+      items={annotation.annotatedTree}
+      depth={0}
+      actionMode={actionMode}
+      parentVisible
+      onToggleCustomVisibility={onToggleCustomVisibility}
+      isDndEnabled={!!onAddCustomMove}
+    />
+  );
 
   return onAddCustomMove ? (
     <DndTreeWrapper onAddCustomMove={onAddCustomMove}>{tree}</DndTreeWrapper>
-  ) : tree;
+  ) : (
+    tree
+  );
 }
 
 // --- D&D Context Wrapper ---
@@ -1246,15 +1442,16 @@ interface DropTargetData {
   placement: "before" | "after" | "inside";
 }
 
-function DndTreeWrapper({ children, onAddCustomMove }: {
+function DndTreeWrapper({
+  children,
+  onAddCustomMove,
+}: {
   children: React.ReactNode;
   onAddCustomMove: (move: CustomMoveOp) => void;
 }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeName, setActiveName] = useState<string>("");
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(String(event.active.id));
@@ -1262,33 +1459,36 @@ function DndTreeWrapper({ children, onAddCustomMove }: {
     setActiveName(data?.path[data.path.length - 1] ?? "");
   }, []);
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    setActiveId(null);
-    setActiveName("");
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setActiveId(null);
+      setActiveName("");
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
 
-    const source = active.data.current as DragItemData | undefined;
-    const target = over.data.current as DropTargetData | undefined;
-    if (!source || !target) return;
+      const source = active.data.current as DragItemData | undefined;
+      const target = over.data.current as DropTargetData | undefined;
+      if (!source || !target) return;
 
-    // Prevent dropping on exact same layer (path + index must match)
-    const sourcePathKey = source.path.join("/") + ":" + source.index;
-    const targetPathKey = target.targetPath.join("/") + ":" + target.targetIndex;
-    if (targetPathKey === sourcePathKey) return;
+      // Prevent dropping on exact same layer (path + index must match)
+      const sourcePathKey = source.path.join("/") + ":" + source.index;
+      const targetPathKey = target.targetPath.join("/") + ":" + target.targetIndex;
+      if (targetPathKey === sourcePathKey) return;
 
-    // Prevent dropping into own subtree (child path starts with source path/)
-    const sourcePath = source.path.join("/");
-    if (target.targetPath.join("/").startsWith(sourcePath + "/")) return;
+      // Prevent dropping into own subtree (child path starts with source path/)
+      const sourcePath = source.path.join("/");
+      if (target.targetPath.join("/").startsWith(sourcePath + "/")) return;
 
-    onAddCustomMove({
-      sourcePath: source.path,
-      sourceIndex: source.index,
-      targetPath: target.targetPath,
-      targetIndex: target.targetIndex,
-      placement: target.placement,
-    });
-  }, [onAddCustomMove]);
+      onAddCustomMove({
+        sourcePath: source.path,
+        sourceIndex: source.index,
+        targetPath: target.targetPath,
+        targetIndex: target.targetIndex,
+        placement: target.placement,
+      });
+    },
+    [onAddCustomMove],
+  );
 
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -1306,7 +1506,17 @@ function DndTreeWrapper({ children, onAddCustomMove }: {
 
 // --- File column (multi-file) ---
 
-function FileColumn({ annotation, hasAnnotations, actionMode, isChecked, onToggleCheck, onOpenInPhotoshop, onOpenFolder, onToggleCustomVisibility, onAddCustomMove }: {
+function FileColumn({
+  annotation,
+  hasAnnotations,
+  actionMode,
+  isChecked,
+  onToggleCheck,
+  onOpenInPhotoshop,
+  onOpenFolder,
+  onToggleCustomVisibility,
+  onAddCustomMove,
+}: {
   annotation: FileAnnotation;
   hasAnnotations: boolean;
   actionMode: LayerActionMode;
@@ -1314,7 +1524,12 @@ function FileColumn({ annotation, hasAnnotations, actionMode, isChecked, onToggl
   onToggleCheck: (shiftKey: boolean) => void;
   onOpenInPhotoshop?: () => void;
   onOpenFolder?: () => void;
-  onToggleCustomVisibility?: (path: string[], index: number, currentVisible: boolean, layerId?: string) => void;
+  onToggleCustomVisibility?: (
+    path: string[],
+    index: number,
+    currentVisible: boolean,
+    layerId?: string,
+  ) => void;
   onAddCustomMove?: (move: CustomMoveOp) => void;
 }) {
   const { file, layerTree, annotatedTree, stats } = annotation;
@@ -1338,32 +1553,53 @@ function FileColumn({ annotation, hasAnnotations, actionMode, isChecked, onToggl
         `}
       >
         {/* Checkbox */}
-        <div className={`
+        <div
+          className={`
           w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-all
-          ${isChecked
-            ? "border-[#31A8FF] bg-[#31A8FF] text-white"
-            : "border-border-strong/40 group-hover:border-text-muted"
+          ${
+            isChecked
+              ? "border-[#31A8FF] bg-[#31A8FF] text-white"
+              : "border-border-strong/40 group-hover:border-text-muted"
           }
-        `}>
+        `}
+        >
           {isChecked && (
-            <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <svg
+              className="w-2.5 h-2.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={3}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           )}
         </div>
-        <span className={`text-[11px] font-medium truncate flex-1 ${isChecked ? "text-[#31A8FF]" : "text-text-primary"}`}>
+        <span
+          className={`text-[11px] font-medium truncate flex-1 ${isChecked ? "text-[#31A8FF]" : "text-text-primary"}`}
+        >
           {file.fileName.replace(/\.(psd|psb)$/i, "")}
         </span>
         {hasAnnotations && stats.willChange > 0 && (
-          <span className={`text-[9px] px-1 py-px rounded flex-shrink-0 ${
-            actionMode === "merge" ? "bg-emerald-500/10 text-emerald-500"
-            : actionMode === "lock" ? (unlockAllLayers && !lockBottomLayer ? "bg-sky-500/10 text-sky-500" : "bg-amber-500/10 text-amber-500")
-            : actionMode === "custom" ? "bg-sky-500/10 text-sky-500"
-            : actionMode === "organize" ? "bg-warning/10 text-warning"
-            : actionMode === "layerMove" ? "bg-violet-500/10 text-violet-500"
-            : actionMode === "hide" ? "bg-accent/10 text-accent"
-            : "bg-accent-tertiary/10 text-accent-tertiary"
-          }`}>
+          <span
+            className={`text-[9px] px-1 py-px rounded flex-shrink-0 ${
+              actionMode === "merge"
+                ? "bg-emerald-500/10 text-emerald-500"
+                : actionMode === "lock"
+                  ? unlockAllLayers && !lockBottomLayer
+                    ? "bg-sky-500/10 text-sky-500"
+                    : "bg-amber-500/10 text-amber-500"
+                  : actionMode === "custom"
+                    ? "bg-sky-500/10 text-sky-500"
+                    : actionMode === "organize"
+                      ? "bg-warning/10 text-warning"
+                      : actionMode === "layerMove"
+                        ? "bg-violet-500/10 text-violet-500"
+                        : actionMode === "hide"
+                          ? "bg-accent/10 text-accent"
+                          : "bg-accent-tertiary/10 text-accent-tertiary"
+            }`}
+          >
             {stats.willChange}
           </span>
         )}
@@ -1383,14 +1619,20 @@ function FileColumn({ annotation, hasAnnotations, actionMode, isChecked, onToggl
         </span>
         {onOpenFolder && (
           <FolderButton
-            onClick={(e) => { e.stopPropagation(); onOpenFolder(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenFolder();
+            }}
             compact
             className="opacity-0 group-hover:opacity-100"
           />
         )}
         {onOpenInPhotoshop && (
           <PsButton
-            onClick={(e) => { e.stopPropagation(); onOpenInPhotoshop(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenInPhotoshop();
+            }}
             compact
             className="opacity-0 group-hover:opacity-100"
           />
@@ -1405,10 +1647,21 @@ function FileColumn({ annotation, hasAnnotations, actionMode, isChecked, onToggl
           </div>
         ) : hasAnnotations ? (
           (() => {
-            const tree = <AnnotatedTree items={annotatedTree} depth={0} actionMode={actionMode} parentVisible onToggleCustomVisibility={onToggleCustomVisibility} isDndEnabled={!!onAddCustomMove} />;
+            const tree = (
+              <AnnotatedTree
+                items={annotatedTree}
+                depth={0}
+                actionMode={actionMode}
+                parentVisible
+                onToggleCustomVisibility={onToggleCustomVisibility}
+                isDndEnabled={!!onAddCustomMove}
+              />
+            );
             return onAddCustomMove ? (
               <DndTreeWrapper onAddCustomMove={onAddCustomMove}>{tree}</DndTreeWrapper>
-            ) : tree;
+            ) : (
+              tree
+            );
           })()
         ) : (
           <PlainTree layers={layerTree} depth={0} parentVisible />
@@ -1420,7 +1673,15 @@ function FileColumn({ annotation, hasAnnotations, actionMode, isChecked, onToggl
 
 // --- Plain tree ---
 
-function PlainTree({ layers, depth, parentVisible }: { layers: LayerNode[]; depth: number; parentVisible: boolean }) {
+function PlainTree({
+  layers,
+  depth,
+  parentVisible,
+}: {
+  layers: LayerNode[];
+  depth: number;
+  parentVisible: boolean;
+}) {
   const reversed = useMemo(() => [...layers].reverse(), [layers]);
   return (
     <div className="text-[11px]">
@@ -1431,7 +1692,15 @@ function PlainTree({ layers, depth, parentVisible }: { layers: LayerNode[]; dept
   );
 }
 
-function PlainItem({ layer, depth, parentVisible }: { layer: LayerNode; depth: number; parentVisible: boolean }) {
+function PlainItem({
+  layer,
+  depth,
+  parentVisible,
+}: {
+  layer: LayerNode;
+  depth: number;
+  parentVisible: boolean;
+}) {
   const [isExpanded, setIsExpanded] = useState(depth < 2);
   const hasChildren = layer.children && layer.children.length > 0;
   const effectiveVisible = layer.visible && parentVisible;
@@ -1445,17 +1714,29 @@ function PlainItem({ layer, depth, parentVisible }: { layer: LayerNode; depth: n
         `}
         style={{ paddingLeft: `${depth * 12 + 2}px` }}
       >
-        <ExpandBtn has={!!hasChildren} open={isExpanded} toggle={() => setIsExpanded(!isExpanded)} />
+        <ExpandBtn
+          has={!!hasChildren}
+          open={isExpanded}
+          toggle={() => setIsExpanded(!isExpanded)}
+        />
         <VisIcon visible={layer.visible} effective={effectiveVisible} />
         <TypeIcon type={layer.type} visible={effectiveVisible} />
-        <span className={`truncate flex-1 ${effectiveVisible ? "text-text-primary" : "text-text-muted/50"}`} title={layer.name}>
+        <span
+          className={`truncate flex-1 ${effectiveVisible ? "text-text-primary" : "text-text-muted/50"}`}
+          title={layer.name}
+        >
           {layer.name || <span className="italic text-text-muted/50">名称なし</span>}
         </span>
-        <div className={effectiveVisible ? "" : "opacity-40"}><Badges layer={layer} /></div>
+        <div className={effectiveVisible ? "" : "opacity-40"}>
+          <Badges layer={layer} />
+        </div>
       </div>
       {hasChildren && isExpanded && (
         <div className="relative">
-          <div className="absolute left-0 top-0 bottom-1 w-px bg-border/40" style={{ marginLeft: `${depth * 12 + 9}px` }} />
+          <div
+            className="absolute left-0 top-0 bottom-1 w-px bg-border/40"
+            style={{ marginLeft: `${depth * 12 + 9}px` }}
+          />
           <PlainTree layers={layer.children!} depth={depth + 1} parentVisible={effectiveVisible} />
         </div>
       )}
@@ -1469,19 +1750,33 @@ function DropGap({ id, data }: { id: string; data: DropTargetData }) {
   const { isOver, setNodeRef } = useDroppable({ id, data });
   return (
     <div ref={setNodeRef} className="h-[8px] -my-[3px] relative flex items-center">
-      <div className={`h-[2px] mx-1 rounded-full w-full transition-colors ${isOver ? "bg-sky-500" : "bg-transparent"}`} />
+      <div
+        className={`h-[2px] mx-1 rounded-full w-full transition-colors ${isOver ? "bg-sky-500" : "bg-transparent"}`}
+      />
     </div>
   );
 }
 
 // --- Annotated tree ---
 
-function AnnotatedTree({ items, depth, actionMode, parentVisible = true, onToggleCustomVisibility, isDndEnabled }: {
+function AnnotatedTree({
+  items,
+  depth,
+  actionMode,
+  parentVisible = true,
+  onToggleCustomVisibility,
+  isDndEnabled,
+}: {
   items: AnnotatedLayer[];
   depth: number;
   actionMode: LayerActionMode;
   parentVisible?: boolean;
-  onToggleCustomVisibility?: (path: string[], index: number, currentVisible: boolean, layerId?: string) => void;
+  onToggleCustomVisibility?: (
+    path: string[],
+    index: number,
+    currentVisible: boolean,
+    layerId?: string,
+  ) => void;
   isDndEnabled?: boolean;
 }) {
   return (
@@ -1491,14 +1786,29 @@ function AnnotatedTree({ items, depth, actionMode, parentVisible = true, onToggl
           {isDndEnabled && idx === 0 && item.customPath && (
             <DropGap
               id={`gap:before:${buildPathKey(item.customPath, item.customIndex ?? 0)}`}
-              data={{ targetPath: item.customPath, targetIndex: item.customIndex ?? 0, placement: "before" }}
+              data={{
+                targetPath: item.customPath,
+                targetIndex: item.customIndex ?? 0,
+                placement: "before",
+              }}
             />
           )}
-          <AnnotatedItem item={item} depth={depth} actionMode={actionMode} parentVisible={parentVisible} onToggleCustomVisibility={onToggleCustomVisibility} isDndEnabled={isDndEnabled} />
+          <AnnotatedItem
+            item={item}
+            depth={depth}
+            actionMode={actionMode}
+            parentVisible={parentVisible}
+            onToggleCustomVisibility={onToggleCustomVisibility}
+            isDndEnabled={isDndEnabled}
+          />
           {isDndEnabled && item.customPath && (
             <DropGap
               id={`gap:after:${buildPathKey(item.customPath, item.customIndex ?? 0)}`}
-              data={{ targetPath: item.customPath, targetIndex: item.customIndex ?? 0, placement: "after" }}
+              data={{
+                targetPath: item.customPath,
+                targetIndex: item.customIndex ?? 0,
+                placement: "after",
+              }}
             />
           )}
         </div>
@@ -1507,12 +1817,24 @@ function AnnotatedTree({ items, depth, actionMode, parentVisible = true, onToggl
   );
 }
 
-function AnnotatedItem({ item, depth, actionMode, parentVisible = true, onToggleCustomVisibility, isDndEnabled }: {
+function AnnotatedItem({
+  item,
+  depth,
+  actionMode,
+  parentVisible = true,
+  onToggleCustomVisibility,
+  isDndEnabled,
+}: {
   item: AnnotatedLayer;
   depth: number;
   actionMode: LayerActionMode;
   parentVisible?: boolean;
-  onToggleCustomVisibility?: (path: string[], index: number, currentVisible: boolean, layerId?: string) => void;
+  onToggleCustomVisibility?: (
+    path: string[],
+    index: number,
+    currentVisible: boolean,
+    layerId?: string,
+  ) => void;
   isDndEnabled?: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(depth < 2);
@@ -1524,7 +1846,12 @@ function AnnotatedItem({ item, depth, actionMode, parentVisible = true, onToggle
 
   // D&D: draggable
   const pathKey = item.customPath ? buildPathKey(item.customPath, item.customIndex ?? 0) : "";
-  const { attributes: dragAttrs, listeners: dragListeners, setNodeRef: setDragRef, isDragging } = useDraggable({
+  const {
+    attributes: dragAttrs,
+    listeners: dragListeners,
+    setNodeRef: setDragRef,
+    isDragging,
+  } = useDraggable({
     id: isDndEnabled ? `drag:${pathKey}` : "__disabled__",
     data: { path: item.customPath ?? [], index: item.customIndex ?? 0 } as DragItemData,
     disabled: !isDndEnabled,
@@ -1533,17 +1860,23 @@ function AnnotatedItem({ item, depth, actionMode, parentVisible = true, onToggle
   // D&D: droppable (groups only — "inside" placement)
   const { isOver: isOverGroup, setNodeRef: setDropRef } = useDroppable({
     id: isDndEnabled && hasChildren ? `group:${pathKey}` : "__disabled_drop__",
-    data: { targetPath: item.customPath ?? [], targetIndex: item.customIndex ?? 0, placement: "inside" } as DropTargetData,
+    data: {
+      targetPath: item.customPath ?? [],
+      targetIndex: item.customIndex ?? 0,
+      placement: "inside",
+    } as DropTargetData,
     disabled: !isDndEnabled || !hasChildren,
   });
 
   // Post-action visibility
   const postActionVisible = isCustomMode
-    ? item.customAction === "show" ? true
-      : item.customAction === "hide" ? false
-      : effectiveVisible
+    ? item.customAction === "show"
+      ? true
+      : item.customAction === "hide"
+        ? false
+        : effectiveVisible
     : willChange
-      ? !isHideMode  // hide->false, show->true
+      ? !isHideMode // hide->false, show->true
       : effectiveVisible;
 
   const isDeleteTarget = !!item.willDelete;
@@ -1621,59 +1954,86 @@ function AnnotatedItem({ item, depth, actionMode, parentVisible = true, onToggle
           ? "bg-emerald-500/12 text-emerald-500 font-medium"
           : "bg-blue-500/12 text-blue-500 font-medium"
         : actionMode === "custom"
-        ? item.customAction === "move"
-          ? "bg-violet-500/12 text-violet-500 font-medium"
-          : item.customAction === "hide"
-            ? "bg-accent/12 text-accent font-medium"
-            : "bg-accent-tertiary/12 text-accent-tertiary font-medium"
-        : actionMode === "lock"
-          ? node.locked
-            ? "bg-sky-500/12 text-sky-500 font-medium"
-            : "bg-amber-500/12 text-amber-500 font-medium"
-          : actionMode === "organize"
-            ? "bg-warning/12 text-warning font-medium"
-            : actionMode === "layerMove"
+          ? item.customAction === "move"
             ? "bg-violet-500/12 text-violet-500 font-medium"
-            : actionMode === "hide"
+            : item.customAction === "hide"
               ? "bg-accent/12 text-accent font-medium"
               : "bg-accent-tertiary/12 text-accent-tertiary font-medium"
+          : actionMode === "lock"
+            ? node.locked
+              ? "bg-sky-500/12 text-sky-500 font-medium"
+              : "bg-amber-500/12 text-amber-500 font-medium"
+            : actionMode === "organize"
+              ? "bg-warning/12 text-warning font-medium"
+              : actionMode === "layerMove"
+                ? "bg-violet-500/12 text-violet-500 font-medium"
+                : actionMode === "hide"
+                  ? "bg-accent/12 text-accent font-medium"
+                  : "bg-accent-tertiary/12 text-accent-tertiary font-medium"
       : "bg-text-muted/8 text-text-muted/70";
 
   const badgeText = isDeleteTarget
     ? "→削除"
     : willChange
       ? actionMode === "merge"
-        ? item.mergeRole === "text" ? "テキスト" : "→背景"
+        ? item.mergeRole === "text"
+          ? "テキスト"
+          : "→背景"
         : actionMode === "custom"
-        ? item.customAction === "move" ? "移動" : item.customAction === "hide" ? "→非表示" : "→表示"
-        : actionMode === "lock" ? (node.locked ? "→解除" : "→ロック")
-          : actionMode === "organize" ? "→格納"
-            : actionMode === "layerMove" ? "→移動"
-            : actionMode === "hide" ? "→非表示"
-            : "→表示"
+          ? item.customAction === "move"
+            ? "移動"
+            : item.customAction === "hide"
+              ? "→非表示"
+              : "→表示"
+          : actionMode === "lock"
+            ? node.locked
+              ? "→解除"
+              : "→ロック"
+            : actionMode === "organize"
+              ? "→格納"
+              : actionMode === "layerMove"
+                ? "→移動"
+                : actionMode === "hide"
+                  ? "→非表示"
+                  : "→表示"
       : actionMode === "merge"
         ? "" // children in merge mode don't need a badge
         : actionMode === "lock"
-        ? matched ? (node.locked ? "ロック済" : "解除済") : ""
-        : actionMode === "organize" || actionMode === "layerMove"
-          ? "対象外"
-          : actionMode === "hide" ? "非表示済" : "表示済";
+          ? matched
+            ? node.locked
+              ? "ロック済"
+              : "解除済"
+            : ""
+          : actionMode === "organize" || actionMode === "layerMove"
+            ? "対象外"
+            : actionMode === "hide"
+              ? "非表示済"
+              : "表示済";
 
   // Custom mode: click handler for VisIcon
   // Use effectiveVisible (not node.visible) so that a layer hidden by parent group
   // correctly registers as "→表示" instead of misleading "→非表示"
-  const handleVisClick = isCustomMode && onToggleCustomVisibility && item.customPath
-    ? (e: React.MouseEvent) => {
-        e.stopPropagation();
-        onToggleCustomVisibility(item.customPath!, item.customIndex!, effectiveVisible, item.node.id);
-      }
-    : undefined;
+  const handleVisClick =
+    isCustomMode && onToggleCustomVisibility && item.customPath
+      ? (e: React.MouseEvent) => {
+          e.stopPropagation();
+          onToggleCustomVisibility(
+            item.customPath!,
+            item.customIndex!,
+            effectiveVisible,
+            item.node.id,
+          );
+        }
+      : undefined;
 
   // Merge refs for drag + drop on same element
-  const mergedRef = useCallback((el: HTMLElement | null) => {
-    setDragRef(el);
-    if (hasChildren) setDropRef(el);
-  }, [setDragRef, setDropRef, hasChildren]);
+  const mergedRef = useCallback(
+    (el: HTMLElement | null) => {
+      setDragRef(el);
+      if (hasChildren) setDropRef(el);
+    },
+    [setDragRef, setDropRef, hasChildren],
+  );
 
   return (
     <div style={isDragging ? { opacity: 0.4 } : undefined}>
@@ -1697,14 +2057,22 @@ function AnnotatedItem({ item, depth, actionMode, parentVisible = true, onToggle
             onClick={(e) => e.stopPropagation()}
           >
             <svg className="w-3 h-3" viewBox="0 0 16 16" fill="currentColor">
-              <circle cx="5" cy="3" r="1.2" /><circle cx="11" cy="3" r="1.2" />
-              <circle cx="5" cy="8" r="1.2" /><circle cx="11" cy="8" r="1.2" />
-              <circle cx="5" cy="13" r="1.2" /><circle cx="11" cy="13" r="1.2" />
+              <circle cx="5" cy="3" r="1.2" />
+              <circle cx="11" cy="3" r="1.2" />
+              <circle cx="5" cy="8" r="1.2" />
+              <circle cx="11" cy="8" r="1.2" />
+              <circle cx="5" cy="13" r="1.2" />
+              <circle cx="11" cy="13" r="1.2" />
             </svg>
           </button>
         )}
         <ExpandBtn has={hasChildren} open={isExpanded} toggle={() => setIsExpanded(!isExpanded)} />
-        <VisIcon visible={node.visible} effective={postActionVisible} onClick={handleVisClick} customAction={willChange ? item.customAction : undefined} />
+        <VisIcon
+          visible={node.visible}
+          effective={postActionVisible}
+          onClick={handleVisClick}
+          customAction={willChange ? item.customAction : undefined}
+        />
         <TypeIcon type={node.type} visible={postActionVisible} />
         <span
           className={`truncate flex-1 ${postActionVisible ? "text-text-primary" : "text-text-muted/50"}`}
@@ -1731,7 +2099,9 @@ function AnnotatedItem({ item, depth, actionMode, parentVisible = true, onToggle
 
         {/* Status badge */}
         {(matched || willChange) && (
-          <span className={`text-[9px] px-1 py-px rounded flex-shrink-0 leading-none ${badgeClass}`}>
+          <span
+            className={`text-[9px] px-1 py-px rounded flex-shrink-0 leading-none ${badgeClass}`}
+          >
             {badgeText}
           </span>
         )}
@@ -1740,8 +2110,18 @@ function AnnotatedItem({ item, depth, actionMode, parentVisible = true, onToggle
       </div>
       {hasChildren && isExpanded && (
         <div className="relative">
-          <div className="absolute left-0 top-0 bottom-1 w-px bg-border/40" style={{ marginLeft: `${depth * 12 + 9}px` }} />
-          <AnnotatedTree items={children} depth={depth + 1} actionMode={actionMode} parentVisible={postActionVisible} onToggleCustomVisibility={onToggleCustomVisibility} isDndEnabled={isDndEnabled} />
+          <div
+            className="absolute left-0 top-0 bottom-1 w-px bg-border/40"
+            style={{ marginLeft: `${depth * 12 + 9}px` }}
+          />
+          <AnnotatedTree
+            items={children}
+            depth={depth + 1}
+            actionMode={actionMode}
+            parentVisible={postActionVisible}
+            onToggleCustomVisibility={onToggleCustomVisibility}
+            isDndEnabled={isDndEnabled}
+          />
         </div>
       )}
     </div>
@@ -1755,20 +2135,32 @@ function ExpandBtn({ has, open, toggle }: { has: boolean; open: boolean; toggle:
   return (
     <button
       className="w-3.5 h-3.5 flex items-center justify-center text-text-muted hover:text-accent transition-colors"
-      onClick={(e) => { e.stopPropagation(); toggle(); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        toggle();
+      }}
     >
       <svg
         className={`w-2.5 h-2.5 transition-transform duration-150 ${open ? "rotate-90" : ""}`}
         fill="currentColor"
         viewBox="0 0 20 20"
       >
-        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+        <path
+          fillRule="evenodd"
+          d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+          clipRule="evenodd"
+        />
       </svg>
     </button>
   );
 }
 
-function VisIcon({ visible, effective = visible, onClick, customAction }: {
+function VisIcon({
+  visible,
+  effective = visible,
+  onClick,
+  customAction,
+}: {
   visible: boolean;
   effective?: boolean;
   onClick?: (e: React.MouseEvent) => void;
@@ -1776,10 +2168,14 @@ function VisIcon({ visible, effective = visible, onClick, customAction }: {
 }) {
   // visible = PS上のフラグ（アイコン形状）, effective = 実際に見えるか（色の濃さ）
   const color = customAction
-    ? customAction === "show" ? "text-accent-tertiary"
-      : customAction === "move" ? "text-violet-500"
-      : "text-accent"
-    : effective ? "text-accent-tertiary" : "text-text-muted/50";
+    ? customAction === "show"
+      ? "text-accent-tertiary"
+      : customAction === "move"
+        ? "text-violet-500"
+        : "text-accent"
+    : effective
+      ? "text-accent-tertiary"
+      : "text-text-muted/50";
   return (
     <div
       className={`w-3.5 h-3.5 flex items-center justify-center ${color} ${onClick ? "cursor-pointer hover:scale-125 transition-transform" : ""}`}
@@ -1788,11 +2184,19 @@ function VisIcon({ visible, effective = visible, onClick, customAction }: {
       {visible ? (
         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
           <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+          <path
+            fillRule="evenodd"
+            d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+            clipRule="evenodd"
+          />
         </svg>
       ) : (
         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+          <path
+            fillRule="evenodd"
+            d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
+            clipRule="evenodd"
+          />
           <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
         </svg>
       )}
@@ -1844,13 +2248,27 @@ function TypeIcon({ type, visible = true }: { type: LayerNode["type"]; visible?:
 
 function WarnIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+    <svg
+      className={className}
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={2.5}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+      />
     </svg>
   );
 }
 
-function FolderButton({ onClick, compact, className }: {
+function FolderButton({
+  onClick,
+  compact,
+  className,
+}: {
   onClick: (e: React.MouseEvent) => void;
   compact?: boolean;
   className?: string;
@@ -1866,14 +2284,28 @@ function FolderButton({ onClick, compact, className }: {
       onClick={onClick}
       title="フォルダを開く (F)"
     >
-      <svg className={compact ? "w-3 h-3" : "w-3.5 h-3.5"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+      <svg
+        className={compact ? "w-3 h-3" : "w-3.5 h-3.5"}
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+        />
       </svg>
     </button>
   );
 }
 
-function PsButton({ onClick, compact, className }: {
+function PsButton({
+  onClick,
+  compact,
+  className,
+}: {
   onClick: (e: React.MouseEvent) => void;
   compact?: boolean;
   className?: string;
@@ -1898,14 +2330,26 @@ function Badges({ layer }: { layer: LayerNode }) {
   return (
     <>
       {layer.clipping && (
-        <span className="text-[8px] px-0.5 rounded bg-accent/12 text-accent flex-shrink-0" title="クリッピングマスク">
+        <span
+          className="text-[8px] px-0.5 rounded bg-accent/12 text-accent flex-shrink-0"
+          title="クリッピングマスク"
+        >
           clip
         </span>
       )}
       {layer.hasMask && (
         <span className="flex-shrink-0" title="レイヤーマスク">
           <svg className="w-2.5 h-2.5 text-text-muted/60" viewBox="0 0 16 16" fill="currentColor">
-            <rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <rect
+              x="1"
+              y="1"
+              width="14"
+              height="14"
+              rx="2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
             <circle cx="8" cy="8" r="4" />
           </svg>
         </span>
@@ -1913,14 +2357,31 @@ function Badges({ layer }: { layer: LayerNode }) {
       {layer.hasVectorMask && (
         <span className="flex-shrink-0" title="ベクトルマスク">
           <svg className="w-2.5 h-2.5 text-[#59a8f8]/60" viewBox="0 0 16 16" fill="currentColor">
-            <rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <rect
+              x="1"
+              y="1"
+              width="14"
+              height="14"
+              rx="2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
             <path d="M4 12L8 4l4 8H4z" fill="none" stroke="currentColor" strokeWidth="1.5" />
           </svg>
         </span>
       )}
       {layer.locked && (
         <span className="flex-shrink-0" title="ロック">
-          <svg className="w-2.5 h-2.5 text-text-muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            className="w-2.5 h-2.5 text-text-muted"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <rect x="3.5" y="7" width="9" height="7" rx="1" />
             <path d="M5.5 7V5a2.5 2.5 0 015 0v2" />
           </svg>

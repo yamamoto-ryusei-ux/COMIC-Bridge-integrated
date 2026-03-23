@@ -45,7 +45,7 @@ export interface FontHelpers {
 export function collectTextLayers(
   layers: LayerNode[],
   parentPath = "",
-  parentVisible = true
+  parentVisible = true,
 ): TextLayerEntry[] {
   const entries: TextLayerEntry[] = [];
   // ag-psd: bottom-to-top → reverse for Photoshop display order
@@ -106,10 +106,7 @@ export function useFontResolver(files: PsdFile[]) {
   }, [files]);
 
   // PostScript名のリスト
-  const postScriptNames = useMemo(
-    () => allFonts.map(([font]) => font),
-    [allFonts]
-  );
+  const postScriptNames = useMemo(() => allFonts.map(([font]) => font), [allFonts]);
 
   // システムフォントから表示名・スタイル名を解決
   useEffect(() => {
@@ -144,20 +141,24 @@ export function useFontResolver(files: PsdFile[]) {
   }, [postScriptNames, fontResolveMap, fontNamesResolved]);
 
   // ヘルパー関数をまとめる
-  const fontInfo: FontHelpers = useMemo(() => ({
-    getFontLabel: (ps: string) => {
-      const info = fontResolveMap[ps];
-      if (!info) return ps;
-      return `${info.display_name} ${info.style_name}`;
-    },
-    getFontColor: (ps: string) => missingFonts.has(ps) ? MISSING_FONT_COLOR : (fontColorMap.get(ps) || FONT_COLORS[0]),
-    getFontFamily: (ps: string) => {
-      const info = fontResolveMap[ps];
-      return info ? info.display_name : undefined;
-    },
-    isMissing: (ps: string) => fontNamesResolved && missingFonts.has(ps),
-    allFontNames: postScriptNames,
-  }), [fontResolveMap, fontColorMap, missingFonts, fontNamesResolved, postScriptNames]);
+  const fontInfo: FontHelpers = useMemo(
+    () => ({
+      getFontLabel: (ps: string) => {
+        const info = fontResolveMap[ps];
+        if (!info) return ps;
+        return `${info.display_name} ${info.style_name}`;
+      },
+      getFontColor: (ps: string) =>
+        missingFonts.has(ps) ? MISSING_FONT_COLOR : fontColorMap.get(ps) || FONT_COLORS[0],
+      getFontFamily: (ps: string) => {
+        const info = fontResolveMap[ps];
+        return info ? info.display_name : undefined;
+      },
+      isMissing: (ps: string) => fontNamesResolved && missingFonts.has(ps),
+      allFontNames: postScriptNames,
+    }),
+    [fontResolveMap, fontColorMap, missingFonts, fontNamesResolved, postScriptNames],
+  );
 
   // フォント解決を再実行（インストール後に呼ぶ）
   const refreshFonts = useCallback(() => {

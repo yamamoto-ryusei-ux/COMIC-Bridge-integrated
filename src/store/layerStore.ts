@@ -1,14 +1,21 @@
 import { create } from "zustand";
 
 // 操作モード
-export type LayerActionMode = "hide" | "show" | "organize" | "layerMove" | "custom" | "lock" | "merge";
+export type LayerActionMode =
+  | "hide"
+  | "show"
+  | "organize"
+  | "layerMove"
+  | "custom"
+  | "lock"
+  | "merge";
 
 // カスタム操作の型
 export interface CustomVisibilityOp {
-  path: string[];     // ["GroupA", "SubGroup", "LayerName"]
-  index: number;      // 同名レイヤーの曖昧さ回避（同階層でのインデックス）
+  path: string[]; // ["GroupA", "SubGroup", "LayerName"]
+  index: number; // 同名レイヤーの曖昧さ回避（同階層でのインデックス）
   action: "show" | "hide";
-  layerId?: string;   // レイヤーIDで追跡（移動後のパス再解決用）
+  layerId?: string; // レイヤーIDで追跡（移動後のパス再解決用）
 }
 
 export interface CustomMoveOp {
@@ -114,8 +121,8 @@ interface LayerVisibilityState {
   mergeOutputFolderName: string;
 
   // カスタム操作（個別レイヤーの表示/非表示 + 移動）
-  customVisibilityOps: Map<string, CustomVisibilityOp[]>;  // fileId → ops
-  customMoveOps: Map<string, CustomMoveOp[]>;               // fileId → ops
+  customVisibilityOps: Map<string, CustomVisibilityOp[]>; // fileId → ops
+  customMoveOps: Map<string, CustomMoveOp[]>; // fileId → ops
 
   // 処理中フラグ
   isProcessing: boolean;
@@ -136,7 +143,12 @@ interface LayerVisibilityState {
   removeCustomCondition: (id: string) => void;
   setIsProcessing: (processing: boolean) => void;
   getSelectedConditions: () => HideCondition[];
-  setLastResults: (results: LayerControlResult[], mode: LayerActionMode, mergeOutputFolder?: string, mergeSourceFolder?: string) => void;
+  setLastResults: (
+    results: LayerControlResult[],
+    mode: LayerActionMode,
+    mergeOutputFolder?: string,
+    mergeSourceFolder?: string,
+  ) => void;
   clearLastResults: () => void;
   setOrganizeTargetName: (name: string) => void;
   setOrganizeIncludeSpecial: (include: boolean) => void;
@@ -157,7 +169,13 @@ interface LayerVisibilityState {
   setMergeOutputFolderName: (name: string) => void;
 
   // カスタム操作アクション
-  toggleCustomVisibility: (fileId: string, path: string[], index: number, currentVisible: boolean, layerId?: string) => void;
+  toggleCustomVisibility: (
+    fileId: string,
+    path: string[],
+    index: number,
+    currentVisible: boolean,
+    layerId?: string,
+  ) => void;
   addCustomMove: (fileId: string, op: CustomMoveOp) => void;
   removeCustomVisibilityOp: (fileId: string, path: string[], index: number) => void;
   removeCustomMoveOp: (fileId: string, opIndex: number) => void;
@@ -166,7 +184,10 @@ interface LayerVisibilityState {
   undoCustomOp: () => void;
 
   // Undo stack (internal)
-  _customOpsHistory: Array<{ vis: Map<string, CustomVisibilityOp[]>; move: Map<string, CustomMoveOp[]> }>;
+  _customOpsHistory: Array<{
+    vis: Map<string, CustomVisibilityOp[]>;
+    move: Map<string, CustomMoveOp[]>;
+  }>;
 }
 
 export const useLayerStore = create<LayerVisibilityState>((set, get) => ({
@@ -264,10 +285,20 @@ export const useLayerStore = create<LayerVisibilityState>((set, get) => ({
   },
 
   setLastResults: (results, mode, mergeOutputFolder, mergeSourceFolder) => {
-    set({ lastResults: results, lastActionMode: mode, lastMergeOutputFolder: mergeOutputFolder ?? null, lastMergeSourceFolder: mergeSourceFolder ?? null });
+    set({
+      lastResults: results,
+      lastActionMode: mode,
+      lastMergeOutputFolder: mergeOutputFolder ?? null,
+      lastMergeSourceFolder: mergeSourceFolder ?? null,
+    });
   },
   clearLastResults: () => {
-    set({ lastResults: [], lastActionMode: null, lastMergeOutputFolder: null, lastMergeSourceFolder: null });
+    set({
+      lastResults: [],
+      lastActionMode: null,
+      lastMergeOutputFolder: null,
+      lastMergeSourceFolder: null,
+    });
   },
   setOrganizeTargetName: (name) => {
     set({ organizeTargetName: name });
@@ -324,7 +355,10 @@ export const useLayerStore = create<LayerVisibilityState>((set, get) => ({
   toggleCustomVisibility: (fileId, path, index, currentVisible, layerId) => {
     set((state) => {
       // Push current state to undo history
-      const history = [...state._customOpsHistory, { vis: state.customVisibilityOps, move: state.customMoveOps }].slice(-50);
+      const history = [
+        ...state._customOpsHistory,
+        { vis: state.customVisibilityOps, move: state.customMoveOps },
+      ].slice(-50);
 
       const newMap = new Map(state.customVisibilityOps);
       const ops = [...(newMap.get(fileId) ?? [])];
@@ -349,7 +383,10 @@ export const useLayerStore = create<LayerVisibilityState>((set, get) => ({
   addCustomMove: (fileId, op) => {
     set((state) => {
       // Push current state to undo history
-      const history = [...state._customOpsHistory, { vis: state.customVisibilityOps, move: state.customMoveOps }].slice(-50);
+      const history = [
+        ...state._customOpsHistory,
+        { vis: state.customVisibilityOps, move: state.customMoveOps },
+      ].slice(-50);
 
       const newMap = new Map(state.customMoveOps);
       const ops = [...(newMap.get(fileId) ?? []), op];
@@ -362,7 +399,7 @@ export const useLayerStore = create<LayerVisibilityState>((set, get) => ({
     set((state) => {
       const newMap = new Map(state.customVisibilityOps);
       const ops = (newMap.get(fileId) ?? []).filter(
-        (o) => !(o.path.join("/") === path.join("/") && o.index === index)
+        (o) => !(o.path.join("/") === path.join("/") && o.index === index),
       );
       if (ops.length === 0) {
         newMap.delete(fileId);

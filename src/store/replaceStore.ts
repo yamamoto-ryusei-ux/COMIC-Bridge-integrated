@@ -68,18 +68,12 @@ interface ReplaceState {
   setTextSubMode: (subMode: TextSubMode) => void;
   setTextGroupName: (name: string) => void;
   setTextPartialMatch: (value: boolean) => void;
-  setImageSettings: (
-    settings: Partial<ReplaceSettings["imageSettings"]>
-  ) => void;
-  setSwitchSettings: (
-    settings: Partial<ReplaceSettings["switchSettings"]>
-  ) => void;
+  setImageSettings: (settings: Partial<ReplaceSettings["imageSettings"]>) => void;
+  setSwitchSettings: (settings: Partial<ReplaceSettings["switchSettings"]>) => void;
   setSwitchSubMode: (subMode: SwitchSubMode) => void;
   setPairingMode: (mode: PairingMode) => void;
   setLinkCharacter: (char: string) => void;
-  setGeneralSettings: (
-    settings: Partial<ReplaceSettings["generalSettings"]>
-  ) => void;
+  setGeneralSettings: (settings: Partial<ReplaceSettings["generalSettings"]>) => void;
   setSubfolderMode: (mode: SubfolderMode) => void;
 
   // Actions - 合成設定
@@ -97,7 +91,12 @@ interface ReplaceState {
   // Actions - ペアリング
   setPairingJobs: (jobs: PairingJob[]) => void;
   setDetectedLinkChar: (char: string | null) => void;
-  updatePairFile: (pairIndex: number, side: "source" | "target", newFile: string, newName: string) => void;
+  updatePairFile: (
+    pairIndex: number,
+    side: "source" | "target",
+    newFile: string,
+    newName: string,
+  ) => void;
   addAutoPair: (sourceFile: string, targetFile: string) => void;
   removeAutoPair: (pairIndex: number) => void;
 
@@ -160,9 +159,30 @@ const defaultSettings: ReplaceSettings = {
     elements: [
       { id: "textFolders", type: "textFolders", label: "テキストフォルダ", source: "A" },
       { id: "background", type: "background", label: "背景", source: "B" },
-      { id: "manuscript", type: "namedGroup", label: "#背景#", source: "exclude", customName: "#背景#", partialMatch: false },
-      { id: "specialLayer", type: "specialLayer", label: "白消し", source: "exclude", customName: "白消し", partialMatch: true },
-      { id: "namedGroup", type: "namedGroup", label: "棒消し", source: "exclude", customName: "棒消し", partialMatch: true },
+      {
+        id: "manuscript",
+        type: "namedGroup",
+        label: "#背景#",
+        source: "exclude",
+        customName: "#背景#",
+        partialMatch: false,
+      },
+      {
+        id: "specialLayer",
+        type: "specialLayer",
+        label: "白消し",
+        source: "exclude",
+        customName: "白消し",
+        partialMatch: true,
+      },
+      {
+        id: "namedGroup",
+        type: "namedGroup",
+        label: "棒消し",
+        source: "exclude",
+        customName: "棒消し",
+        partialMatch: true,
+      },
     ],
     restSource: "B",
     skipResize: false,
@@ -189,9 +209,13 @@ export const useReplaceStore = create<ReplaceState>((set) => ({
 
   // フォルダ
   setSourceFolder: (path, files) =>
-    set((state) => ({ folders: { ...state.folders, sourceFolder: path, sourceFiles: files ?? null } })),
+    set((state) => ({
+      folders: { ...state.folders, sourceFolder: path, sourceFiles: files ?? null },
+    })),
   setTargetFolder: (path, files) =>
-    set((state) => ({ folders: { ...state.folders, targetFolder: path, targetFiles: files ?? null } })),
+    set((state) => ({
+      folders: { ...state.folders, targetFolder: path, targetFiles: files ?? null },
+    })),
   setBatchFolders: (folders) => set({ batchFolders: folders }),
   addBatchFolder: (folder) =>
     set((state) => {
@@ -316,7 +340,7 @@ export const useReplaceStore = create<ReplaceState>((set) => ({
         composeSettings: {
           ...state.settings.composeSettings,
           elements: state.settings.composeSettings.elements.map((el) =>
-            el.id === elementId ? { ...el, source } : el
+            el.id === elementId ? { ...el, source } : el,
           ),
         },
       },
@@ -337,9 +361,7 @@ export const useReplaceStore = create<ReplaceState>((set) => ({
         ...state.settings,
         composeSettings: {
           ...state.settings.composeSettings,
-          elements: state.settings.composeSettings.elements.filter(
-            (el) => el.id !== elementId
-          ),
+          elements: state.settings.composeSettings.elements.filter((el) => el.id !== elementId),
         },
       },
     })),
@@ -350,7 +372,7 @@ export const useReplaceStore = create<ReplaceState>((set) => ({
         composeSettings: {
           ...state.settings.composeSettings,
           elements: state.settings.composeSettings.elements.map((el) =>
-            el.id === elementId ? { ...el, ...updates } : el
+            el.id === elementId ? { ...el, ...updates } : el,
           ),
         },
       },
@@ -484,8 +506,7 @@ export const useReplaceStore = create<ReplaceState>((set) => ({
       return { excludedPairIndices: next };
     }),
   setManualPairs: (pairs) => set({ manualPairs: pairs }),
-  addManualPair: (pair) =>
-    set((state) => ({ manualPairs: [...state.manualPairs, pair] })),
+  addManualPair: (pair) => set((state) => ({ manualPairs: [...state.manualPairs, pair] })),
   removeManualPair: (pairIndex) =>
     set((state) => ({
       manualPairs: state.manualPairs.filter((p) => p.pairIndex !== pairIndex),
@@ -493,11 +514,9 @@ export const useReplaceStore = create<ReplaceState>((set) => ({
 
   // 処理
   setPhase: (phase) => set({ phase }),
-  setProgress: (current, total) =>
-    set({ progress: current, totalPairs: total }),
+  setProgress: (current, total) => set({ progress: current, totalPairs: total }),
   setCurrentPair: (name) => set({ currentPair: name }),
-  addResult: (result) =>
-    set((state) => ({ results: [...state.results, result] })),
+  addResult: (result) => set((state) => ({ results: [...state.results, result] })),
   clearResults: () => set({ results: [] }),
   reset: () =>
     set({

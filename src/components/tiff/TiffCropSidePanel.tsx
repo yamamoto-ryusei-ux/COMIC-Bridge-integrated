@@ -12,7 +12,6 @@ const ASPECT_H = 909;
 const ASPECT_RATIO = ASPECT_W / ASPECT_H;
 const ASPECT_TOLERANCE = 0.01;
 
-
 // ============================================================
 // Main Component
 // ============================================================
@@ -35,7 +34,6 @@ export function TiffCropSidePanel() {
   const setSelectedCropGuideIndex = useTiffStore((s) => s.setSelectedCropGuideIndex);
   const applyCropGuidesToBounds = useTiffStore((s) => s.applyCropGuidesToBounds);
   const resetCropEditor = useTiffStore((s) => s.resetCropEditor);
-
 
   const psdFiles = usePsdStore((s) => s.files);
   const referenceFileIndex = useTiffStore((s) => s.referenceFileIndex);
@@ -92,12 +90,8 @@ export function TiffCropSidePanel() {
     const docHeight = guideSource.metadata.height ?? 0;
     if (!docWidth || !docHeight) return;
 
-    const hPositions = psdGuides
-      .filter((g) => g.direction === "horizontal")
-      .map((g) => g.position);
-    const vPositions = psdGuides
-      .filter((g) => g.direction === "vertical")
-      .map((g) => g.position);
+    const hPositions = psdGuides.filter((g) => g.direction === "horizontal").map((g) => g.position);
+    const vPositions = psdGuides.filter((g) => g.direction === "vertical").map((g) => g.position);
 
     // tachimi準拠: ドキュメント中心±1pxのガイドを除外し、最適範囲を算出
     const getOptimalRange = (positions: number[], docSize: number): [number, number] | null => {
@@ -157,8 +151,18 @@ export function TiffCropSidePanel() {
       <div className="px-4 py-3 border-b border-border">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-display font-medium text-text-primary flex items-center gap-2">
-            <svg className="w-4 h-4 text-accent-warm" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            <svg
+              className="w-4 h-4 text-accent-warm"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+              />
             </svg>
             版面指定
           </h3>
@@ -170,8 +174,18 @@ export function TiffCropSidePanel() {
               className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               title="元に戻す (Ctrl+Z)"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"
+                />
               </svg>
             </button>
             {/* Redo */}
@@ -181,8 +195,18 @@ export function TiffCropSidePanel() {
               className="p-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               title="やり直す (Ctrl+Y)"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 10H11a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6" />
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 10H11a8 8 0 00-8 8v2M21 10l-6 6m6-6l-6-6"
+                />
               </svg>
             </button>
           </div>
@@ -195,27 +219,57 @@ export function TiffCropSidePanel() {
         <CropStepIndicator currentStep={cropStep} />
 
         {/* Hint Text */}
-        <CropHintText step={cropStep} guideCount={cropGuides.length} canApplyGuides={canApplyGuides} />
+        <CropHintText
+          step={cropStep}
+          guideCount={cropGuides.length}
+          canApplyGuides={canApplyGuides}
+        />
 
         {/* Operation Guide */}
         <div className="bg-bg-tertiary rounded-xl p-3">
           <h4 className="text-xs font-medium text-text-muted mb-2">操作方法</h4>
           <div className="space-y-1.5 text-[10px] text-text-secondary">
             <div className="flex items-start gap-2">
-              <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-accent-warm" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+              <svg
+                className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-accent-warm"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
+                />
               </svg>
               <span>画像上をクリック/ドラッグで範囲を作成</span>
             </div>
             <div className="flex items-start gap-2">
-              <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-accent-warm" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg
+                className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-accent-warm"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
               <span>定規からドラッグでガイドを追加</span>
             </div>
             <div className="flex items-start gap-2">
-              <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+              <svg
+                className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-text-muted"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"
+                />
               </svg>
               <span>Ctrl+Wheel: ズーム / Space+ドラッグ: パン</span>
             </div>
@@ -227,9 +281,11 @@ export function TiffCropSidePanel() {
           <div className="flex items-center justify-between mb-2">
             <h4 className="text-xs font-medium text-text-muted">クロップ範囲</h4>
             {ratioValid !== null && (
-              <span className={`px-2 py-0.5 text-[10px] font-medium rounded ${
-                ratioValid ? "bg-success/10 text-success" : "bg-error/10 text-error"
-              }`}>
+              <span
+                className={`px-2 py-0.5 text-[10px] font-medium rounded ${
+                  ratioValid ? "bg-success/10 text-success" : "bg-error/10 text-error"
+                }`}
+              >
                 {ratioValid ? "比率OK" : "比率NG"}
               </span>
             )}
@@ -237,7 +293,10 @@ export function TiffCropSidePanel() {
           {cropBounds ? (
             <div className="flex items-center justify-between text-[10px]">
               <span className="text-text-muted">
-                サイズ: <span className="font-mono text-accent-warm">{cropBounds.right - cropBounds.left} x {cropBounds.bottom - cropBounds.top}</span>
+                サイズ:{" "}
+                <span className="font-mono text-accent-warm">
+                  {cropBounds.right - cropBounds.left} x {cropBounds.bottom - cropBounds.top}
+                </span>
               </span>
               <button
                 onClick={() => {
@@ -279,9 +338,7 @@ export function TiffCropSidePanel() {
         {cropGuides.length > 0 && (
           <div className="bg-bg-tertiary rounded-xl p-3">
             <div className="flex items-center justify-between mb-2">
-              <h4 className="text-xs font-medium text-text-muted">
-                ガイド ({cropGuides.length})
-              </h4>
+              <h4 className="text-xs font-medium text-text-muted">ガイド ({cropGuides.length})</h4>
               <button
                 onClick={clearCropGuides}
                 className="text-[10px] text-text-muted hover:text-error transition-colors"
@@ -318,10 +375,19 @@ export function TiffCropSidePanel() {
                     {Math.round(guide.position)} px
                   </span>
                   <button
-                    onClick={(e) => { e.stopPropagation(); removeCropGuide(i); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removeCropGuide(i);
+                    }}
                     className="text-text-muted/50 hover:text-error transition-colors p-0.5"
                   >
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
@@ -339,8 +405,18 @@ export function TiffCropSidePanel() {
             onClick={() => setShowPartialBlurModal(true)}
             className="w-full px-3 py-2 text-xs font-medium text-accent-secondary bg-accent-secondary/10 border border-accent-secondary/30 rounded-lg hover:bg-accent-secondary/20 transition-colors flex items-center justify-center gap-1.5"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"
+              />
             </svg>
             部分ぼかし設定
             {partialBlurEntries.length > 0 && (
@@ -385,7 +461,6 @@ export function TiffCropSidePanel() {
           比率 {ASPECT_W}:{ASPECT_H}
         </div>
       </div>
-
     </div>
   );
 }
@@ -406,24 +481,35 @@ function CropStepIndicator({ currentStep }: { currentStep: TiffCropStep }) {
     <div className="flex items-center gap-1 px-1">
       {steps.map((step, i) => (
         <div key={step.key} className="flex items-center gap-1 flex-1">
-          <div className={`
+          <div
+            className={`
             w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 transition-all
-            ${i < currentIdx
-              ? "bg-success text-white"
-              : i === currentIdx
-                ? "bg-accent-warm text-white"
-                : "bg-bg-tertiary text-text-muted"
+            ${
+              i < currentIdx
+                ? "bg-success text-white"
+                : i === currentIdx
+                  ? "bg-accent-warm text-white"
+                  : "bg-bg-tertiary text-text-muted"
             }
-          `}>
+          `}
+          >
             {i < currentIdx ? (
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={3}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             ) : (
               i + 1
             )}
           </div>
-          <span className={`text-[10px] ${i === currentIdx ? "text-text-primary font-medium" : "text-text-muted"}`}>
+          <span
+            className={`text-[10px] ${i === currentIdx ? "text-text-primary font-medium" : "text-text-muted"}`}
+          >
             {step.label}
           </span>
           {i < steps.length - 1 && (
@@ -436,8 +522,14 @@ function CropStepIndicator({ currentStep }: { currentStep: TiffCropStep }) {
 }
 
 function CropHintText({
-  step, guideCount, canApplyGuides,
-}: { step: TiffCropStep; guideCount: number; canApplyGuides: boolean }) {
+  step,
+  guideCount,
+  canApplyGuides,
+}: {
+  step: TiffCropStep;
+  guideCount: number;
+  canApplyGuides: boolean;
+}) {
   let hint = "";
   if (step === "select") {
     if (guideCount > 0 && canApplyGuides) {
@@ -469,7 +561,13 @@ interface FolderEntry {
   isDir: boolean;
 }
 
-export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffCropPreset, jsonFilePath?: string) => void; onClose: () => void }) {
+export function CropJsonLoadDialog({
+  onLoad,
+  onClose,
+}: {
+  onLoad: (preset: TiffCropPreset, jsonFilePath?: string) => void;
+  onClose: () => void;
+}) {
   const [currentPath, setCurrentPath] = useState(JSON_BASE_PATH);
   const [pathHistory, setPathHistory] = useState<string[]>([]);
   const [entries, setEntries] = useState<FolderEntry[]>([]);
@@ -480,7 +578,9 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
 
   // 検索
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<{ label: string; title: string; path: string }[]>([]);
+  const [searchResults, setSearchResults] = useState<
+    { label: string; title: string; path: string }[]
+  >([]);
   const [isSearchMode, setIsSearchMode] = useState(false);
 
   // 現在のフォルダの内容を読み込む（Rustコマンド経由）
@@ -491,9 +591,12 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
     setSelectedFile(null);
     setError(null);
     try {
-      const contents = await invoke<{ folders: string[]; json_files: string[] }>("list_folder_contents", {
-        folderPath: path,
-      });
+      const contents = await invoke<{ folders: string[]; json_files: string[] }>(
+        "list_folder_contents",
+        {
+          folderPath: path,
+        },
+      );
       const items: FolderEntry[] = [
         ...contents.folders.map((name) => ({ name, isDir: true })),
         ...contents.json_files.map((name) => ({ name, isDir: false })),
@@ -517,12 +620,15 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
   }, []);
 
   // フォルダに入る（ワンクリック）
-  const enterFolder = useCallback((folderName: string) => {
-    const newPath = `${currentPath}/${folderName}`;
-    setPathHistory((prev) => [...prev, currentPath]);
-    setCurrentPath(newPath);
-    loadContents(newPath);
-  }, [currentPath, loadContents]);
+  const enterFolder = useCallback(
+    (folderName: string) => {
+      const newPath = `${currentPath}/${folderName}`;
+      setPathHistory((prev) => [...prev, currentPath]);
+      setCurrentPath(newPath);
+      loadContents(newPath);
+    },
+    [currentPath, loadContents],
+  );
 
   // 戻る
   const goBack = useCallback(() => {
@@ -563,7 +669,7 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
       try {
         const results = await invoke<{ label: string; title: string; path: string }[]>(
           "search_json_folders",
-          { basePath: JSON_BASE_PATH, query: searchQuery.trim() }
+          { basePath: JSON_BASE_PATH, query: searchQuery.trim() },
         );
         setSearchResults(results);
       } catch {
@@ -574,23 +680,26 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
   }, [searchQuery]);
 
   // 検索結果クリック → JSONファイル読み込みまたはフォルダ移動
-  const handleSearchSelect = useCallback(async (result: { path: string }) => {
-    const resultPath = result.path.replace(/\\/g, "/");
-    setSearchQuery("");
-    setIsSearchMode(false);
+  const handleSearchSelect = useCallback(
+    async (result: { path: string }) => {
+      const resultPath = result.path.replace(/\\/g, "/");
+      setSearchQuery("");
+      setIsSearchMode(false);
 
-    if (resultPath.toLowerCase().endsWith(".json")) {
-      // JSONファイルパス → 直接読み込み
-      const dirPath = resultPath.replace(/\/[^/]+$/, "");
-      const fileName = resultPath.split("/").pop() || "";
-      handleSelectFile(dirPath, fileName);
-    } else {
-      // フォルダパス → そのフォルダに移動
-      setPathHistory((prev) => [...prev, currentPath]);
-      setCurrentPath(resultPath);
-      loadContents(resultPath);
-    }
-  }, [handleSelectFile, currentPath, loadContents]);
+      if (resultPath.toLowerCase().endsWith(".json")) {
+        // JSONファイルパス → 直接読み込み
+        const dirPath = resultPath.replace(/\/[^/]+$/, "");
+        const fileName = resultPath.split("/").pop() || "";
+        handleSelectFile(dirPath, fileName);
+      } else {
+        // フォルダパス → そのフォルダに移動
+        setPathHistory((prev) => [...prev, currentPath]);
+        setCurrentPath(resultPath);
+        loadContents(resultPath);
+      }
+    },
+    [handleSelectFile, currentPath, loadContents],
+  );
 
   // パス表示（ベースパスからの相対）
   const displayPath = useMemo(() => {
@@ -603,14 +712,25 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
   return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div className="bg-bg-secondary border border-border rounded-2xl shadow-xl max-w-lg w-full mx-4 max-h-[80vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
           <h3 className="text-sm font-display font-bold text-text-primary">JSONファイルを選択</h3>
-          <button onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <button
+            onClick={onClose}
+            className="text-text-muted hover:text-text-primary transition-colors"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -619,8 +739,18 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
         {/* Search input */}
         <div className="px-5 py-2 border-b border-border/50">
           <div className="relative">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
             </svg>
             <input
               type="text"
@@ -631,10 +761,19 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
             />
             {searchQuery && (
               <button
-                onClick={() => { setSearchQuery(""); setIsSearchMode(false); }}
+                onClick={() => {
+                  setSearchQuery("");
+                  setIsSearchMode(false);
+                }}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -650,11 +789,19 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
               disabled={isAtRoot}
               className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <span className="text-[10px] text-text-muted font-mono truncate flex-1">{displayPath}</span>
+            <span className="text-[10px] text-text-muted font-mono truncate flex-1">
+              {displayPath}
+            </span>
           </div>
         )}
 
@@ -675,12 +822,32 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
                     className="w-full text-left px-4 py-2.5 text-xs transition-colors border-b border-border/30 last:border-b-0 flex items-center gap-2.5 text-text-secondary hover:bg-bg-tertiary"
                   >
                     {isJsonFile ? (
-                      <svg className="w-4 h-4 flex-shrink-0 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      <svg
+                        className="w-4 h-4 flex-shrink-0 opacity-60"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
                       </svg>
                     ) : (
-                      <svg className="w-4 h-4 flex-shrink-0 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                      <svg
+                        className="w-4 h-4 flex-shrink-0 opacity-60"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                        />
                       </svg>
                     )}
                     <div className="truncate">
@@ -715,17 +882,45 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
                 }`}
               >
                 {entry.isDir ? (
-                  <svg className="w-4 h-4 flex-shrink-0 text-accent-warm/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  <svg
+                    className="w-4 h-4 flex-shrink-0 text-accent-warm/70"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                    />
                   </svg>
                 ) : (
-                  <svg className="w-4 h-4 flex-shrink-0 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <svg
+                    className="w-4 h-4 flex-shrink-0 opacity-60"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
                   </svg>
                 )}
-                <span className="truncate">{entry.isDir ? entry.name : entry.name.replace(/\.json$/, "")}</span>
+                <span className="truncate">
+                  {entry.isDir ? entry.name : entry.name.replace(/\.json$/, "")}
+                </span>
                 {entry.isDir && (
-                  <svg className="w-3.5 h-3.5 flex-shrink-0 text-text-muted/50 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg
+                    className="w-3.5 h-3.5 flex-shrink-0 text-text-muted/50 ml-auto"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
                 )}
@@ -735,7 +930,9 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
         </div>
 
         {error && (
-          <div className="mx-5 mb-2 px-3 py-2 rounded-lg bg-error/10 text-[10px] text-error">{error}</div>
+          <div className="mx-5 mb-2 px-3 py-2 rounded-lg bg-error/10 text-[10px] text-error">
+            {error}
+          </div>
         )}
 
         {/* Preset list */}
@@ -744,24 +941,49 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
           <div className="px-5 py-2 border-t border-border/50 space-y-1 max-h-48 overflow-auto">
             {presets.length > 0 ? (
               <>
-                <label className="text-[10px] text-text-muted block">プリセット ({presets.length})</label>
+                <label className="text-[10px] text-text-muted block">
+                  プリセット ({presets.length})
+                </label>
                 {presets.map((preset, i) => (
                   <button
                     key={i}
-                    onClick={() => { onLoad(preset, selectedFile ? `${currentPath}/${selectedFile}` : undefined); onClose(); }}
+                    onClick={() => {
+                      onLoad(preset, selectedFile ? `${currentPath}/${selectedFile}` : undefined);
+                      onClose();
+                    }}
                     className="w-full text-left px-3 py-2.5 bg-bg-tertiary rounded-lg hover:bg-accent-warm/10 border border-transparent hover:border-accent-warm/30 transition-all group"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-text-primary font-medium truncate">{preset.label}</span>
-                      <svg className="w-4 h-4 text-text-muted group-hover:text-accent-warm transition-colors flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                      <span className="text-xs text-text-primary font-medium truncate">
+                        {preset.label}
+                      </span>
+                      <svg
+                        className="w-4 h-4 text-text-muted group-hover:text-accent-warm transition-colors flex-shrink-0"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                        />
                       </svg>
                     </div>
                     <div className="flex gap-3 text-[9px] text-text-muted mt-0.5">
-                      <span>doc: {preset.documentSize?.width}x{preset.documentSize?.height}</span>
-                      {preset.size && <span>range: {preset.size.width}x{preset.size.height}</span>}
+                      <span>
+                        doc: {preset.documentSize?.width}x{preset.documentSize?.height}
+                      </span>
+                      {preset.size && (
+                        <span>
+                          range: {preset.size.width}x{preset.size.height}
+                        </span>
+                      )}
                       {preset.blurRadius !== undefined && <span>blur: {preset.blurRadius}px</span>}
-                      {preset.savedAt && <span>{new Date(preset.savedAt).toLocaleDateString()}</span>}
+                      {preset.savedAt && (
+                        <span>{new Date(preset.savedAt).toLocaleDateString()}</span>
+                      )}
                     </div>
                   </button>
                 ))}
@@ -772,7 +994,17 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
                 <button
                   onClick={() => {
                     // プリセットなしでもJSONパスだけ保存して閉じる
-                    onLoad({ label: "", units: "px", bounds: { left: 0, top: 0, right: 0, bottom: 0 }, size: { width: 0, height: 0 }, documentSize: { width: 0, height: 0 }, savedAt: "" }, `${currentPath}/${selectedFile}`);
+                    onLoad(
+                      {
+                        label: "",
+                        units: "px",
+                        bounds: { left: 0, top: 0, right: 0, bottom: 0 },
+                        size: { width: 0, height: 0 },
+                        documentSize: { width: 0, height: 0 },
+                        savedAt: "",
+                      },
+                      `${currentPath}/${selectedFile}`,
+                    );
                     onClose();
                   }}
                   className="px-3 py-1.5 text-[11px] font-medium rounded-lg text-accent-secondary bg-accent-secondary/10 border border-accent-secondary/30 hover:bg-accent-secondary/20 transition-colors"
@@ -795,7 +1027,7 @@ export function CropJsonLoadDialog({ onLoad, onClose }: { onLoad: (preset: TiffC
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
@@ -859,7 +1091,10 @@ export function CropJsonRegisterDialog({ onClose }: { onClose: () => void }) {
       // 参考スクリプト互換: 同名ラベル上書き + Scandata連動
       const addRangeToData = (data: TiffScandataFile) => {
         if (!data.presetData) {
-          data.presetData = { workInfo: { genre: selectedGenre, label: selectedLabel, title: title.trim() }, selectionRanges: [] };
+          data.presetData = {
+            workInfo: { genre: selectedGenre, label: selectedLabel, title: title.trim() },
+            selectionRanges: [],
+          };
         }
         if (!data.presetData.selectionRanges) {
           data.presetData.selectionRanges = [];
@@ -880,17 +1115,29 @@ export function CropJsonRegisterDialog({ onClose }: { onClose: () => void }) {
           const content = await invoke<string>("read_text_file", { filePath });
           let existingData = JSON.parse(content) as TiffScandataFile;
           existingData = addRangeToData(existingData);
-          await invoke("write_text_file", { filePath, content: JSON.stringify(existingData, null, 4) });
+          await invoke("write_text_file", {
+            filePath,
+            content: JSON.stringify(existingData, null, 4),
+          });
 
           // Scandata連動保存
-          const saveDataPath = existingData.presetData?.saveDataPath || (existingData as Record<string, unknown>).saveDataPath;
+          const saveDataPath =
+            existingData.presetData?.saveDataPath ||
+            (existingData as Record<string, unknown>).saveDataPath;
           if (saveDataPath && currentSelectionData) {
             try {
-              const sdContent = await invoke<string>("read_text_file", { filePath: saveDataPath as string });
+              const sdContent = await invoke<string>("read_text_file", {
+                filePath: saveDataPath as string,
+              });
               let sdData = JSON.parse(sdContent) as TiffScandataFile;
               sdData = addRangeToData(sdData);
-              await invoke("write_text_file", { filePath: saveDataPath as string, content: JSON.stringify(sdData, null, 4) });
-            } catch { /* Scandata保存エラーは無視 */ }
+              await invoke("write_text_file", {
+                filePath: saveDataPath as string,
+                content: JSON.stringify(sdData, null, 4),
+              });
+            } catch {
+              /* Scandata保存エラーは無視 */
+            }
           }
 
           useTiffStore.getState().setCropSourceJsonPath(filePath);
@@ -925,19 +1172,36 @@ export function CropJsonRegisterDialog({ onClose }: { onClose: () => void }) {
   return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div className="bg-bg-secondary border border-border rounded-2xl shadow-xl w-96 mx-4 overflow-hidden">
         {/* Header */}
         <div className="px-5 py-3.5 border-b border-border flex items-center justify-between">
           <h3 className="text-sm font-display font-bold text-text-primary flex items-center gap-2">
-            <svg className="w-4 h-4 text-accent-warm" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="w-4 h-4 text-accent-warm"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
             JSONに新規登録
           </h3>
-          <button onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <button
+            onClick={onClose}
+            className="text-text-muted hover:text-text-primary transition-colors"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -954,7 +1218,11 @@ export function CropJsonRegisterDialog({ onClose }: { onClose: () => void }) {
                 onChange={(e) => setSelectedGenre(e.target.value)}
                 className="w-full px-2.5 py-1.5 text-xs bg-bg-elevated border border-border/50 rounded-lg text-text-primary focus:outline-none"
               >
-                {genres.map((g) => <option key={g} value={g}>{g}</option>)}
+                {genres.map((g) => (
+                  <option key={g} value={g}>
+                    {g}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="flex-1">
@@ -964,7 +1232,11 @@ export function CropJsonRegisterDialog({ onClose }: { onClose: () => void }) {
                 onChange={(e) => setSelectedLabel(e.target.value)}
                 className="w-full px-2.5 py-1.5 text-xs bg-bg-elevated border border-border/50 rounded-lg text-text-primary focus:outline-none"
               >
-                {labels.map((l) => <option key={l} value={l}>{l}</option>)}
+                {labels.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -975,8 +1247,13 @@ export function CropJsonRegisterDialog({ onClose }: { onClose: () => void }) {
             <input
               type="text"
               value={title}
-              onChange={(e) => { setTitle(e.target.value); setError(null); }}
-              onKeyDown={(e) => { if (e.key === "Enter" && title.trim()) handleCreate(); }}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setError(null);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && title.trim()) handleCreate();
+              }}
               placeholder="作品名を入力"
               autoFocus
               className="w-full px-2.5 py-2 text-xs bg-bg-elevated border border-border/50 rounded-lg text-text-primary placeholder:text-text-muted/40 focus:outline-none focus:border-accent-warm/50"
@@ -1001,10 +1278,13 @@ export function CropJsonRegisterDialog({ onClose }: { onClose: () => void }) {
             <div className="px-3 py-2 bg-accent-warm/5 border border-accent-warm/20 rounded-lg">
               <p className="text-[9px] text-accent-warm mb-1">保存する選択範囲</p>
               <p className="text-[10px] text-text-secondary font-mono">
-                ({currentSelectionData.bounds.left}, {currentSelectionData.bounds.top}) → ({currentSelectionData.bounds.right}, {currentSelectionData.bounds.bottom})
+                ({currentSelectionData.bounds.left}, {currentSelectionData.bounds.top}) → (
+                {currentSelectionData.bounds.right}, {currentSelectionData.bounds.bottom})
               </p>
               <p className="text-[9px] text-text-muted mt-0.5">
-                {currentSelectionData.size.width} x {currentSelectionData.size.height} / doc: {currentSelectionData.documentSize.width} x {currentSelectionData.documentSize.height}
+                {currentSelectionData.size.width} x {currentSelectionData.size.height} / doc:{" "}
+                {currentSelectionData.documentSize.width} x{" "}
+                {currentSelectionData.documentSize.height}
               </p>
             </div>
           ) : (
@@ -1029,7 +1309,13 @@ export function CropJsonRegisterDialog({ onClose }: { onClose: () => void }) {
 
           {success && (
             <div className="px-3 py-2 rounded-lg bg-success/10 text-[10px] text-success flex items-center gap-1.5">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
               作成しました
@@ -1055,11 +1341,10 @@ export function CropJsonRegisterDialog({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
 // ============================================================
 // Unlock Dialog
 // ============================================================
-

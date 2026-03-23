@@ -1,6 +1,15 @@
 import { create } from "zustand";
 
-export type AppView = "specCheck" | "layers" | "split" | "replace" | "compose" | "rename" | "tiff" | "scanPsd" | "typesetting";
+export type AppView =
+  | "specCheck"
+  | "layers"
+  | "split"
+  | "replace"
+  | "compose"
+  | "rename"
+  | "tiff"
+  | "scanPsd"
+  | "typesetting";
 
 interface ViewState {
   activeView: AppView;
@@ -17,6 +26,5 @@ export const useViewStore = create<ViewState>((set) => ({
 
   setActiveView: (activeView) => set({ activeView }),
   setDetailPanelOpen: (isDetailPanelOpen) => set({ isDetailPanelOpen }),
-  toggleDetailPanel: () =>
-    set((state) => ({ isDetailPanelOpen: !state.isDetailPanelOpen })),
+  toggleDetailPanel: () => set((state) => ({ isDetailPanelOpen: !state.isDetailPanelOpen })),
 }));

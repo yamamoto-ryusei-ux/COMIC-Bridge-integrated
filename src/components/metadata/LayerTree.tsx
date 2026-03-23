@@ -9,13 +9,26 @@ interface LayerTreeProps {
   onSelectLayer?: (layerId: string | null, bounds: LayerBounds | null) => void;
 }
 
-export function LayerTree({ layers, depth = 0, parentVisible = true, selectedLayerId, onSelectLayer }: LayerTreeProps) {
+export function LayerTree({
+  layers,
+  depth = 0,
+  parentVisible = true,
+  selectedLayerId,
+  onSelectLayer,
+}: LayerTreeProps) {
   // ag-psdはbottom-to-top順で返すため、reverseしてPhotoshop表示順（上がforeground）に変換
   const reversed = useMemo(() => [...layers].reverse(), [layers]);
   return (
     <div className="text-xs space-y-0.5">
       {reversed.map((layer) => (
-        <LayerItem key={layer.id} layer={layer} depth={depth} parentVisible={parentVisible} selectedLayerId={selectedLayerId} onSelectLayer={onSelectLayer} />
+        <LayerItem
+          key={layer.id}
+          layer={layer}
+          depth={depth}
+          parentVisible={parentVisible}
+          selectedLayerId={selectedLayerId}
+          onSelectLayer={onSelectLayer}
+        />
       ))}
     </div>
   );
@@ -29,7 +42,13 @@ interface LayerItemProps {
   onSelectLayer?: (layerId: string | null, bounds: LayerBounds | null) => void;
 }
 
-function LayerItem({ layer, depth, parentVisible, selectedLayerId, onSelectLayer }: LayerItemProps) {
+function LayerItem({
+  layer,
+  depth,
+  parentVisible,
+  selectedLayerId,
+  onSelectLayer,
+}: LayerItemProps) {
   const [isExpanded, setIsExpanded] = useState(depth < 2);
   const hasChildren = layer.children && layer.children.length > 0;
   const effectiveVisible = layer.visible && parentVisible;
@@ -39,7 +58,11 @@ function LayerItem({ layer, depth, parentVisible, selectedLayerId, onSelectLayer
     switch (layer.type) {
       case "group":
         return (
-          <svg className={`${iconClass} text-manga-lavender`} fill="currentColor" viewBox="0 0 20 20">
+          <svg
+            className={`${iconClass} text-manga-lavender`}
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
             <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
           </svg>
         );
@@ -57,7 +80,11 @@ function LayerItem({ layer, depth, parentVisible, selectedLayerId, onSelectLayer
         );
       case "smartObject":
         return (
-          <svg className={`${iconClass} text-accent-tertiary`} viewBox="0 0 20 20" fill="currentColor">
+          <svg
+            className={`${iconClass} text-accent-tertiary`}
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
             <path d="M10 2L3 6v8l7 4 7-4V6l-7-4zm0 2.24L14.5 7 10 9.76 5.5 7 10 4.24z" />
           </svg>
         );
@@ -78,12 +105,18 @@ function LayerItem({ layer, depth, parentVisible, selectedLayerId, onSelectLayer
 
   const getTypeLabel = () => {
     switch (layer.type) {
-      case "group": return "グループ";
-      case "text": return "テキスト";
-      case "adjustment": return "調整";
-      case "smartObject": return "スマートオブジェクト";
-      case "shape": return "シェイプ";
-      default: return "レイヤー";
+      case "group":
+        return "グループ";
+      case "text":
+        return "テキスト";
+      case "adjustment":
+        return "調整";
+      case "smartObject":
+        return "スマートオブジェクト";
+      case "shape":
+        return "シェイプ";
+      default:
+        return "レイヤー";
     }
   };
 
@@ -96,10 +129,17 @@ function LayerItem({ layer, depth, parentVisible, selectedLayerId, onSelectLayer
           ${selectedLayerId === layer.id ? "bg-white/8 border-l-2 border-[rgba(194,90,90,0.5)]" : ""}
         `}
         style={{ paddingLeft: `${depth * 14 + 4}px` }}
-        onClick={onSelectLayer && layer.bounds ? (e) => {
-          e.stopPropagation();
-          onSelectLayer(selectedLayerId === layer.id ? null : layer.id, selectedLayerId === layer.id ? null : layer.bounds!);
-        } : undefined}
+        onClick={
+          onSelectLayer && layer.bounds
+            ? (e) => {
+                e.stopPropagation();
+                onSelectLayer(
+                  selectedLayerId === layer.id ? null : layer.id,
+                  selectedLayerId === layer.id ? null : layer.bounds!,
+                );
+              }
+            : undefined
+        }
       >
         {/* Expand/Collapse Button */}
         {hasChildren ? (
@@ -128,9 +168,7 @@ function LayerItem({ layer, depth, parentVisible, selectedLayerId, onSelectLayer
         {/* Visibility Indicator */}
         <div
           className={`w-4 h-4 flex items-center justify-center rounded transition-colors ${
-            effectiveVisible
-              ? "text-accent-tertiary"
-              : "text-text-muted"
+            effectiveVisible ? "text-accent-tertiary" : "text-text-muted"
           }`}
           title={layer.visible ? "表示" : "非表示"}
         >
@@ -171,14 +209,26 @@ function LayerItem({ layer, depth, parentVisible, selectedLayerId, onSelectLayer
         {/* Mask Badges */}
         <div className={`flex items-center gap-1 ${effectiveVisible ? "" : "opacity-40"}`}>
           {layer.clipping && (
-            <span className="text-[9px] px-1 py-0.5 rounded bg-accent/15 text-accent flex-shrink-0" title="クリッピングマスク">
+            <span
+              className="text-[9px] px-1 py-0.5 rounded bg-accent/15 text-accent flex-shrink-0"
+              title="クリッピングマスク"
+            >
               clip
             </span>
           )}
           {layer.hasMask && (
             <span className="flex-shrink-0" title="レイヤーマスク">
               <svg className="w-3 h-3 text-text-muted" viewBox="0 0 16 16" fill="currentColor">
-                <rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                <rect
+                  x="1"
+                  y="1"
+                  width="14"
+                  height="14"
+                  rx="2"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
                 <circle cx="8" cy="8" r="4" />
               </svg>
             </span>
@@ -186,14 +236,31 @@ function LayerItem({ layer, depth, parentVisible, selectedLayerId, onSelectLayer
           {layer.hasVectorMask && (
             <span className="flex-shrink-0" title="ベクトルマスク">
               <svg className="w-3 h-3 text-[#59a8f8]" viewBox="0 0 16 16" fill="currentColor">
-                <rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+                <rect
+                  x="1"
+                  y="1"
+                  width="14"
+                  height="14"
+                  rx="2"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                />
                 <path d="M4 12L8 4l4 8H4z" fill="none" stroke="currentColor" strokeWidth="1.5" />
               </svg>
             </span>
           )}
           {layer.locked && (
             <span className="flex-shrink-0" title="ロック">
-              <svg className="w-3 h-3 text-text-muted" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                className="w-3 h-3 text-text-muted"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <rect x="3.5" y="7" width="9" height="7" rx="1" />
                 <path d="M5.5 7V5a2.5 2.5 0 015 0v2" />
               </svg>
@@ -217,7 +284,13 @@ function LayerItem({ layer, depth, parentVisible, selectedLayerId, onSelectLayer
             className="absolute left-0 top-0 bottom-2 w-px bg-white/10"
             style={{ marginLeft: `${depth * 14 + 12}px` }}
           />
-          <LayerTree layers={layer.children!} depth={depth + 1} parentVisible={effectiveVisible} selectedLayerId={selectedLayerId} onSelectLayer={onSelectLayer} />
+          <LayerTree
+            layers={layer.children!}
+            depth={depth + 1}
+            parentVisible={effectiveVisible}
+            selectedLayerId={selectedLayerId}
+            onSelectLayer={onSelectLayer}
+          />
         </div>
       )}
     </div>

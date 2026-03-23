@@ -159,7 +159,7 @@ export const useScanPsdStore = create<ScanPsdState>((set) => ({
   activeTab: 0,
   folders: [],
   scanData: null,
-  presetSets: { "デフォルト": [] },
+  presetSets: { デフォルト: [] },
   currentSetName: "デフォルト",
   workInfo: { ...DEFAULT_WORK_INFO },
   selectedGuideIndex: null,
@@ -186,8 +186,7 @@ export const useScanPsdStore = create<ScanPsdState>((set) => ({
   // フォルダ
   addFolder: (path, name, volume) =>
     set((s) => ({ folders: [...s.folders, { path, name, volume }] })),
-  removeFolder: (index) =>
-    set((s) => ({ folders: s.folders.filter((_, i) => i !== index) })),
+  removeFolder: (index) => set((s) => ({ folders: s.folders.filter((_, i) => i !== index) })),
   updateFolderVolume: (index, volume) =>
     set((s) => ({
       folders: s.folders.map((f, i) => (i === index ? { ...f, volume } : f)),
@@ -198,14 +197,12 @@ export const useScanPsdStore = create<ScanPsdState>((set) => ({
   setScanData: (scanData) => set({ scanData }),
 
   // 作品情報
-  setWorkInfo: (partial) =>
-    set((s) => ({ workInfo: { ...s.workInfo, ...partial } })),
+  setWorkInfo: (partial) => set((s) => ({ workInfo: { ...s.workInfo, ...partial } })),
 
   // プリセット
   setPresetSets: (presetSets) => set({ presetSets }),
   setCurrentSetName: (currentSetName) => set({ currentSetName }),
-  addPresetSet: (name) =>
-    set((s) => ({ presetSets: { ...s.presetSets, [name]: [] } })),
+  addPresetSet: (name) => set((s) => ({ presetSets: { ...s.presetSets, [name]: [] } })),
   removePresetSet: (name) =>
     set((s) => {
       const next = { ...s.presetSets };
@@ -245,7 +242,7 @@ export const useScanPsdStore = create<ScanPsdState>((set) => ({
       presetSets: {
         ...s.presetSets,
         [setName]: (s.presetSets[setName] || []).map((f, i) =>
-          i === index ? { ...f, ...partial } : f
+          i === index ? { ...f, ...partial } : f,
         ),
       },
     })),
@@ -264,8 +261,7 @@ export const useScanPsdStore = create<ScanPsdState>((set) => ({
   // ルビ
   setRubyList: (rubyList) => set({ rubyList }),
   addRuby: (entry) => set((s) => ({ rubyList: [...s.rubyList, entry] })),
-  removeRuby: (id) =>
-    set((s) => ({ rubyList: s.rubyList.filter((r) => r.id !== id) })),
+  removeRuby: (id) => set((s) => ({ rubyList: s.rubyList.filter((r) => r.id !== id) })),
   updateRuby: (id, partial) =>
     set((s) => ({
       rubyList: s.rubyList.map((r) => (r.id === id ? { ...r, ...partial } : r)),
@@ -315,9 +311,8 @@ export const useScanPsdStore = create<ScanPsdState>((set) => ({
       const pd = data.presetData || {};
       // je-nsonman互換: parent/ruby → parentText/rubyText, volume文字列→数値
       const rawRuby = pd.rubyList as unknown[] | undefined;
-      const normalizedRuby = rawRuby && rawRuby.length > 0
-        ? normalizeRubyEntries(rawRuby)
-        : undefined;
+      const normalizedRuby =
+        rawRuby && rawRuby.length > 0 ? normalizeRubyEntries(rawRuby) : undefined;
       return {
         workInfo: pd.workInfo ? { ...DEFAULT_WORK_INFO, ...pd.workInfo } : s.workInfo,
         presetSets: pd.presets && Object.keys(pd.presets).length > 0 ? pd.presets : s.presetSets,
@@ -339,16 +334,12 @@ export const useScanPsdStore = create<ScanPsdState>((set) => ({
       };
       // je-nsonman互換: parent/ruby → parentText/rubyText, volume文字列→数値
       const rawRuby = data.editedRubyList as unknown[] | undefined;
-      const normalizedRuby = rawRuby && rawRuby.length > 0
-        ? normalizeRubyEntries(rawRuby)
-        : undefined;
+      const normalizedRuby =
+        rawRuby && rawRuby.length > 0 ? normalizeRubyEntries(rawRuby) : undefined;
       return {
         scanData: data,
         workInfo: data.workInfo ? { ...DEFAULT_WORK_INFO, ...data.workInfo } : s.workInfo,
-        presetSets:
-          ext.presets && Object.keys(ext.presets).length > 0
-            ? ext.presets
-            : s.presetSets,
+        presetSets: ext.presets && Object.keys(ext.presets).length > 0 ? ext.presets : s.presetSets,
         rubyList: normalizedRuby ?? s.rubyList,
         selectedGuideIndex: ext.selectedGuideSetIndex ?? s.selectedGuideIndex,
         excludedGuideIndices: ext.excludedGuideIndices
@@ -364,7 +355,7 @@ export const useScanPsdStore = create<ScanPsdState>((set) => ({
       activeTab: 0,
       folders: [],
       scanData: null,
-      presetSets: { "デフォルト": [] },
+      presetSets: { デフォルト: [] },
       currentSetName: "デフォルト",
       workInfo: { ...DEFAULT_WORK_INFO },
       selectedGuideIndex: null,

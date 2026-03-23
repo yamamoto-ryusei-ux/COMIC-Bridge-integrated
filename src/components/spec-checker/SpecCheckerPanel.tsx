@@ -94,9 +94,7 @@ export function SpecCheckerPanel() {
             <div className="text-[10px] text-error/70 font-medium">NG</div>
           </div>
           <div className="bg-text-muted/10 rounded-xl p-3 text-center border border-text-muted/20">
-            <div className="text-xl font-bold text-text-secondary">
-              {stats.unchecked}
-            </div>
+            <div className="text-xl font-bold text-text-secondary">{stats.unchecked}</div>
             <div className="text-[10px] text-text-muted font-medium">未確認</div>
           </div>
         </div>
@@ -106,8 +104,18 @@ export function SpecCheckerPanel() {
       <div className="flex-1 overflow-auto p-3 space-y-4">
         <div>
           <h4 className="text-xs font-medium text-text-muted mb-2 flex items-center gap-1.5">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+              />
             </svg>
             仕様プリセット
           </h4>
@@ -117,9 +125,10 @@ export function SpecCheckerPanel() {
                 key={spec.id}
                 className={`
                   p-3 rounded-xl cursor-pointer transition-all duration-200
-                  ${activeSpecId === spec.id
-                    ? "bg-accent/15 border-2 border-accent/50 shadow-glow-pink"
-                    : "bg-bg-tertiary hover:bg-bg-elevated border border-white/5 hover:border-white/10"
+                  ${
+                    activeSpecId === spec.id
+                      ? "bg-accent/15 border-2 border-accent/50 shadow-glow-pink"
+                      : "bg-bg-tertiary hover:bg-bg-elevated border border-white/5 hover:border-white/10"
                   }
                 `}
                 onClick={() => setActiveSpec(spec.id === activeSpecId ? null : spec.id)}
@@ -135,30 +144,38 @@ export function SpecCheckerPanel() {
                       }}
                       className="sr-only peer"
                     />
-                    <div className={`
+                    <div
+                      className={`
                       w-5 h-5 rounded-lg border-2 transition-all duration-200
                       flex items-center justify-center
-                      ${spec.enabled
-                        ? "bg-gradient-to-br from-accent to-accent-secondary border-accent"
-                        : "border-text-muted/50 hover:border-accent/50"
+                      ${
+                        spec.enabled
+                          ? "bg-gradient-to-br from-accent to-accent-secondary border-accent"
+                          : "border-text-muted/50 hover:border-accent/50"
                       }
-                    `}>
+                    `}
+                    >
                       {spec.enabled && (
                         <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
                         </svg>
                       )}
                     </div>
                   </label>
-                  <span className="text-sm text-text-primary font-medium">
-                    {spec.name}
-                  </span>
+                  <span className="text-sm text-text-primary font-medium">{spec.name}</span>
                 </div>
 
                 {/* Rules summary */}
                 <div className="mt-2 pl-8 space-y-1">
                   {spec.rules.map((rule, index) => (
-                    <div key={index} className="flex items-center gap-2 text-xs text-text-secondary">
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 text-xs text-text-secondary"
+                    >
                       <span className="w-1 h-1 rounded-full bg-text-muted" />
                       {formatRule(rule)}
                     </div>
@@ -173,9 +190,23 @@ export function SpecCheckerPanel() {
         {stats.failed > 0 && activeSpecId && (
           <div className="bg-bg-tertiary rounded-xl p-3">
             <h4 className="text-xs font-medium text-text-muted mb-2 flex items-center gap-1.5">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                />
               </svg>
               変換設定
             </h4>
@@ -183,19 +214,25 @@ export function SpecCheckerPanel() {
               {conversionSettings.targetColorMode && (
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-text-secondary">カラーモード</span>
-                  <span className="text-accent font-medium">{conversionSettings.targetColorMode}</span>
+                  <span className="text-accent font-medium">
+                    {conversionSettings.targetColorMode}
+                  </span>
                 </div>
               )}
               {conversionSettings.targetBitDepth && (
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-text-secondary">ビット深度</span>
-                  <span className="text-accent font-medium">{conversionSettings.targetBitDepth}bit</span>
+                  <span className="text-accent font-medium">
+                    {conversionSettings.targetBitDepth}bit
+                  </span>
                 </div>
               )}
               {conversionSettings.targetDpi && (
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-text-secondary">解像度</span>
-                  <span className="text-accent-tertiary font-medium">{conversionSettings.targetDpi}dpi (リサンプリング)</span>
+                  <span className="text-accent-tertiary font-medium">
+                    {conversionSettings.targetDpi}dpi (リサンプリング)
+                  </span>
                 </div>
               )}
             </div>
@@ -206,8 +243,18 @@ export function SpecCheckerPanel() {
         {conversionResults.length > 0 && (
           <div className="bg-bg-tertiary rounded-xl p-3">
             <h4 className="text-xs font-medium text-text-muted mb-2 flex items-center gap-1.5">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               変換結果
             </h4>
@@ -233,7 +280,9 @@ export function SpecCheckerPanel() {
                 >
                   <div className="font-medium text-text-primary truncate">{result.fileName}</div>
                   {result.changes.map((change, i) => (
-                    <div key={i} className="text-text-secondary">{change}</div>
+                    <div key={i} className="text-text-secondary">
+                      {change}
+                    </div>
                   ))}
                   {result.error && <div className="text-error">{result.error}</div>}
                 </div>
@@ -259,9 +308,7 @@ export function SpecCheckerPanel() {
           "
           onClick={handleCheckAll}
           disabled={
-            isChecking ||
-            files.length === 0 ||
-            specifications.filter((s) => s.enabled).length === 0
+            isChecking || files.length === 0 || specifications.filter((s) => s.enabled).length === 0
           }
         >
           {isChecking ? (
@@ -271,8 +318,18 @@ export function SpecCheckerPanel() {
             </>
           ) : (
             <>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
               すべてチェック
             </>

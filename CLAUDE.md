@@ -147,6 +147,7 @@
 - **出力フォルダ重複回避**: `TIF_Output`フォルダが既存の場合`TIF_Output (1)`, `(2)`...で連番生成（Rust側でJSON内outputPathも書き換え）
 - **ビジュアルクロップエディタ**: useHighResPreviewベースのプレビュー上にドラッグ可能なクロップ矩形をオーバーレイ。640:909アスペクト比ロック、8ハンドルリサイズ、暗転マスク、三分割グリッド、リアルタイム寸法表示、比率検証（±1%）。手入力フィールド(L/T/R/B)は廃止済み — 比率OK/サイズ表示/PSDから自動設定のみ表示
 - **個別クロップ編集**: ファイル別クロップ編集モード中は`savedGlobalBoundsRef`でグローバル範囲を退避。OK/キャンセルボタン押下時にグローバル範囲を復元（個別編集がグローバル設定を上書きしない）
+- **個別クロップ優先表示**: TiffViewerPanel（ビューアータブ）・TiffCropEditor（プレビュータブ）ともに、参照ファイルに個別クロップ設定があればグローバル設定より優先して表示。fileOverridesのキーはPsdFileの`.id`（`.fileId`ではない）。TiffCropEditorでは個別範囲をアンバー色ソリッド枠（読み取り専用）でメイン表示し、グローバル範囲をピンク破線＋ハンドルでグローバル編集可能な状態を維持
 - **バッチキュー＆個別上書き**: 全ファイルの処理予定を可視化。ファイル毎にカラーモード・ぼかし半径・スキップをインライン上書き。リネームプレビュータブで出力名確認・重複検出
 - **カラーモード**: モノクロ/カラー/変更なし/個別選択（ページ範囲ルール最大3件 + デフォルトモード）
 - **ガウスぼかし**: モノクロ時のみ適用、半径指定(px)。部分ぼかし（最大5ページ、ページ別半径）
@@ -359,8 +360,8 @@
 ## UI構成
 
 ### レイアウト
-- **TopNav**: 上部ナビゲーション。タブでビュー切替（仕様チェック/写植調整/ビューアー/レイヤー制御/見開き分割/差替え/合成/リネーム/TIFF化/Scan PSD）
-- **ViewRouter + viewStore**: タブベースのビュー切替管理（AppView: specCheck | typesettingCheck | viewer | layers | split | replace | compose | rename | tiff | scanPsd）
+- **TopNav**: 上部ナビゲーション。タブでビュー切替（完成原稿チェック/レイヤー制御/写植関連/差替え/合成/TIFF化/スキャナー/見開き分割/リネーム）
+- **ViewRouter + viewStore**: タブベースのビュー切替管理（AppView: specCheck | layers | typesetting | split | replace | compose | rename | tiff | scanPsd）
 - **AppLayout**: TopNav + フルワイドビュー構成（旧3カラムサイドバーは廃止済み）、グローバルD&Dリスナー（useGlobalDragDrop）。`handleMouseDown`で領域外クリック時に選択解除（モーダルは`onMouseDown stopPropagation`で保護が必要）
 
 ### ビュー
@@ -370,7 +371,7 @@
   - viewMode切替: サムネイル（PreviewGrid）、レイヤー構造（SpecLayerGrid）、写植仕様（SpecTextGrid）
   - SpecTextGrid: 使用フォントサマリー（種類数・レイヤー数）、サイズ統計（頻度順・基本ポイント数）、ファイル別テキストレイヤー一覧。フォント切替（デフォルト/プレビュー）、ソート切替（昇順/降順）
   - SpecLayerGrid: 全ファイルのレイヤー構造をグリッド表示
-- **TypesettingCheckView**: 写植調整（2カラム: TypesettingCheckPanel | TypesettingViewerPanel）。MojiQ校正JSONの読み込み・カテゴリ別表示・ページ遷移連動
+- **TypsettingView**: 写植関連（写植チェック・写植確認を統合）。MojiQ校正JSONの読み込み・カテゴリ別表示・ページ遷移連動
 - **ViewerView**: 独立ビューアー（SpecViewerPanelを再利用）。画像+サイドバー（写植仕様/レイヤー構造タブ）。OS全画面（Tauri setFullscreen）、スプラッシュトランジション、矢印キー/ホイールナビ、P/Fショートカット
 - **ReplaceView**: レイヤー差替え
 - **ComposeView**: 合成（2カラム: ComposePanel | ComposeDropZone）。Replace機能と類似のペアリングUI
@@ -434,8 +435,10 @@ src/
 │   │   └── ViewRouter.tsx        # ビュー切替ルーター
 │   ├── views/             # ビューコンポーネント
 │   │   ├── FileView.tsx          # ファイル一覧ビュー
+│   │   ├── FontBookView.tsx      # フォント帳ビュー
 │   │   ├── LayerControlView.tsx  # レイヤー制御ビュー
 │   │   ├── SpecCheckView.tsx     # 仕様チェックビュー（サムネイル/レイヤー/写植タブ切替）
+│   │   ├── TypsettingView.tsx    # 写植関連ビュー（写植チェック・確認を統合）
 │   │   ├── ViewerView.tsx        # ビューアービュー（SpecViewerPanel再利用）
 │   │   ├── ReplaceView.tsx       # レイヤー差替えビュー
 │   │   ├── ComposeView.tsx      # 合成ビュー（ComposePanel + ComposeDropZone）
@@ -451,16 +454,20 @@ src/
 │   │   ├── PreviewList.tsx        # リスト形式プレビュー（サムネイル+メタデータ）
 │   │   └── ThumbnailCard.tsx
 │   ├── spec-checker/      # 仕様チェック
-│   │   ├── SpecCheckerPanel.tsx
-│   │   ├── SpecCheckTable.tsx    # 仕様チェック結果テーブル
-│   │   ├── SpecSelectionModal.tsx
+│   │   ├── CaptureOverlay.tsx    # キャプチャオーバーレイ
+│   │   ├── ConversionToast.tsx
 │   │   ├── FixGuidePanel.tsx
+│   │   ├── FontBrowserDialog.tsx # フォントブラウザダイアログ
 │   │   ├── GuideSectionPanel.tsx
-│   │   ├── SpecLayerGrid.tsx     # レイヤー構造グリッド（全ファイル一覧）
-│   │   ├── SpecTextGrid.tsx      # 写植仕様グリッド（フォント/サイズ統計 + テキストレイヤー一覧）
-│   │   ├── SpecViewerPanel.tsx   # ビューアーパネル（画像+サイドバー、全画面対応）
+│   │   ├── LayerSeparationPanel.tsx # レイヤー分離パネル
 │   │   ├── SpecCardList.tsx     # チェック結果カードリスト（マルチセレクト対応）
-│   │   └── ConversionToast.tsx
+│   │   ├── SpecCheckTable.tsx    # 仕様チェック結果テーブル
+│   │   ├── SpecCheckerPanel.tsx
+│   │   ├── SpecLayerGrid.tsx     # レイヤー構造グリッド（全ファイル一覧）
+│   │   ├── SpecScanJsonDialog.tsx # スキャンJSONダイアログ
+│   │   ├── SpecSelectionModal.tsx
+│   │   ├── SpecTextGrid.tsx      # 写植仕様グリッド（フォント/サイズ統計 + テキストレイヤー一覧）
+│   │   └── SpecViewerPanel.tsx   # ビューアーパネル（画像+サイドバー、全画面対応）
 │   ├── guide-editor/      # ガイド線編集
 │   │   ├── GuideEditorModal.tsx
 │   │   ├── GuideCanvas.tsx
@@ -496,19 +503,21 @@ src/
 │   │   ├── RenamePreview.tsx      # プレビュー表示（両モード共通）
 │   │   └── RenameResultDialog.tsx # 処理結果ダイアログ
 │   ├── tiff/              # TIFF化
-│   │   ├── TiffSettingsPanel.tsx        # 左パネル設定UI（折りたたみセクション: 出力形式/カラーぼかし/クロップ・リサイズ/リネーム・出力先）
-│   │   ├── TiffFileList.tsx             # 中央ファイルリスト（スキップ切替・個別設定・サブフォルダチェック）
+│   │   ├── TiffAutoScanDialog.tsx       # 自動スキャンダイアログ
 │   │   ├── TiffBatchQueue.tsx           # バッチキュー＋個別上書き＋リネームプレビュー＋サブフォルダチェック
+│   │   ├── TiffCanvasMismatchDialog.tsx # キャンバスサイズ不一致ダイアログ
 │   │   ├── TiffCropEditor.tsx           # ビジュアルクロップエディタ（ドラッグ矩形・savedGlobalBoundsRefで個別編集後グローバル復元）
-│   │   ├── TiffCropRangeLibrary.tsx     # JSON範囲ライブラリ（CLLENN互換）
 │   │   ├── TiffCropSidePanel.tsx        # クロップ設定サイドパネル（比率OK/サイズ/PSD自動設定のみ表示、手入力廃止）
-│   │   ├── TiffResultDialog.tsx         # 処理結果ダイアログ
-│   │   ├── TiffPartialBlurModal.tsx     # 部分ぼかし設定モーダル（ファイル別モード時は空リスト開始）
+│   │   ├── TiffFileList.tsx             # 中央ファイルリスト（スキップ切替・個別設定・サブフォルダチェック）
 │   │   ├── TiffPageRulesEditor.tsx      # ページ別カラー設定
-│   │   └── TiffCanvasMismatchDialog.tsx # キャンバスサイズ不一致ダイアログ
+│   │   ├── TiffPartialBlurModal.tsx     # 部分ぼかし設定モーダル（ファイル別モード時は空リスト開始）
+│   │   ├── TiffResultDialog.tsx         # 処理結果ダイアログ
+│   │   ├── TiffSettingsPanel.tsx        # 左パネル設定UI（折りたたみセクション: 出力形式/カラーぼかし/クロップ・リサイズ/リネーム・出力先）
+│   │   └── TiffViewerPanel.tsx          # TIFF化ビューアーパネル（プレビュー表示）
 │   ├── scanPsd/           # Scan PSD（フォントプリセット管理）
 │   │   ├── ScanPsdPanel.tsx          # 左パネル（5タブ + 保存ボタン）
 │   │   ├── ScanPsdContent.tsx        # 右パネル（モード選択/スキャンUI/サマリー/ファイルブラウザ）
+│   │   ├── ScanPsdEditView.tsx       # JSON編集ビュー
 │   │   ├── ScanPsdModeSelector.tsx   # モード選択カード（新規/編集）
 │   │   ├── JsonFileBrowser.tsx       # basePath以下のJSON専用ファイルブラウザ
 │   │   └── tabs/
@@ -530,32 +539,37 @@ src/
 │       ├── SpeechBubble.tsx      # 吹き出し（success/warning/error/info、尾位置指定）
 │       └── Tooltip.tsx           # ホバーツールチップ（top/bottom/left/right、遅延指定）
 ├── hooks/
-│   ├── usePsdLoader.ts           # PSD読み込み・自然順ソート・PDF展開
-│   ├── useGlobalDragDrop.ts      # グローバルD&Dリスナー（AppLayoutで常時有効）
-│   ├── useSpecChecker.ts         # 仕様チェック（自動実行・結果キャッシュ）
-│   ├── useSpecConverter.ts       # 直接仕様変換（ag-psd+Rust、Photoshop不要）
-│   ├── usePhotoshopConverter.ts  # Photoshop経由仕様変換（DPI/カラー/ビット深度）
-│   ├── usePreparePsd.ts          # PSD準備（仕様修正+ガイド適用の統合処理）
-│   ├── useHighResPreview.ts      # 高解像度プレビュー（3層キャッシュ）
-│   ├── useLayerControl.ts        # レイヤー制御（hide/show/custom/organize/layerMove）
-│   ├── useSplitProcessor.ts      # 見開き分割処理
-│   ├── useRenameProcessor.ts     # リネーム処理（ファイル/レイヤー）
-│   ├── useReplaceProcessor.ts    # レイヤー差替え処理
-│   ├── useComposeProcessor.ts    # 合成処理（スキャン＆ペアリング・PS実行）
-│   ├── useTiffProcessor.ts       # TIFF化処理（設定マージ・invoke・結果処理）
-│   ├── useScanPsdProcessor.ts    # Scan PSD処理（スキャン・JSON保存/読込・ガイド自動選択）
-│   ├── useCropEditorKeyboard.ts  # クロップエディタキーボード操作（Tachimi互換）
-│   ├── useOpenInPhotoshop.ts     # Photoshopファイル起動（ユーティリティ + Pキーショートカット）
-│   ├── useOpenFolder.ts          # エクスプローラー表示（openFolderForFile / revealFiles）+ Fキーショートカット
-│   ├── useFontResolver.ts        # フォント名解決（PostScript名→表示名・色マッピング・未インストール検出）
 │   ├── useAppUpdater.ts          # アプリ更新管理（Tauri Updaterプラグイン）
 │   ├── useCanvasSizeCheck.ts     # キャンバスサイズ検証（多数派検出・外れ値フラグ）
-│   └── usePageNumberCheck.ts     # ページ番号検出（ファイル名から連番抽出・欠番検出）
+│   ├── useComposeProcessor.ts    # 合成処理（スキャン＆ペアリング・PS実行）
+│   ├── useCropEditorKeyboard.ts  # クロップエディタキーボード操作（Tachimi互換）
+│   ├── useFileWatcher.ts         # ファイル変更監視（外部変更検出）
+│   ├── useFontResolver.ts        # フォント名解決（PostScript名→表示名・色マッピング・未インストール検出）
+│   ├── useGlobalDragDrop.ts      # グローバルD&Dリスナー（AppLayoutで常時有効）
+│   ├── useHandoff.ts             # ハンドオフ機能（外部ツール連携）
+│   ├── useHighResPreview.ts      # 高解像度プレビュー（3層キャッシュ）
+│   ├── useLayerControl.ts        # レイヤー制御（hide/show/custom/organize/layerMove）
+│   ├── useOpenFolder.ts          # エクスプローラー表示（openFolderForFile / revealFiles）+ Fキーショートカット
+│   ├── useOpenInPhotoshop.ts     # Photoshopファイル起動（ユーティリティ + Pキーショートカット）
+│   ├── usePageNumberCheck.ts     # ページ番号検出（ファイル名から連番抽出・欠番検出）
+│   ├── usePhotoshopConverter.ts  # Photoshop経由仕様変換（DPI/カラー/ビット深度）
+│   ├── usePreparePsd.ts          # PSD準備（仕様修正+ガイド適用の統合処理）
+│   ├── usePsdLoader.ts           # PSD読み込み・自然順ソート・PDF展開
+│   ├── useRenameProcessor.ts     # リネーム処理（ファイル/レイヤー）
+│   ├── useReplaceProcessor.ts    # レイヤー差替え処理
+│   ├── useScanPsdProcessor.ts    # Scan PSD処理（スキャン・JSON保存/読込・ガイド自動選択）
+│   ├── useSpecChecker.ts         # 仕様チェック（自動実行・結果キャッシュ）
+│   ├── useSpecConverter.ts       # 直接仕様変換（ag-psd+Rust、Photoshop不要）
+│   ├── useSplitProcessor.ts      # 見開き分割処理
+│   └── useTiffProcessor.ts       # TIFF化処理（設定マージ・invoke・結果処理）
 ├── lib/
 │   ├── psd/
 │   │   └── parser.ts            # ag-psdラッパー、メタデータ抽出
+│   ├── agPsdScanner.ts          # ag-psdスキャナー（PSDメタデータ一括収集）
 │   ├── layerMatcher.ts          # レイヤーマッチング・リスク分類（共有ロジック）+ 差替え対象マッチング
-│   └── naturalSort.ts           # 自然順ソート（数字部分を数値比較）
+│   ├── layerTreeOps.ts          # レイヤーツリー操作ユーティリティ
+│   ├── naturalSort.ts           # 自然順ソート（数字部分を数値比較）
+│   └── textUtils.ts             # テキスト処理ユーティリティ
 ├── store/
 │   ├── index.ts           # バレルエクスポート（psdStore, guideStore, specStore）
 │   ├── psdStore.ts        # ファイル一覧・選択状態（files, selectedFileIds, activeFileId, viewMode）
@@ -563,36 +577,42 @@ src/
 │   ├── guideStore.ts      # ガイド線状態（guides, history/future, selectedGuideIndex）
 │   ├── layerStore.ts      # レイヤー制御: actionMode(hide/show/custom/organize/layerMove), saveMode, selectedConditions, customConditions, organizeTargetName, layerMove条件, deleteHiddenText, customVisibilityOps/customMoveOps（カスタム操作Map）
 │   ├── viewStore.ts       # ビュー切替状態（activeView: AppView）
+│   ├── fontBookStore.ts   # フォント帳（entries, fontBookDir, isLoaded）
 │   ├── splitStore.ts      # 分割設定（settings, selectionHistory/Future）
 │   ├── replaceStore.ts    # 差替え設定（folders, batchFolders, settings, pairingJobs, manualPairs, excludedPairIndices）
 │   ├── composeStore.ts    # 合成設定（folders, settings, pairingJobs, scannedFileGroups, manualPairs）
 │   ├── renameStore.ts     # リネーム設定（subMode, layerSettings, fileSettings, fileEntries）
 │   ├── tiffStore.ts       # TIFF化設定・状態（settings, fileOverrides, cropPresets, cropGuides, phase, results）。localStorage永続化（crop.bounds除く）
-│   └── scanPsdStore.ts    # Scan PSD（mode, scanData, presetSets, workInfo, guide選択/除外, パス設定）。パスのみlocalStorage永続化
+│   ├── scanPsdStore.ts    # Scan PSD（mode, scanData, presetSets, workInfo, guide選択/除外, パス設定）。パスのみlocalStorage永続化
+│   └── typesettingCheckStore.ts  # 写植チェック（checkData, checkTabMode, searchQuery, navigateToPage）
 ├── styles/
 │   └── globals.css
 └── types/
     ├── index.ts           # PsdFile, PsdMetadata, LayerNode, TextInfo, Specification, SpecRule, SpecCheckResult, IMAGE_EXTENSIONS等
+    ├── fontBook.ts        # FontBookEntry, FontBookData, FontBookParams
     ├── replace.ts         # ReplaceSettings, PairingJob, FolderSelection, BatchFolder等
     ├── rename.ts          # RenameSubMode, RenameRule, FileRenameEntry等
     ├── tiff.ts            # TiffSettings, TiffCropBounds, TiffCropPreset, TiffScandataFile等
-    └── scanPsd.ts         # ScanData, PresetJsonData, ScanGuideSet, ScanWorkInfo, FontPreset, GENRE_LABELS, FONT_SUB_NAME_MAP等
+    ├── scanPsd.ts         # ScanData, PresetJsonData, ScanGuideSet, ScanWorkInfo, FontPreset, GENRE_LABELS, FONT_SUB_NAME_MAP等
+    └── typesettingCheck.ts # ProofreadingCheckData, CheckItem, CheckKind等
 
 src-tauri/
 ├── scripts/
-│   ├── convert_psd.jsx        # 仕様変換（DPI/カラーモード/ビット深度/αチャンネル削除）
 │   ├── apply_guides.jsx       # ガイド線適用
-│   ├── prepare_psd.jsx        # PSD準備（仕様修正+ガイド適用の統合処理）
-│   ├── hide_layers.jsx        # レイヤー表示/非表示
-│   ├── organize_layers.jsx    # フォルダ格納（グループ再構成）
-│   ├── move_layers.jsx        # レイヤー整理（条件ベースのレイヤー移動）
+│   ├── convert_psd.jsx        # 仕様変換（DPI/カラーモード/ビット深度/αチャンネル削除）
 │   ├── custom_operations.jsx  # カスタム操作（個別表示/非表示・移動・非表示テキスト削除）
-│   ├── split_psd.jsx          # 見開き分割
-│   ├── replace_layers.jsx     # レイヤー差替え＋合成処理
+│   ├── hide_layers.jsx        # レイヤー表示/非表示
+│   ├── lock_layers.jsx        # レイヤーロック/アンロック
+│   ├── merge_layers.jsx       # レイヤー結合
+│   ├── move_layers.jsx        # レイヤー整理（条件ベースのレイヤー移動）
+│   ├── organize_layers.jsx    # フォルダ格納（グループ再構成）
+│   ├── prepare_psd.jsx        # PSD準備（仕様修正+ガイド適用の統合処理）
 │   ├── rename_psd.jsx         # レイヤーリネーム
-│   ├── tiff_convert.jsx       # TIFF化（テキスト整理・カラー変換・ぼかし・クロップ・リサイズ）
+│   ├── replace_layers.jsx     # レイヤー差替え＋合成処理
 │   ├── scan_psd.jsx           # PSDスキャン（レガシー、元スクリプト全機能）
-│   └── scan_psd_core.jsx      # PSDスキャン（コア処理のみ、UI無し）
+│   ├── scan_psd_core.jsx      # PSDスキャン（コア処理のみ、UI無し）
+│   ├── split_psd.jsx          # 見開き分割
+│   └── tiff_convert.jsx       # TIFF化（テキスト整理・カラー変換・ぼかし・クロップ・リサイズ）
 ├── resources/
 │   └── pdfium/
 │       └── pdfium.dll         # PDFiumバイナリ（.gitignore管理、別途DL）
@@ -602,8 +622,10 @@ src-tauri/
 └── src/
     ├── main.rs            # Tauriエントリポイント
     ├── lib.rs             # コマンド登録（invoke_handler）
-    ├── commands.rs        # 全Tauriコマンド（38コマンド）
-    └── pdf.rs             # PDFレンダリング内部ヘルパー（pdfium-render）
+    ├── commands.rs        # 全Tauriコマンド
+    ├── pdf.rs             # PDFレンダリング内部ヘルパー（pdfium-render）
+    ├── psd_metadata.rs    # PSDメタデータ抽出ユーティリティ
+    └── watcher.rs         # ファイル変更監視（外部ファイル変更検出）
 ```
 
 ## 重要な型定義
@@ -767,7 +789,7 @@ pdfium-renderによるPDFプレビュー/サムネイル生成:
 5. **キャッシュ**: ディスクキャッシュ `manga_pdf_preview_{name}_{mtime}_{page}_{size}.jpg`（既存PSDキャッシュと同一パターン）
 6. **pdfium-render API注意**: ページインデックスは`u16`型（`PdfPageIndex`）、`PdfPoints`は`.value: f32`、`as_image()`は`DynamicImage`を直接返す
 
-## Rustコマンド一覧（commands.rs — 38コマンド）
+## Rustコマンド一覧（commands.rs — 55コマンド）
 
 ### Photoshop連携
 | コマンド | 引数 | 戻り値 | 用途 |
@@ -778,7 +800,9 @@ pdfium-renderによるPDFプレビュー/サムネイル生成:
 | `run_photoshop_prepare` | `settings: PrepareSettings` | `Vec<PhotoshopResult>` | PSD準備（統合処理） |
 | `run_photoshop_layer_visibility` | `file_paths, conditions, mode, save_mode` | `Vec<PhotoshopResult>` | レイヤー表示/非表示 |
 | `run_photoshop_layer_organize` | `file_paths, target_group_name, include_special, save_mode` | `Vec<PhotoshopResult>` | フォルダ格納 |
-| `run_photoshop_layer_move` | `file_paths, target_group_name, create_if_missing, search_scope, search_group_name, conditions, save_mode` | `Vec<PhotoshopResult>` | レイヤー整理（条件ベース移動） |
+| `run_photoshop_layer_move` | `file_paths, target_group_name, create_if_missing, search_scope, conditions, save_mode` | `Vec<PhotoshopResult>` | レイヤー整理（条件ベース移動） |
+| `run_photoshop_layer_lock` | `file_paths, ...` | `Vec<PhotoshopResult>` | レイヤーロック/アンロック |
+| `run_photoshop_merge_layers` | `file_paths, ...` | `Vec<PhotoshopResult>` | レイヤー結合 |
 | `run_photoshop_custom_operations` | `file_paths, file_ops, save_mode, delete_hidden_text?` | `Vec<PhotoshopResult>` | カスタム操作（個別表示/非表示・移動・テキスト削除） |
 | `run_photoshop_split` | 多数パラメータ（mode, format, quality, selection等） | `SplitResponse` | 見開き分割 |
 | `run_photoshop_replace` | `jobs: ReplaceJobSettings` | `Vec<PhotoshopResult>` | レイヤー差替え/合成 |
@@ -795,6 +819,7 @@ pdfium-renderによるPDFプレビュー/サムネイル生成:
 | `batch_resample_images` | `file_paths, output_dir?, options` | `BatchProcessResult` | 一括リサンプリング |
 | `convert_color_mode` | `file_path, output_path?, target_mode` | `ProcessResult` | カラーモード変換 |
 | `get_image_info` | `file_path` | `serde_json::Value` | 画像メタデータ取得 |
+| `parse_psd_metadata_batch` | `file_paths` | `Vec<PsdParseResult>` | PSDメタデータ一括解析 |
 
 ### プレビュー・キャッシュ
 | コマンド | 引数 | 戻り値 | 用途 |
@@ -802,6 +827,7 @@ pdfium-renderによるPDFプレビュー/サムネイル生成:
 | `get_high_res_preview` | `file_path, max_size` | `HighResPreviewResult` | 高解像度プレビュー生成 |
 | `clear_psd_cache` | — | `()` | PSDキャッシュクリア |
 | `cleanup_preview_files` | — | `u32` | プレビューファイル削除（件数返却） |
+| `invalidate_file_cache` | `file_path` | `()` | 特定ファイルのキャッシュ無効化 |
 
 ### PDF
 | コマンド | 引数 | 戻り値 | 用途 |
@@ -815,22 +841,42 @@ pdfium-renderによるPDFプレビュー/サムネイル生成:
 |---------|------|--------|------|
 | `read_text_file` | `file_path` | `String` | テキストファイル読込 |
 | `write_text_file` | `file_path, content` | `()` | テキストファイル書込 |
+| `write_binary_file` | `file_path, data` | `()` | バイナリファイル書込 |
 | `delete_file` | `file_path` | `()` | ファイル削除 |
 | `path_exists` | `path` | `bool` | パス存在確認 |
 | `list_folder_contents` | `folder_path` | `FolderContents` | フォルダ内容一覧（ファイル+サブフォルダ） |
 | `list_folder_files` | `folder_path, recursive` | `Vec<String>` | ファイル一覧（再帰対応） |
+| `list_all_files` | `folder_path` | `Vec<String>` | 全ファイル一覧 |
 | `list_subfolders` | `folder_path` | `Vec<String>` | サブフォルダ一覧 |
 | `batch_rename_files` | `entries, output_directory?, mode` | `Vec<BatchRenameResult>` | 一括ファイルリネーム |
 | `detect_psd_folders` | `folder_path` | `serde_json::Value` | PSD含有フォルダ検出 |
+| `search_json_folders` | `base_path, query` | `Vec<JsonFolderResult>` | JSONフォルダ検索 |
+
+### ファイル監視
+| コマンド | 引数 | 戻り値 | 用途 |
+|---------|------|--------|------|
+| `start_file_watcher` | `app_handle, file_paths` | `()` | ファイル変更監視開始 |
+| `stop_file_watcher` | — | `()` | ファイル変更監視停止 |
+
+### フォント
+| コマンド | 引数 | 戻り値 | 用途 |
+|---------|------|--------|------|
+| `resolve_font_names` | `postscript_names` | `HashMap<String, FontResolveInfo>` | フォント名解決（完全一致、同期） |
+| `search_font_names` | `query, max_results?` | `Vec<FontNameSearchResult>` | フォント名部分一致検索（手動追加用） |
+| `list_font_folder_contents` | `folder_path, no_cache?` | `Vec<FontFileEntry>` | フォントフォルダ内容一覧 |
+| `search_font_files` | `base_path, query` | `Vec<FontFileEntry>` | フォントファイル検索 |
+| `install_font_from_path` | `font_path` | `String` | フォントインストール |
 
 ### ユーティリティ
 | コマンド | 引数 | 戻り値 | 用途 |
 |---------|------|--------|------|
 | `open_folder_in_explorer` | `folder_path` | `()` | エクスプローラーでフォルダを開く |
 | `reveal_files_in_explorer` | `file_paths` | `()` | エクスプローラーでファイルを選択表示 |
-| `resolve_font_names` | `postscript_names` | `HashMap<String, FontResolveInfo>` | フォント名解決（完全一致、同期） |
-| `search_font_names` | `query, max_results?` | `Vec<FontNameSearchResult>` | フォント名部分一致検索（手動追加用） |
+| `open_with_default_app` | `file_path` | `()` | デフォルトアプリで開く |
 | `launch_kenban_diff` | `folder_a, folder_b, mode?` | `()` | KENBAN差分ツール起動 |
+| `launch_tachimi` | `file_paths` | `()` | Tachimiツール起動 |
+| `launch_progen` | `handoff_text_path?` | `()` | ProGenツール起動 |
+| `check_handoff` | — | `Option<HandoffData>` | ハンドオフデータ確認 |
 
 ## デフォルト仕様
 
@@ -914,6 +960,9 @@ build.bat
 
 # フロントエンドのみ
 npm run dev
+
+# コード整形（Prettier）
+npm run format
 ```
 
 ## リリース手順
@@ -965,17 +1014,22 @@ gh release view v1.x.x --json assets -q '.assets[].name'  # アセット確認
 - **`gh release create` だけではCIはトリガーされない**。必ず `git tag` + `git push origin <tag>` でタグをpushすること（CIは `on: push: tags: 'v*'` で発火する）
 - **ローカルではTauriのリリースビルドはできない**（署名キーがGitHub Secretsにのみ存在）。ビルド・署名・アップロードは全てCI任せ
 
+### 重要: コード同期時の `.github/` ディレクトリ
+- タグやZIPからコードを同期する際は、**`.github/workflows/release.yml` も必ず同期すること**
+- CIワークフローには **PDFiumダウンロードステップが必須**（`pdfium.dll`は`.gitignore`管理のためリポジトリに含まれない）
+- このステップが欠落するとCIビルドが `resource path resources\pdfium\pdfium.dll doesn't exist` で失敗する
+- 同期時のチェックリスト: `src/`, `src-tauri/`, ルートconfig, **`.github/`**
+
 ## localStorage永続化
 
 ```typescript
-// specStore.ts（Zustand persist middleware）
-autoCheckEnabled: boolean     // 自動チェック有効/無効
-lastSelectedSpecId: string    // 前回選択した仕様ID
+// specStore.ts（手動localStorage）
+autoCheckEnabled: boolean     // 自動チェック有効/無効 — キー: "autoCheckEnabled"
+lastSelectedSpecId: string    // 前回選択した仕様ID — キー: "lastSelectedSpecId"
 
-// tiffStore.ts（Zustand persist middleware）
-settings: TiffSettings        // TIFF変換設定（crop.bounds除く）
-cropPresets: TiffCropPreset[]  // 保存済みクロップ範囲
-isFeatureUnlocked: boolean     // 機能アンロック状態
+// tiffStore.ts（手動localStorage）
+settings: TiffSettings        // TIFF変換設定（crop.bounds除く）— キー: "tiff_lastSettings"
+cropPresets: TiffCropPreset[]  // 保存済みクロップ範囲 — キー: "tiff_cropPresets"
 
 // scanPsdStore.ts（手動localStorage）
 jsonFolderPath: string         // JSONフォルダパス

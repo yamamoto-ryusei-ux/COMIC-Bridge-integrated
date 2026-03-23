@@ -39,34 +39,32 @@ export function useSplitProcessor() {
   }, [settings.outputDirectory]);
 
   // ファイルを一括処理（Photoshop JSX経由）
-  const processFiles = useCallback(async (targetFiles: typeof files) => {
-    if (targetFiles.length === 0) return;
+  const processFiles = useCallback(
+    async (targetFiles: typeof files) => {
+      if (targetFiles.length === 0) return;
 
-    setIsProcessing(true);
-    clearResults();
-    setProgress(0, targetFiles.length);
-    setProcessingDuration(null);
-    const startTime = Date.now();
+      setIsProcessing(true);
+      clearResults();
+      setProgress(0, targetFiles.length);
+      setProcessingDuration(null);
+      const startTime = Date.now();
 
-    try {
-      const outputDir = await getOutputDir();
-      const fileInfos = targetFiles.map((f) => ({
-        path: f.filePath,
-        pdfPageIndex: f.pdfPageIndex ?? -1,
-      }));
+      try {
+        const outputDir = await getOutputDir();
+        const fileInfos = targetFiles.map((f) => ({
+          path: f.filePath,
+          pdfPageIndex: f.pdfPageIndex ?? -1,
+        }));
 
-      setCurrentFile("Photoshopで処理中...");
+        setCurrentFile("Photoshopで処理中...");
 
-      // Tauriコマンドを実行（全ファイル一括）
-      const response = await invoke<SplitResponse>(
-        "run_photoshop_split",
-        {
+        // Tauriコマンドを実行（全ファイル一括）
+        const response = await invoke<SplitResponse>("run_photoshop_split", {
           fileInfos,
           mode: settings.mode,
           outputFormat: settings.outputFormat,
-          jpgQuality: settings.outputFormat === "jpg"
-            ? Math.round((settings.jpgQuality / 100) * 12)
-            : 12,
+          jpgQuality:
+            settings.outputFormat === "jpg" ? Math.round((settings.jpgQuality / 100) * 12) : 12,
           selectionLeft: settings.selectionBounds?.left ?? 0,
           selectionRight: settings.selectionBounds?.right ?? 0,
           pageNumbering: settings.pageNumbering,
@@ -76,55 +74,56 @@ export function useSplitProcessor() {
           deleteHiddenLayers: settings.deleteHiddenLayers,
           deleteOffCanvasText: settings.deleteOffCanvasText,
           outputDir,
+        });
+
+        const psResults = response.results;
+        setLastOutputDir(response.outputDir);
+
+        // 結果を処理
+        for (let i = 0; i < psResults.length; i++) {
+          const psResult = psResults[i];
+          const normalizedPath = psResult.filePath.replace(/\//g, "\\");
+          const file = targetFiles.find(
+            (f) => f.filePath === psResult.filePath || f.filePath === normalizedPath,
+          );
+
+          const result: SplitResult = {
+            fileName: file?.fileName || psResult.filePath.split("/").pop() || "unknown",
+            success: psResult.success,
+            outputFiles: psResult.changes || [],
+            error: psResult.error || undefined,
+          };
+          addResult(result);
+          setProgress(i + 1, psResults.length);
         }
-      );
-
-      const psResults = response.results;
-      setLastOutputDir(response.outputDir);
-
-      // 結果を処理
-      for (let i = 0; i < psResults.length; i++) {
-        const psResult = psResults[i];
-        const normalizedPath = psResult.filePath.replace(/\//g, "\\");
-        const file = targetFiles.find(
-          (f) => f.filePath === psResult.filePath || f.filePath === normalizedPath
-        );
-
-        const result: SplitResult = {
-          fileName: file?.fileName || psResult.filePath.split("/").pop() || "unknown",
-          success: psResult.success,
-          outputFiles: psResult.changes || [],
-          error: psResult.error || undefined,
-        };
-        addResult(result);
-        setProgress(i + 1, psResults.length);
+      } catch (error) {
+        console.error("Split processing error:", error);
+        addResult({
+          fileName: "Error",
+          success: false,
+          outputFiles: [],
+          error: error instanceof Error ? error.message : "Photoshopの実行に失敗しました",
+        });
+      } finally {
+        setProcessingDuration(Date.now() - startTime);
+        setIsProcessing(false);
+        setCurrentFile(null);
+        setShowResultDialog(true);
       }
-    } catch (error) {
-      console.error("Split processing error:", error);
-      addResult({
-        fileName: "Error",
-        success: false,
-        outputFiles: [],
-        error: error instanceof Error ? error.message : "Photoshopの実行に失敗しました",
-      });
-    } finally {
-      setProcessingDuration(Date.now() - startTime);
-      setIsProcessing(false);
-      setCurrentFile(null);
-      setShowResultDialog(true);
-    }
-  }, [
-    settings,
-    setIsProcessing,
-    clearResults,
-    getOutputDir,
-    setCurrentFile,
-    setProgress,
-    addResult,
-    setLastOutputDir,
-    setProcessingDuration,
-    setShowResultDialog,
-  ]);
+    },
+    [
+      settings,
+      setIsProcessing,
+      clearResults,
+      getOutputDir,
+      setCurrentFile,
+      setProgress,
+      addResult,
+      setLastOutputDir,
+      setProcessingDuration,
+      setShowResultDialog,
+    ],
+  );
 
   // 選択ファイルのみ処理
   const splitSelectedFiles = useCallback(async () => {

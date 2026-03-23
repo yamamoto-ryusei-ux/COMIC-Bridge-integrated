@@ -14,16 +14,14 @@ export interface LayerMatchStatus {
 export function isTextFolder(layer: LayerNode): boolean {
   return (
     layer.type === "group" &&
-    TEXT_FOLDER_PATTERNS.some(
-      (p) => layer.name.toLowerCase() === p.toLowerCase()
-    )
+    TEXT_FOLDER_PATTERNS.some((p) => layer.name.toLowerCase() === p.toLowerCase())
   );
 }
 
 export function matchesCondition(
   layer: LayerNode,
   condition: HideCondition,
-  parentIsTextFolder: boolean
+  parentIsTextFolder: boolean,
 ): boolean {
   switch (condition.type) {
     case "textLayers":
@@ -31,9 +29,7 @@ export function matchesCondition(
 
     case "textFolder":
       if (layer.type === "group") {
-        return TEXT_FOLDER_PATTERNS.some(
-          (p) => layer.name.toLowerCase() === p.toLowerCase()
-        );
+        return TEXT_FOLDER_PATTERNS.some((p) => layer.name.toLowerCase() === p.toLowerCase());
       }
       return parentIsTextFolder;
 
@@ -41,12 +37,8 @@ export function matchesCondition(
     case "folderName":
     case "custom": {
       if (!condition.value) return false;
-      const searchValue = condition.caseSensitive
-        ? condition.value
-        : condition.value.toLowerCase();
-      const layerName = condition.caseSensitive
-        ? layer.name
-        : layer.name.toLowerCase();
+      const searchValue = condition.caseSensitive ? condition.value : condition.value.toLowerCase();
+      const layerName = condition.caseSensitive ? layer.name : layer.name.toLowerCase();
 
       if (condition.partialMatch) {
         return layerName.includes(searchValue);
@@ -69,11 +61,9 @@ export function matchesCondition(
 export function classifyLayerRisk(
   layer: LayerNode,
   conditions: HideCondition[],
-  parentIsTextFolder: boolean
+  parentIsTextFolder: boolean,
 ): LayerMatchStatus {
-  const matched = conditions.some((cond) =>
-    matchesCondition(layer, cond, parentIsTextFolder)
-  );
+  const matched = conditions.some((cond) => matchesCondition(layer, cond, parentIsTextFolder));
 
   if (!matched) {
     return { matched: false, risk: "none" };
@@ -102,11 +92,7 @@ export function classifyLayerRisk(
 // 差替え用マッチング
 // =============================================
 
-export type ReplaceTargetType =
-  | "textFolder"
-  | "namedGroup"
-  | "background"
-  | "specialLayer";
+export type ReplaceTargetType = "textFolder" | "namedGroup" | "background" | "specialLayer";
 
 export interface ReplaceMatchItem {
   layer: LayerNode;
@@ -134,11 +120,7 @@ function countTextDescendants(layer: LayerNode): number {
   return count;
 }
 
-function nameMatches(
-  layerName: string,
-  targetName: string,
-  partial: boolean
-): boolean {
+function nameMatches(layerName: string, targetName: string, partial: boolean): boolean {
   const a = layerName.toLowerCase();
   const b = targetName.toLowerCase();
   return partial ? a.includes(b) : a === b;
@@ -146,16 +128,14 @@ function nameMatches(
 
 export function findReplaceTargets(
   layers: LayerNode[],
-  settings: ReplaceSettings
+  settings: ReplaceSettings,
 ): ReplaceMatchItem[] {
   const items: ReplaceMatchItem[] = [];
   const { mode, textSettings, imageSettings } = settings;
 
   function walk(nodes: LayerNode[], parentPath: string) {
     for (const layer of nodes) {
-      const path = parentPath
-        ? `${parentPath} / ${layer.name}`
-        : layer.name;
+      const path = parentPath ? `${parentPath} / ${layer.name}` : layer.name;
 
       let matched = false;
 
@@ -200,7 +180,7 @@ export function findReplaceTargets(
         nameMatches(
           layer.name,
           imageSettings.specialLayerName,
-          imageSettings.specialLayerPartialMatch
+          imageSettings.specialLayerPartialMatch,
         )
       ) {
         items.push({
@@ -217,11 +197,7 @@ export function findReplaceTargets(
         imageSettings.replaceNamedGroup &&
         imageSettings.namedGroupName &&
         layer.type === "group" &&
-        nameMatches(
-          layer.name,
-          imageSettings.namedGroupName,
-          imageSettings.namedGroupPartialMatch
-        )
+        nameMatches(layer.name, imageSettings.namedGroupName, imageSettings.namedGroupPartialMatch)
       ) {
         items.push({
           layer,

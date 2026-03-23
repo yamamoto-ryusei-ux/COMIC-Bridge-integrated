@@ -28,33 +28,34 @@ export function GuideEditorModal() {
 
   // Get high-resolution preview for the active file
   const activeFilePath = activeFile?.filePath || files[0]?.filePath;
-  const { imageUrl: highResImageUrl, originalSize, isLoading: isPreviewLoading } = useHighResPreview(
-    activeFilePath,
-    { maxSize: 1200 }
-  );
+  const {
+    imageUrl: highResImageUrl,
+    originalSize,
+    isLoading: isPreviewLoading,
+  } = useHighResPreview(activeFilePath, { maxSize: 1200 });
 
   // Computed values for target files
-  const targetFileIds = useMemo(() =>
-    applyTarget === "selected"
-      ? selectedFileIds
-      : files.map((f) => f.id),
-    [applyTarget, selectedFileIds, files]
+  const targetFileIds = useMemo(
+    () => (applyTarget === "selected" ? selectedFileIds : files.map((f) => f.id)),
+    [applyTarget, selectedFileIds, files],
   );
 
-  const ngTargetCount = useMemo(() =>
-    targetFileIds.filter((id) => {
-      const r = checkResults.get(id);
-      return r && !r.passed;
-    }).length,
-    [targetFileIds, checkResults]
+  const ngTargetCount = useMemo(
+    () =>
+      targetFileIds.filter((id) => {
+        const r = checkResults.get(id);
+        return r && !r.passed;
+      }).length,
+    [targetFileIds, checkResults],
   );
 
-  const existingGuideCount = useMemo(() =>
-    targetFileIds.filter((id) => {
-      const f = files.find((file) => file.id === id);
-      return f?.metadata?.hasGuides;
-    }).length,
-    [targetFileIds, files]
+  const existingGuideCount = useMemo(
+    () =>
+      targetFileIds.filter((id) => {
+        const f = files.find((file) => file.id === id);
+        return f?.metadata?.hasGuides;
+      }).length,
+    [targetFileIds, files],
   );
 
   // Result summary
@@ -81,15 +82,18 @@ export function GuideEditorModal() {
   const canvasSize = originalSize
     ? { width: originalSize.width, height: originalSize.height }
     : activeFile?.metadata
-    ? { width: activeFile.metadata.width, height: activeFile.metadata.height }
-    : files[0]?.metadata
-    ? { width: files[0].metadata.width, height: files[0].metadata.height }
-    : { width: 1920, height: 2716 }; // Default B5 at 350dpi
+      ? { width: activeFile.metadata.width, height: activeFile.metadata.height }
+      : files[0]?.metadata
+        ? { width: files[0].metadata.width, height: files[0].metadata.height }
+        : { width: 1920, height: 2716 }; // Default B5 at 350dpi
 
   const imageUrl = highResImageUrl;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onMouseDown={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       <div className="bg-bg-secondary rounded-lg shadow-2xl w-[95vw] max-w-6xl h-[90vh] flex flex-col overflow-hidden relative">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-text-muted/10">
@@ -103,7 +107,11 @@ export function GuideEditorModal() {
               title="元に戻す"
             >
               <svg className="w-4 h-4 text-text-secondary" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M7.707 3.293a1 1 0 010 1.414L5.414 7H11a7 7 0 017 7v2a1 1 0 11-2 0v-2a5 5 0 00-5-5H5.414l2.293 2.293a1 1 0 11-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
+                  clipRule="evenodd"
+                />
               </svg>
             </button>
             <button
@@ -113,7 +121,11 @@ export function GuideEditorModal() {
               title="やり直す"
             >
               <svg className="w-4 h-4 text-text-secondary" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M12.293 3.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 9H9a5 5 0 00-5 5v2a1 1 0 11-2 0v-2a7 7 0 017-7h5.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M12.293 3.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 9H9a5 5 0 00-5 5v2a1 1 0 11-2 0v-2a7 7 0 017-7h5.586l-2.293-2.293a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                />
               </svg>
             </button>
             <button
@@ -122,7 +134,11 @@ export function GuideEditorModal() {
               title="閉じる"
             >
               <svg className="w-5 h-5 text-text-secondary" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                />
               </svg>
             </button>
           </div>
@@ -178,9 +194,7 @@ export function GuideEditorModal() {
                       onChange={() => setApplyTarget("selected")}
                       className="accent-accent"
                     />
-                    <span className="text-text-secondary">
-                      選択中 ({selectedFileIds.length})
-                    </span>
+                    <span className="text-text-secondary">選択中 ({selectedFileIds.length})</span>
                   </label>
                 </div>
 
@@ -188,7 +202,9 @@ export function GuideEditorModal() {
                 {applyTarget === "selected" && (
                   <div className="border border-border rounded-lg overflow-hidden">
                     <div className="flex items-center justify-between px-2 py-1 bg-bg-tertiary/50 border-b border-border/50">
-                      <span className="text-[10px] text-text-muted">{selectedFileIds.length}/{files.length} 選択</span>
+                      <span className="text-[10px] text-text-muted">
+                        {selectedFileIds.length}/{files.length} 選択
+                      </span>
                       <div className="flex items-center gap-1.5">
                         <button
                           className="text-[10px] text-text-muted hover:text-accent transition-colors"
@@ -225,12 +241,26 @@ export function GuideEditorModal() {
                               }
                             }}
                           >
-                            <div className={`w-3 h-3 rounded flex items-center justify-center flex-shrink-0 ${
-                              isChecked ? "bg-gradient-to-br from-accent to-accent-secondary" : "border border-text-muted/30"
-                            }`}>
+                            <div
+                              className={`w-3 h-3 rounded flex items-center justify-center flex-shrink-0 ${
+                                isChecked
+                                  ? "bg-gradient-to-br from-accent to-accent-secondary"
+                                  : "border border-text-muted/30"
+                              }`}
+                            >
                               {isChecked && (
-                                <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                <svg
+                                  className="w-2 h-2 text-white"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={3}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M5 13l4 4L19 7"
+                                  />
                                 </svg>
                               )}
                             </div>
@@ -263,8 +293,8 @@ export function GuideEditorModal() {
                 {isProcessing
                   ? `処理中... (${progress.current}/${progress.total})`
                   : activeSpecId && ngTargetCount > 0
-                  ? "適用 + 仕様修正"
-                  : "適用する"}
+                    ? "適用 + 仕様修正"
+                    : "適用する"}
               </button>
 
               {/* Result summary (kept in sidebar for reference) */}
@@ -290,9 +320,7 @@ export function GuideEditorModal() {
                       </ul>
                     </>
                   ) : (
-                    <p className="text-success font-medium">
-                      {successCount} 件すべて適用完了
-                    </p>
+                    <p className="text-success font-medium">{successCount} 件すべて適用完了</p>
                   )}
                 </div>
               )}
@@ -300,7 +328,6 @@ export function GuideEditorModal() {
           </div>
         </div>
       </div>
-
     </div>
   );
 }

@@ -90,8 +90,18 @@ export function FixGuidePanel({ checkResult }: FixGuidePanelProps) {
       {/* 問題点 */}
       <div className="bg-error/10 rounded-xl p-4 border border-error/20">
         <h4 className="text-sm font-medium text-error mb-3 flex items-center gap-2">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+            />
           </svg>
           問題点
         </h4>
@@ -102,15 +112,17 @@ export function FixGuidePanel({ checkResult }: FixGuidePanelProps) {
                 {ruleTypeLabels[r.rule.type] || r.rule.type}
               </span>
               <div className="flex items-center gap-2">
-                <span className="text-error font-medium">
-                  {formatValue(r.actualValue)}
-                </span>
-                <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <span className="text-error font-medium">{formatValue(r.actualValue)}</span>
+                <svg
+                  className="w-4 h-4 text-text-muted"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
                 </svg>
-                <span className="text-success font-medium">
-                  {formatValue(r.rule.value)}
-                </span>
+                <span className="text-success font-medium">{formatValue(r.rule.value)}</span>
               </div>
             </div>
           ))}
@@ -120,19 +132,35 @@ export function FixGuidePanel({ checkResult }: FixGuidePanelProps) {
       {/* 修正方法 */}
       <div className="bg-accent-tertiary/10 rounded-xl p-4 border border-accent-tertiary/20">
         <h4 className="text-sm font-medium text-accent-tertiary mb-3 flex items-center gap-2">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+          <svg
+            className="w-4 h-4"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+            />
           </svg>
           修正方法
         </h4>
-        <p className="text-sm text-text-secondary mb-3">
-          Photoshopで以下の処理を行います:
-        </p>
+        <p className="text-sm text-text-secondary mb-3">Photoshopで以下の処理を行います:</p>
         <ul className="space-y-1.5">
           {failedRules.map((r, i) => (
             <li key={i} className="flex items-center gap-2 text-sm text-text-muted">
-              <svg className="w-3 h-3 text-accent-tertiary flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              <svg
+                className="w-3 h-3 text-accent-tertiary flex-shrink-0"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                  clipRule="evenodd"
+                />
               </svg>
               {fixDescriptions[r.rule.type] || `${ruleTypeLabels[r.rule.type]}を修正`}
             </li>

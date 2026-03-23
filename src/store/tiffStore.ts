@@ -29,7 +29,9 @@ function loadCropPresetsFromStorage(): TiffCropPreset[] {
 function saveCropPresetsToStorage(presets: TiffCropPreset[]) {
   try {
     localStorage.setItem(LS_KEY_PRESETS, JSON.stringify(presets));
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 function loadSettingsFromStorage(): Partial<TiffSettings> {
@@ -46,7 +48,9 @@ function saveSettingsToStorage(settings: TiffSettings) {
     // クロップ範囲はファイル依存なので永続化しない
     const toSave = { ...settings, crop: { ...settings.crop, bounds: null } };
     localStorage.setItem(LS_KEY_SETTINGS, JSON.stringify(toSave));
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 /** JSON自動登録の結果 */
@@ -245,7 +249,7 @@ export const useTiffStore = create<TiffState>((set) => ({
   updatePageRangeRule: (id, partial) =>
     set((state) => {
       const newRules = state.settings.pageRangeRules.map((r) =>
-        r.id === id ? { ...r, ...partial } : r
+        r.id === id ? { ...r, ...partial } : r,
       );
       const newSettings = { ...state.settings, pageRangeRules: newRules };
       saveSettingsToStorage(newSettings);
@@ -328,13 +332,23 @@ export const useTiffStore = create<TiffState>((set) => ({
   loadCropPreset: (preset) =>
     set((state) => {
       // boundsが全て0の場合はクロップ範囲を設定しない（JSONパス選択のみ）
-      const hasValidBounds = preset.bounds &&
-        (preset.bounds.left !== 0 || preset.bounds.top !== 0 || preset.bounds.right !== 0 || preset.bounds.bottom !== 0);
+      const hasValidBounds =
+        preset.bounds &&
+        (preset.bounds.left !== 0 ||
+          preset.bounds.top !== 0 ||
+          preset.bounds.right !== 0 ||
+          preset.bounds.bottom !== 0);
 
       // blurRadius反映（参考スクリプト互換: JSON内のblurRadiusをぼかし設定に復元）
-      const blurUpdate = preset.blurRadius !== undefined
-        ? { blur: { enabled: preset.blurRadius > 0, radius: preset.blurRadius > 0 ? preset.blurRadius : state.settings.blur.radius } }
-        : {};
+      const blurUpdate =
+        preset.blurRadius !== undefined
+          ? {
+              blur: {
+                enabled: preset.blurRadius > 0,
+                radius: preset.blurRadius > 0 ? preset.blurRadius : state.settings.blur.radius,
+              },
+            }
+          : {};
 
       const newSettings = {
         ...state.settings,
@@ -346,14 +360,13 @@ export const useTiffStore = create<TiffState>((set) => ({
       };
       saveSettingsToStorage(newSettings);
       // JSONのdocumentSizeを保存（キャンバスサイズ比較用）
-      const docSize = (preset.documentSize && preset.documentSize.width > 0)
-        ? preset.documentSize : null;
+      const docSize =
+        preset.documentSize && preset.documentSize.width > 0 ? preset.documentSize : null;
       return { settings: newSettings, cropSourceDocumentSize: docSize };
     }),
 
   // --- クロップガイド ---
-  addCropGuide: (guide) =>
-    set((state) => ({ cropGuides: [...state.cropGuides, guide] })),
+  addCropGuide: (guide) => set((state) => ({ cropGuides: [...state.cropGuides, guide] })),
 
   updateCropGuide: (index, guide) =>
     set((state) => {
@@ -365,19 +378,18 @@ export const useTiffStore = create<TiffState>((set) => ({
   removeCropGuide: (index) =>
     set((state) => {
       const newGuides = state.cropGuides.filter((_, i) => i !== index);
-      const newSelected = state.selectedCropGuideIndex === index
-        ? null
-        : state.selectedCropGuideIndex !== null && state.selectedCropGuideIndex > index
-          ? state.selectedCropGuideIndex - 1
-          : state.selectedCropGuideIndex;
+      const newSelected =
+        state.selectedCropGuideIndex === index
+          ? null
+          : state.selectedCropGuideIndex !== null && state.selectedCropGuideIndex > index
+            ? state.selectedCropGuideIndex - 1
+            : state.selectedCropGuideIndex;
       return { cropGuides: newGuides, selectedCropGuideIndex: newSelected };
     }),
 
-  clearCropGuides: () =>
-    set({ cropGuides: [], selectedCropGuideIndex: null }),
+  clearCropGuides: () => set({ cropGuides: [], selectedCropGuideIndex: null }),
 
-  setSelectedCropGuideIndex: (index) =>
-    set({ selectedCropGuideIndex: index }),
+  setSelectedCropGuideIndex: (index) => set({ selectedCropGuideIndex: index }),
 
   applyCropGuidesToBounds: () =>
     set((state) => {
@@ -475,8 +487,7 @@ export const useTiffStore = create<TiffState>((set) => ({
   setProgress: (current, total) => set({ progress: current, totalFiles: total }),
   setCurrentFile: (fileName) => set({ currentFile: fileName }),
 
-  addResult: (result) =>
-    set((state) => ({ results: [...state.results, result] })),
+  addResult: (result) => set((state) => ({ results: [...state.results, result] })),
 
   clearResults: () => set({ results: [] }),
   setLastOutputDir: (dir) => set({ lastOutputDir: dir }),

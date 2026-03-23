@@ -15,9 +15,7 @@ export function ViewerView() {
 
   return (
     <div className="flex-1 h-full overflow-hidden">
-      <SpecViewerPanel
-        onOpenInPhotoshop={isPhotoshopInstalled ? openFileInPhotoshop : undefined}
-      />
+      <SpecViewerPanel onOpenInPhotoshop={isPhotoshopInstalled ? openFileInPhotoshop : undefined} />
     </div>
   );
 }

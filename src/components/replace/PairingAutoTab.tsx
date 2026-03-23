@@ -38,7 +38,7 @@ function getMatchKeyInfo(
   targetName: string,
   pairIndex: number,
   mode: PairingMode,
-  linkChar: string
+  linkChar: string,
 ): { label: string; className: string } {
   switch (mode) {
     case "fileOrder":
@@ -49,9 +49,7 @@ function getMatchKeyInfo(
       const isMatch = srcNum !== null && tgtNum !== null && srcNum === tgtNum;
       return {
         label: srcNum !== null ? `p${srcNum}` : "?",
-        className: isMatch
-          ? "text-accent bg-accent/10"
-          : "text-warning bg-warning/10",
+        className: isMatch ? "text-accent bg-accent/10" : "text-warning bg-warning/10",
       };
     }
     case "linkCharManual":
@@ -97,10 +95,7 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
   } | null>(null);
   const [editingPairIndex, setEditingPairIndex] = useState<number | null>(null);
 
-  const totalPairsCount = pairingJobs.reduce(
-    (acc, job) => acc + job.pairs.length,
-    0
-  );
+  const totalPairsCount = pairingJobs.reduce((acc, job) => acc + job.pairs.length, 0);
 
   // 全選択/全解除
   const allChecked = excludedPairIndices.size === 0;
@@ -168,12 +163,8 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
 
   // 未マッチファイル計算
   const { unmatchedSource, unmatchedTarget } = useMemo(() => {
-    const allPairedSource = new Set(
-      pairingJobs.flatMap((j) => j.pairs.map((p) => p.sourceFile))
-    );
-    const allPairedTarget = new Set(
-      pairingJobs.flatMap((j) => j.pairs.map((p) => p.targetFile))
-    );
+    const allPairedSource = new Set(pairingJobs.flatMap((j) => j.pairs.map((p) => p.sourceFile)));
+    const allPairedTarget = new Set(pairingJobs.flatMap((j) => j.pairs.map((p) => p.targetFile)));
     const allSource = scannedFileGroups.flatMap((g) => g.sourceFiles);
     const allTarget = scannedFileGroups.flatMap((g) => g.targetFiles);
 
@@ -183,8 +174,7 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
     };
   }, [pairingJobs, scannedFileGroups]);
 
-  const hasUnmatched =
-    unmatchedSource.length > 0 || unmatchedTarget.length > 0;
+  const hasUnmatched = unmatchedSource.length > 0 || unmatchedTarget.length > 0;
 
   // 未マッチファイルの左右リスト（isReversed対応）
   const unmatchedLeft = isReversed ? unmatchedTarget : unmatchedSource;
@@ -213,23 +203,17 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
       addAutoPair(sourceFile, targetFile);
       setSelectedUnmatched(null);
     },
-    [selectedUnmatched, isReversed, addAutoPair]
+    [selectedUnmatched, isReversed, addAutoPair],
   );
 
   // ファイル変更ハンドラー
   const handleFileChange = useCallback(
     (pairIndex: number, colSide: "left" | "right", newFile: string) => {
       const storeSide: "source" | "target" =
-        colSide === "left"
-          ? isReversed
-            ? "target"
-            : "source"
-          : isReversed
-            ? "source"
-            : "target";
+        colSide === "left" ? (isReversed ? "target" : "source") : isReversed ? "source" : "target";
       updatePairFile(pairIndex, storeSide, newFile, getFileName(newFile));
     },
-    [isReversed, updatePairFile]
+    [isReversed, updatePairFile],
   );
 
   // ファイルセルの描画
@@ -248,9 +232,7 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
         <td className="px-1.5 py-1">
           <select
             value={currentFile}
-            onChange={(e) =>
-              handleFileChange(pairIndex, colSide, e.target.value)
-            }
+            onChange={(e) => handleFileChange(pairIndex, colSide, e.target.value)}
             className="w-full bg-bg-elevated border border-accent/30 rounded-lg px-2 py-1 text-xs text-text-primary focus:outline-none focus:border-accent"
           >
             {allFiles.map((f) => {
@@ -279,28 +261,34 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
     );
   };
 
-  const handlePairingModeChange = useCallback(async (mode: PairingMode) => {
-    setPairingMode(mode);
-    setIsRescanning(true);
-    try {
-      await onRescan();
-    } finally {
-      setIsRescanning(false);
-    }
-  }, [setPairingMode, onRescan]);
-
-  const handleLinkCharChange = useCallback(async (char: string) => {
-    setLinkCharacter(char);
-    // リンク文字手動モードの場合のみ再スキャン
-    if (settings.pairingSettings.mode === "linkCharManual" && char.length > 0) {
+  const handlePairingModeChange = useCallback(
+    async (mode: PairingMode) => {
+      setPairingMode(mode);
       setIsRescanning(true);
       try {
         await onRescan();
       } finally {
         setIsRescanning(false);
       }
-    }
-  }, [setLinkCharacter, settings.pairingSettings.mode, onRescan]);
+    },
+    [setPairingMode, onRescan],
+  );
+
+  const handleLinkCharChange = useCallback(
+    async (char: string) => {
+      setLinkCharacter(char);
+      // リンク文字手動モードの場合のみ再スキャン
+      if (settings.pairingSettings.mode === "linkCharManual" && char.length > 0) {
+        setIsRescanning(true);
+        try {
+          await onRescan();
+        } finally {
+          setIsRescanning(false);
+        }
+      }
+    },
+    [setLinkCharacter, settings.pairingSettings.mode, onRescan],
+  );
 
   return (
     <div className="space-y-3">
@@ -358,16 +346,20 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
               style={{ width: `${Math.min((totalPairsCount / allLeftFiles.length) * 100, 100)}%` }}
             />
           </div>
-          <span className={`text-[10px] whitespace-nowrap ${
-            totalPairsCount < allLeftFiles.length ? "text-warning" : "text-text-muted"
-          }`}>
+          <span
+            className={`text-[10px] whitespace-nowrap ${
+              totalPairsCount < allLeftFiles.length ? "text-warning" : "text-text-muted"
+            }`}
+          >
             {totalPairsCount}/{allLeftFiles.length} マッチ済み
           </span>
         </div>
       )}
 
       {/* Pair Table */}
-      <div className={`border border-border rounded-xl overflow-hidden transition-opacity duration-200 ${isRescanning ? "opacity-50 pointer-events-none" : ""}`}>
+      <div
+        className={`border border-border rounded-xl overflow-hidden transition-opacity duration-200 ${isRescanning ? "opacity-50 pointer-events-none" : ""}`}
+      >
         {isRescanning && (
           <div className="flex items-center justify-center py-2 bg-bg-tertiary/50 border-b border-border/50">
             <div className="w-3.5 h-3.5 rounded-full border-2 border-accent/30 border-t-accent animate-spin mr-2" />
@@ -388,9 +380,7 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
                   className="w-3.5 h-3.5 rounded border-white/20 accent-accent"
                 />
               </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-text-muted w-10">
-                #
-              </th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-text-muted w-10">#</th>
               <th className="px-3 py-2 text-left text-xs font-medium text-text-muted">
                 {isReversed ? "画像データ" : "植字データ"}
               </th>
@@ -423,18 +413,10 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
                 )}
                 {job.pairs.map((pair) => {
                   const isExcluded = excludedPairIndices.has(pair.pairIndex);
-                  const leftFile = isReversed
-                    ? pair.targetFile
-                    : pair.sourceFile;
-                  const leftName = isReversed
-                    ? pair.targetName
-                    : pair.sourceName;
-                  const rightFile = isReversed
-                    ? pair.sourceFile
-                    : pair.targetFile;
-                  const rightName = isReversed
-                    ? pair.sourceName
-                    : pair.targetName;
+                  const leftFile = isReversed ? pair.targetFile : pair.sourceFile;
+                  const leftName = isReversed ? pair.targetName : pair.sourceName;
+                  const rightFile = isReversed ? pair.sourceFile : pair.targetFile;
+                  const rightName = isReversed ? pair.sourceName : pair.targetName;
 
                   const matchKey = getMatchKeyInfo(
                     pair.sourceName,
@@ -443,7 +425,7 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
                     settings.pairingSettings.mode,
                     settings.pairingSettings.mode === "linkCharManual"
                       ? settings.pairingSettings.linkCharacter
-                      : detectedLinkChar || ""
+                      : detectedLinkChar || "",
                   );
 
                   return (
@@ -461,15 +443,8 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
                           className="w-3.5 h-3.5 rounded border-white/20 accent-accent"
                         />
                       </td>
-                      <td className="px-3 py-2 text-xs text-text-muted">
-                        {pair.pairIndex + 1}
-                      </td>
-                      {renderFileCell(
-                        pair.pairIndex,
-                        "left",
-                        leftFile,
-                        leftName
-                      )}
+                      <td className="px-3 py-2 text-xs text-text-muted">{pair.pairIndex + 1}</td>
+                      {renderFileCell(pair.pairIndex, "left", leftFile, leftName)}
                       <td className="px-1 py-2 text-center">
                         <div className="flex flex-col items-center gap-0.5">
                           <svg
@@ -493,18 +468,13 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
                           </span>
                         </div>
                       </td>
-                      {renderFileCell(
-                        pair.pairIndex,
-                        "right",
-                        rightFile,
-                        rightName
-                      )}
+                      {renderFileCell(pair.pairIndex, "right", rightFile, rightName)}
                       {/* 編集ボタン */}
                       <td className="px-1 py-2 text-center">
                         <button
                           onClick={() =>
                             setEditingPairIndex(
-                              editingPairIndex === pair.pairIndex ? null : pair.pairIndex
+                              editingPairIndex === pair.pairIndex ? null : pair.pairIndex,
                             )
                           }
                           className={`p-1 rounded transition-colors ${
@@ -577,17 +547,11 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
               stroke="currentColor"
               strokeWidth={2}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9 5l7 7-7 7"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
             </svg>
             <span>
-              未マッチ ({isReversed ? "画像" : "植字"}{" "}
-              {unmatchedLeft.length},{" "}
-              {isReversed ? "植字" : "画像"}{" "}
-              {unmatchedRight.length})
+              未マッチ ({isReversed ? "画像" : "植字"} {unmatchedLeft.length},{" "}
+              {isReversed ? "植字" : "画像"} {unmatchedRight.length})
             </span>
           </button>
 
@@ -628,17 +592,17 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
                       {unmatchedLeft.length > 0 ? (
                         unmatchedLeft.map((path) => {
                           const isSelected =
-                            selectedUnmatched?.side === "left" &&
-                            selectedUnmatched?.path === path;
+                            selectedUnmatched?.side === "left" && selectedUnmatched?.path === path;
                           return (
                             <div
                               key={path}
                               onClick={() => handleUnmatchedClick("left", path)}
                               className={`
                                 px-2 py-1 text-[11px] rounded cursor-pointer transition-all select-none truncate
-                                ${isSelected
-                                  ? "ring-1 ring-accent bg-accent/10 text-accent"
-                                  : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
+                                ${
+                                  isSelected
+                                    ? "ring-1 ring-accent bg-accent/10 text-accent"
+                                    : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
                                 }
                               `}
                               title={getFileName(path)}
@@ -648,9 +612,7 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
                           );
                         })
                       ) : (
-                        <div className="text-[10px] text-text-muted text-center py-3">
-                          なし
-                        </div>
+                        <div className="text-[10px] text-text-muted text-center py-3">なし</div>
                       )}
                     </div>
                   </div>
@@ -666,17 +628,17 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
                       {unmatchedRight.length > 0 ? (
                         unmatchedRight.map((path) => {
                           const isSelected =
-                            selectedUnmatched?.side === "right" &&
-                            selectedUnmatched?.path === path;
+                            selectedUnmatched?.side === "right" && selectedUnmatched?.path === path;
                           return (
                             <div
                               key={path}
                               onClick={() => handleUnmatchedClick("right", path)}
                               className={`
                                 px-2 py-1 text-[11px] rounded cursor-pointer transition-all select-none truncate
-                                ${isSelected
-                                  ? "ring-1 ring-accent bg-accent/10 text-accent"
-                                  : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
+                                ${
+                                  isSelected
+                                    ? "ring-1 ring-accent bg-accent/10 text-accent"
+                                    : "text-text-secondary hover:bg-bg-tertiary hover:text-text-primary"
                                 }
                               `}
                               title={getFileName(path)}
@@ -686,9 +648,7 @@ export function PairingAutoTab({ isReversed, onRescan }: Props) {
                           );
                         })
                       ) : (
-                        <div className="text-[10px] text-text-muted text-center py-3">
-                          なし
-                        </div>
+                        <div className="text-[10px] text-text-muted text-center py-3">なし</div>
                       )}
                     </div>
                   </div>

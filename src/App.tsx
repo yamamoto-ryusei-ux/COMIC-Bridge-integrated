@@ -26,7 +26,14 @@ function App() {
         const title = raw.work ? `${raw.work} ${fileName}` : fileName;
 
         const store = useTypesettingCheckStore.getState();
-        store.setCheckData({ title, fileName, filePath, allItems, correctnessItems, proposalItems });
+        store.setCheckData({
+          title,
+          fileName,
+          filePath,
+          allItems,
+          correctnessItems,
+          proposalItems,
+        });
 
         if (correctnessItems.length > 0 && proposalItems.length > 0) {
           store.setCheckTabMode("both");

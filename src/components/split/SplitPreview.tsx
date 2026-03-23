@@ -31,14 +31,11 @@ export function SplitPreview() {
     return files.length > 1 ? files[1] : files[0];
   }, [files, activeFileId]);
 
-  const { imageUrl, originalSize, isLoading } = useHighResPreview(
-    referenceFile?.filePath,
-    {
-      maxSize: 1200,
-      pdfPageIndex: referenceFile?.pdfPageIndex,
-      pdfSourcePath: referenceFile?.pdfSourcePath,
-    }
-  );
+  const { imageUrl, originalSize, isLoading } = useHighResPreview(referenceFile?.filePath, {
+    maxSize: 1200,
+    pdfPageIndex: referenceFile?.pdfPageIndex,
+    pdfSourcePath: referenceFile?.pdfSourcePath,
+  });
 
   // --- Sizing ---
   const containerRef = useRef<HTMLDivElement>(null);
@@ -101,7 +98,7 @@ export function SplitPreview() {
         y: Math.round((localY - offsetY) / scale),
       };
     },
-    [offsetX, offsetY, scale]
+    [offsetX, offsetY, scale],
   );
 
   // --- Local guide state (uneven mode only) ---
@@ -140,7 +137,7 @@ export function SplitPreview() {
       if (mode !== "uneven" || !imageSize) return;
       setInteraction({ type: "ruler-drag" });
     },
-    [mode, imageSize]
+    [mode, imageSize],
   );
 
   // --- Guide move start ---
@@ -151,7 +148,7 @@ export function SplitPreview() {
       e.preventDefault();
       setInteraction({ type: "guide-move", index });
     },
-    [isSpacePressed, zoom]
+    [isSpacePressed, zoom],
   );
 
   // --- Preview mousedown: pan or rect-select ---
@@ -184,7 +181,7 @@ export function SplitPreview() {
         setDragPos({ x: ix, y: iy });
       }
     },
-    [isSpacePressed, zoom, interaction, mode, imageSize, getImageCoords]
+    [isSpacePressed, zoom, interaction, mode, imageSize, getImageCoords],
   );
 
   // --- Wheel zoom ---
@@ -254,15 +251,11 @@ export function SplitPreview() {
         const guide = previewGuides[interaction.index];
         if (guide) {
           if (cx <= 0 || cx >= imageSize.width) {
-            setPreviewGuides((prev) =>
-              prev.filter((_, i) => i !== interaction.index)
-            );
+            setPreviewGuides((prev) => prev.filter((_, i) => i !== interaction.index));
             setSelectedGuideIndex(null);
           } else {
             setPreviewGuides((prev) =>
-              prev.map((g, i) =>
-                i === interaction.index ? { ...g, position: cx } : g
-              )
+              prev.map((g, i) => (i === interaction.index ? { ...g, position: cx } : g)),
             );
             setSelectedGuideIndex(interaction.index);
           }
@@ -347,24 +340,19 @@ export function SplitPreview() {
           prev.map((g, i) =>
             i === selectedGuideIndex
               ? { ...g, position: Math.max(1, Math.min(imageSize.width - 1, g.position + delta)) }
-              : g
-          )
+              : g,
+          ),
         );
       }
 
       // Tab: cycle selected guide
       if (e.key === "Tab" && mode === "uneven" && previewGuides.length > 0) {
         e.preventDefault();
-        setSelectedGuideIndex((prev) =>
-          prev === null ? 0 : (prev + 1) % previewGuides.length
-        );
+        setSelectedGuideIndex((prev) => (prev === null ? 0 : (prev + 1) % previewGuides.length));
       }
 
       // Delete / Backspace
-      if (
-        (e.key === "Delete" || e.key === "Backspace") &&
-        mode === "uneven"
-      ) {
+      if ((e.key === "Delete" || e.key === "Backspace") && mode === "uneven") {
         e.preventDefault();
         if (selectedGuideIndex !== null && selectedGuideIndex < previewGuides.length) {
           setPreviewGuides((prev) => prev.filter((_, i) => i !== selectedGuideIndex));
@@ -416,8 +404,7 @@ export function SplitPreview() {
 
   // Cursor
   const getCursor = (): string => {
-    if (isSpacePressed && zoom > 1)
-      return isPanning ? "grabbing" : "grab";
+    if (isSpacePressed && zoom > 1) return isPanning ? "grabbing" : "grab";
     if (!interaction) return mode === "uneven" ? "crosshair" : "default";
     if (interaction.type === "ruler-drag") return "col-resize";
     if (interaction.type === "guide-move") return "col-resize";
@@ -432,8 +419,18 @@ export function SplitPreview() {
       <div className="flex items-center justify-center h-full bg-bg-primary">
         <div className="text-center px-6">
           <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-bg-tertiary flex items-center justify-center">
-            <svg className="w-7 h-7 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+            <svg
+              className="w-7 h-7 text-text-muted"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+              />
             </svg>
           </div>
           <p className="text-xs text-text-muted">ファイルを選択してプレビュー</p>
@@ -469,8 +466,18 @@ export function SplitPreview() {
               }}
               title="元に戻す (Ctrl+Z)"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3"
+                />
               </svg>
             </button>
             <button
@@ -479,43 +486,56 @@ export function SplitPreview() {
               onClick={redoSelection}
               title="やり直す (Ctrl+Y)"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3" />
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 15l6-6m0 0l-6-6m6 6H9a6 6 0 000 12h3"
+                />
               </svg>
             </button>
           </div>
         )}
-
       </div>
 
       {/* Step guide (uneven mode) */}
-      {mode === "uneven" && imageSize && (() => {
-        const step = selectionBounds ? 3 : canApplyGuides ? 2 : 1;
-        return (
-          <div className="px-4 py-2.5 border-b border-border/50 bg-gradient-to-r from-bg-secondary to-bg-secondary/80 flex-shrink-0">
-            <div className="flex items-center gap-1">
-              {/* Step 1 */}
-              <StepChip n={1} current={step} label="左ページにガイドを2本引く" />
-              <StepConnector done={step > 1} />
-              {/* Step 2 - clickable button when active */}
-              {step === 2 ? (
-                <button
-                  onClick={handleApplyGuides}
-                  className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-[#00bcd4] to-[#00e5ff] hover:from-[#00acc1] hover:to-[#00d4f5] text-white text-sm font-medium shadow-[0_2px_8px_rgba(0,229,255,0.3)] hover:shadow-[0_4px_12px_rgba(0,229,255,0.4)] transition-all hover:-translate-y-px"
-                >
-                  <span className="w-5 h-5 rounded-full bg-white/25 text-[10px] font-bold flex items-center justify-center flex-shrink-0">2</span>
-                  ガイドを適用
-                </button>
-              ) : (
-                <StepChip n={2} current={step} label="ガイドを適用" />
-              )}
-              <StepConnector done={step > 2} />
-              {/* Step 3 */}
-              <StepChip n={3} current={step} label="サイドバーから実行" />
+      {mode === "uneven" &&
+        imageSize &&
+        (() => {
+          const step = selectionBounds ? 3 : canApplyGuides ? 2 : 1;
+          return (
+            <div className="px-4 py-2.5 border-b border-border/50 bg-gradient-to-r from-bg-secondary to-bg-secondary/80 flex-shrink-0">
+              <div className="flex items-center gap-1">
+                {/* Step 1 */}
+                <StepChip n={1} current={step} label="左ページにガイドを2本引く" />
+                <StepConnector done={step > 1} />
+                {/* Step 2 - clickable button when active */}
+                {step === 2 ? (
+                  <button
+                    onClick={handleApplyGuides}
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-[#00bcd4] to-[#00e5ff] hover:from-[#00acc1] hover:to-[#00d4f5] text-white text-sm font-medium shadow-[0_2px_8px_rgba(0,229,255,0.3)] hover:shadow-[0_4px_12px_rgba(0,229,255,0.4)] transition-all hover:-translate-y-px"
+                  >
+                    <span className="w-5 h-5 rounded-full bg-white/25 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                      2
+                    </span>
+                    ガイドを適用
+                  </button>
+                ) : (
+                  <StepChip n={2} current={step} label="ガイドを適用" />
+                )}
+                <StepConnector done={step > 2} />
+                {/* Step 3 */}
+                <StepChip n={3} current={step} label="サイドバーから実行" />
+              </div>
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
 
       {/* Grid: vertical ruler (uneven only, for vertical guides) + preview */}
       <div
@@ -566,10 +586,7 @@ export function SplitPreview() {
               }}
             >
               {imageUrl && imageSize && (
-                <div
-                  className="relative"
-                  style={{ width: scaledW, height: scaledH }}
-                >
+                <div className="relative" style={{ width: scaledW, height: scaledH }}>
                   <img
                     src={imageUrl}
                     alt="Preview"
@@ -610,10 +627,22 @@ export function SplitPreview() {
                     >
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div className="flex flex-col items-center gap-1 opacity-60">
-                          <svg className="w-5 h-5 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                          <svg
+                            className="w-5 h-5 text-white/50"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={1.5}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+                            />
                           </svg>
-                          <span className="text-[9px] text-white/40 whitespace-nowrap">右ページ</span>
+                          <span className="text-[9px] text-white/40 whitespace-nowrap">
+                            右ページ
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -666,31 +695,26 @@ export function SplitPreview() {
                   )}
 
                   {/* Overlap warning zone */}
-                  {selectionBounds &&
-                    mode === "uneven" &&
-                    selectionBounds.right > halfWidth && (
-                      <div
-                        className="absolute pointer-events-none"
-                        style={{
-                          left: halfWidth * scale,
-                          top: 0,
-                          width: (selectionBounds.right - halfWidth) * scale,
-                          height: scaledH,
-                          background: "rgba(239, 68, 68, 0.15)",
-                          zIndex: 15,
-                        }}
-                      />
-                    )}
+                  {selectionBounds && mode === "uneven" && selectionBounds.right > halfWidth && (
+                    <div
+                      className="absolute pointer-events-none"
+                      style={{
+                        left: halfWidth * scale,
+                        top: 0,
+                        width: (selectionBounds.right - halfWidth) * scale,
+                        height: scaledH,
+                        background: "rgba(239, 68, 68, 0.15)",
+                        zIndex: 15,
+                      }}
+                    />
+                  )}
 
                   {/* Preview guides (vertical, draggable) */}
                   {previewGuides.map((guide, idx) => {
                     const isMoving =
-                      interaction?.type === "guide-move" &&
-                      interaction.index === idx;
+                      interaction?.type === "guide-move" && interaction.index === idx;
                     const isSelected = selectedGuideIndex === idx;
-                    const pos = isMoving
-                      ? (dragPos?.x ?? guide.position)
-                      : guide.position;
+                    const pos = isMoving ? (dragPos?.x ?? guide.position) : guide.position;
                     const screenPos = pos * scale;
 
                     return (
@@ -758,10 +782,8 @@ export function SplitPreview() {
                       style={{
                         left: Math.min(interaction.startX, dragPos.x) * scale,
                         top: Math.min(interaction.startY, dragPos.y) * scale,
-                        width:
-                          Math.abs(dragPos.x - interaction.startX) * scale,
-                        height:
-                          Math.abs(dragPos.y - interaction.startY) * scale,
+                        width: Math.abs(dragPos.x - interaction.startX) * scale,
+                        height: Math.abs(dragPos.y - interaction.startY) * scale,
                         border: "1px dashed #00e5ff",
                         background: "rgba(0, 229, 255, 0.06)",
                         zIndex: 15,
@@ -770,63 +792,54 @@ export function SplitPreview() {
                   )}
 
                   {/* Margin dimension labels */}
-                  {selectionBounds &&
-                    margins &&
-                    mode === "uneven" &&
-                    !interaction && (
-                      <>
-                        {margins.outerMargin > 0 && (
-                          <div
-                            className="absolute pointer-events-none z-30 flex items-center"
-                            style={{
-                              left: 0,
-                              top: scaledH / 2 - 16,
-                              width: selectionBounds.left * scale,
-                              height: 32,
-                            }}
-                          >
-                            <div className="w-full flex flex-col items-center gap-0">
-                              <span className="text-[7px] text-white/60 leading-none">
-                                外側余白
+                  {selectionBounds && margins && mode === "uneven" && !interaction && (
+                    <>
+                      {margins.outerMargin > 0 && (
+                        <div
+                          className="absolute pointer-events-none z-30 flex items-center"
+                          style={{
+                            left: 0,
+                            top: scaledH / 2 - 16,
+                            width: selectionBounds.left * scale,
+                            height: 32,
+                          }}
+                        >
+                          <div className="w-full flex flex-col items-center gap-0">
+                            <span className="text-[7px] text-white/60 leading-none">外側余白</span>
+                            <div className="w-full flex items-center gap-px">
+                              <div className="flex-1 h-px bg-[#00e5ff]/40" />
+                              <span className="px-1.5 py-0.5 text-[9px] bg-black/70 text-[#00e5ff] rounded whitespace-nowrap font-medium">
+                                {margins.outerMargin}px
                               </span>
-                              <div className="w-full flex items-center gap-px">
-                                <div className="flex-1 h-px bg-[#00e5ff]/40" />
-                                <span className="px-1.5 py-0.5 text-[9px] bg-black/70 text-[#00e5ff] rounded whitespace-nowrap font-medium">
-                                  {margins.outerMargin}px
-                                </span>
-                                <div className="flex-1 h-px bg-[#00e5ff]/40" />
-                              </div>
+                              <div className="flex-1 h-px bg-[#00e5ff]/40" />
                             </div>
                           </div>
-                        )}
-                        {margins.innerMargin > 0 && (
-                          <div
-                            className="absolute pointer-events-none z-30 flex items-center"
-                            style={{
-                              left: selectionBounds.right * scale,
-                              top: scaledH / 2 - 16,
-                              width:
-                                Math.max(0, halfWidth - selectionBounds.right) *
-                                scale,
-                              height: 32,
-                            }}
-                          >
-                            <div className="w-full flex flex-col items-center gap-0">
-                              <span className="text-[7px] text-white/60 leading-none">
-                                ノド
+                        </div>
+                      )}
+                      {margins.innerMargin > 0 && (
+                        <div
+                          className="absolute pointer-events-none z-30 flex items-center"
+                          style={{
+                            left: selectionBounds.right * scale,
+                            top: scaledH / 2 - 16,
+                            width: Math.max(0, halfWidth - selectionBounds.right) * scale,
+                            height: 32,
+                          }}
+                        >
+                          <div className="w-full flex flex-col items-center gap-0">
+                            <span className="text-[7px] text-white/60 leading-none">ノド</span>
+                            <div className="w-full flex items-center gap-px">
+                              <div className="flex-1 h-px bg-[#00e5ff]/40" />
+                              <span className="px-1.5 py-0.5 text-[9px] bg-black/70 text-[#00e5ff] rounded whitespace-nowrap font-medium">
+                                {margins.innerMargin}px
                               </span>
-                              <div className="w-full flex items-center gap-px">
-                                <div className="flex-1 h-px bg-[#00e5ff]/40" />
-                                <span className="px-1.5 py-0.5 text-[9px] bg-black/70 text-[#00e5ff] rounded whitespace-nowrap font-medium">
-                                  {margins.innerMargin}px
-                                </span>
-                                <div className="flex-1 h-px bg-[#00e5ff]/40" />
-                              </div>
+                              <div className="flex-1 h-px bg-[#00e5ff]/40" />
                             </div>
                           </div>
-                        )}
-                      </>
-                    )}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -842,10 +855,7 @@ export function SplitPreview() {
           {/* Bottom bar (fixed in viewport) */}
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 bg-bg-secondary/90 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-border/50 pointer-events-none">
             {mode === "uneven" && selectionBounds && margins && imageSize && (
-              <MiniOutputPreview
-                margins={margins}
-                imageHeight={imageSize.height}
-              />
+              <MiniOutputPreview margins={margins} imageHeight={imageSize.height} />
             )}
 
             <span className="text-[10px] text-text-muted">
@@ -928,9 +938,7 @@ function MiniOutputPreview({
         <span className="text-[7px] text-[#00bcd4]/70 mt-0.5">L</span>
       </div>
       {margins.marginToAdd > 0 && (
-        <span className="text-[8px] text-[#00e5ff]/60 ml-0.5">
-          +{margins.marginToAdd}px
-        </span>
+        <span className="text-[8px] text-[#00e5ff]/60 ml-0.5">+{margins.marginToAdd}px</span>
       )}
     </div>
   );
@@ -951,7 +959,9 @@ function StepChip({ n, current, label }: { n: number; current: number; label: st
       >
         {done ? "\u2713" : n}
       </span>
-      <span className={`text-xs ${active ? "text-text-primary font-medium" : "text-text-muted/50"}`}>
+      <span
+        className={`text-xs ${active ? "text-text-primary font-medium" : "text-text-muted/50"}`}
+      >
         {label}
       </span>
     </div>

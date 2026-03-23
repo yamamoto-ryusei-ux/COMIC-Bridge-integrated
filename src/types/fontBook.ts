@@ -19,11 +19,7 @@ export interface FontBookData {
  * textLogFolderPath（.../写植・校正用テキストログ/テキスト抽出）の親（.../写植・校正用テキストログ）を
  * ベースにして {label}/{title}/フォント帳/ に格納する
  */
-export function getFontBookDir(
-  textLogFolderPath: string,
-  label: string,
-  title: string
-): string {
+export function getFontBookDir(textLogFolderPath: string, label: string, title: string): string {
   // textLogFolderPathの末尾セグメント（テキスト抽出）を除去して親を取得
   const normalized = textLogFolderPath.replace(/\\/g, "/").replace(/\/+$/, "");
   const parentPath = normalized.substring(0, normalized.lastIndexOf("/"));

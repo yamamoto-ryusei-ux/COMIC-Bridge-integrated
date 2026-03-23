@@ -21,7 +21,12 @@ function inferFromJsonPath(jsonPath: string): { label: string; title: string } |
   return { label: match[1], title: match[2] };
 }
 
-export function TiffAutoScanDialog({ mode, fileCount, onExecute, onClose }: TiffAutoScanDialogProps) {
+export function TiffAutoScanDialog({
+  mode,
+  fileCount,
+  onExecute,
+  onClose,
+}: TiffAutoScanDialogProps) {
   const cropSourceJsonPath = useTiffStore((s) => s.cropSourceJsonPath);
   const cropBounds = useTiffStore((s) => s.settings.crop.bounds);
   const scanWorkInfo = useScanPsdStore((s) => s.workInfo);
@@ -41,7 +46,9 @@ export function TiffAutoScanDialog({ mode, fileCount, onExecute, onClose }: Tiff
 
   // 検索
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<{ label: string; title: string; path: string }[]>([]);
+  const [searchResults, setSearchResults] = useState<
+    { label: string; title: string; path: string }[]
+  >([]);
 
   // JSON読み込み状態
   const [jsonLoading, setJsonLoading] = useState(false);
@@ -147,33 +154,70 @@ export function TiffAutoScanDialog({ mode, fileCount, onExecute, onClose }: Tiff
 
     onClose();
     onExecute();
-  }, [jsonEnabled, label, title, volume, registerRange, jsonLoaded, loadExistingJson, onExecute, onClose]);
+  }, [
+    jsonEnabled,
+    label,
+    title,
+    volume,
+    registerRange,
+    jsonLoaded,
+    loadExistingJson,
+    onExecute,
+    onClose,
+  ]);
 
   // --- 検索結果から選択 ---
-  const selectSearchResult = useCallback((result: { label: string; title: string }) => {
-    setLabel(result.label);
-    setTitle(result.title);
-    setTitleSource("existing");
-    setSearchQuery("");
-    setSearchResults([]);
-    loadExistingJson(result.label, result.title);
-  }, [loadExistingJson]);
+  const selectSearchResult = useCallback(
+    (result: { label: string; title: string }) => {
+      setLabel(result.label);
+      setTitle(result.title);
+      setTitleSource("existing");
+      setSearchQuery("");
+      setSearchResults([]);
+      loadExistingJson(result.label, result.title);
+    },
+    [loadExistingJson],
+  );
 
   const isReady = !jsonEnabled || (!!label && !!title);
   const outputSummary = useTiffStore.getState().settings;
-  const formatLabel = outputSummary.output.proceedAsTiff && outputSummary.output.outputJpg
-    ? "TIFF + JPG"
-    : outputSummary.output.proceedAsTiff ? "TIFF (LZW)" : outputSummary.output.outputJpg ? "JPG" : "PSD";
-  const colorLabel = outputSummary.colorMode === "mono" ? "モノクロ" : outputSummary.colorMode === "color" ? "カラー" : outputSummary.colorMode === "perPage" ? "個別" : "変更なし";
+  const formatLabel =
+    outputSummary.output.proceedAsTiff && outputSummary.output.outputJpg
+      ? "TIFF + JPG"
+      : outputSummary.output.proceedAsTiff
+        ? "TIFF (LZW)"
+        : outputSummary.output.outputJpg
+          ? "JPG"
+          : "PSD";
+  const colorLabel =
+    outputSummary.colorMode === "mono"
+      ? "モノクロ"
+      : outputSummary.colorMode === "color"
+        ? "カラー"
+        : outputSummary.colorMode === "perPage"
+          ? "個別"
+          : "変更なし";
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40" onMouseDown={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40"
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       <div className="bg-bg-secondary rounded-2xl shadow-2xl w-[420px] max-h-[85vh] flex flex-col border border-border/50 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-border/50">
           <h3 className="text-sm font-bold text-text-primary">TIFF化 実行確認</h3>
-          <button onClick={onClose} className="p-1 rounded-lg hover:bg-bg-tertiary transition-colors">
-            <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg hover:bg-bg-tertiary transition-colors"
+          >
+            <svg
+              className="w-4 h-4 text-text-muted"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -181,13 +225,14 @@ export function TiffAutoScanDialog({ mode, fileCount, onExecute, onClose }: Tiff
 
         {/* Content */}
         <div className="flex-1 overflow-auto px-5 py-4 space-y-4">
-
           {/* 対象ファイル情報 */}
           <div className="flex items-center gap-3 text-xs text-text-secondary">
             <span className="bg-accent-warm/10 text-accent-warm px-2.5 py-1 rounded-full font-medium">
               {mode === "selected" ? `${fileCount}件 選択` : `${fileCount}件 全て`}
             </span>
-            <span>{formatLabel} / {colorLabel}</span>
+            <span>
+              {formatLabel} / {colorLabel}
+            </span>
           </div>
 
           {/* JSON登録トグル */}
@@ -200,26 +245,41 @@ export function TiffAutoScanDialog({ mode, fileCount, onExecute, onClose }: Tiff
                 className="rounded accent-accent-secondary w-4 h-4"
               />
               <div>
-                <span className="text-xs font-medium text-text-primary">プリセットJSON同時登録</span>
+                <span className="text-xs font-medium text-text-primary">
+                  プリセットJSON同時登録
+                </span>
                 <p className="text-[10px] text-text-muted">Photoshop不要 / ag-psdで高速スキャン</p>
               </div>
             </label>
 
             {jsonEnabled && (
               <div className="space-y-3 pt-1 border-t border-border/30">
-
                 {/* 自動検出された場合 */}
                 {titleSource === "auto" && label && title ? (
                   <div className="space-y-2">
                     <div className="bg-accent-secondary/8 border border-accent-secondary/20 rounded-lg px-3 py-2">
                       <div className="flex items-center gap-2">
-                        <svg className="w-3.5 h-3.5 text-accent-secondary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        <svg
+                          className="w-3.5 h-3.5 text-accent-secondary flex-shrink-0"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
                         </svg>
                         <div className="min-w-0">
-                          <p className="text-[11px] text-accent-secondary font-medium truncate">{label} / {title}</p>
+                          <p className="text-[11px] text-accent-secondary font-medium truncate">
+                            {label} / {title}
+                          </p>
                           <p className="text-[9px] text-text-muted">
-                            {cropSourceJsonPath ? "選択範囲JSONから検出" : "Scan PSDタブの設定から検出"}
+                            {cropSourceJsonPath
+                              ? "選択範囲JSONから検出"
+                              : "Scan PSDタブの設定から検出"}
                           </p>
                         </div>
                       </div>
@@ -234,7 +294,6 @@ export function TiffAutoScanDialog({ mode, fileCount, onExecute, onClose }: Tiff
                 ) : (
                   /* 手動選択モード */
                   <div className="space-y-2.5">
-
                     {/* 検索 */}
                     <div className="relative">
                       <input
@@ -277,7 +336,9 @@ export function TiffAutoScanDialog({ mode, fileCount, onExecute, onClose }: Tiff
                         {Object.entries(GENRE_LABELS).map(([genre, labels]) => (
                           <optgroup key={genre} label={genre}>
                             {labels.map((l) => (
-                              <option key={l} value={l}>{l}</option>
+                              <option key={l} value={l}>
+                                {l}
+                              </option>
                             ))}
                           </optgroup>
                         ))}
@@ -297,7 +358,11 @@ export function TiffAutoScanDialog({ mode, fileCount, onExecute, onClose }: Tiff
                               既存
                             </button>
                             <button
-                              onClick={() => { setTitleSource("new"); setTitle(""); setJsonLoaded(false); }}
+                              onClick={() => {
+                                setTitleSource("new");
+                                setTitle("");
+                                setJsonLoaded(false);
+                              }}
                               className={`text-[9px] px-1.5 py-0.5 rounded ${titleSource === "new" ? "bg-accent-secondary/15 text-accent-secondary" : "text-text-muted hover:text-text-secondary"}`}
                             >
                               新規
@@ -321,14 +386,19 @@ export function TiffAutoScanDialog({ mode, fileCount, onExecute, onClose }: Tiff
                             >
                               <option value="">選択してください</option>
                               {titles.map((t) => (
-                                <option key={t} value={t}>{t}</option>
+                                <option key={t} value={t}>
+                                  {t}
+                                </option>
                               ))}
                             </select>
                           ) : (
                             <div className="text-[10px] text-text-muted py-2">
                               JSONファイルがありません
                               <button
-                                onClick={() => { setTitleSource("new"); setTitle(""); }}
+                                onClick={() => {
+                                  setTitleSource("new");
+                                  setTitle("");
+                                }}
                                 className="ml-2 text-accent-secondary hover:underline"
                               >
                                 新規作成
@@ -375,7 +445,8 @@ export function TiffAutoScanDialog({ mode, fileCount, onExecute, onClose }: Tiff
                     <div>
                       <span className="text-[11px] text-text-primary">選択範囲もJSONに登録</span>
                       <p className="text-[9px] text-text-muted">
-                        {cropBounds.right - cropBounds.left} x {cropBounds.bottom - cropBounds.top} px
+                        {cropBounds.right - cropBounds.left} x {cropBounds.bottom - cropBounds.top}{" "}
+                        px
                       </p>
                     </div>
                   </label>

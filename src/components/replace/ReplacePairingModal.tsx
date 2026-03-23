@@ -38,18 +38,13 @@ export function ReplacePairingModal({ onExecute, onRescan }: Props) {
   const setManualPairs = useReplaceStore((s) => s.setManualPairs);
   const folders = useReplaceStore((s) => s.folders);
 
-  const totalPairsCount = pairingJobs.reduce(
-    (acc, job) => acc + job.pairs.length,
-    0
-  );
+  const totalPairsCount = pairingJobs.reduce((acc, job) => acc + job.pairs.length, 0);
   const successCount = results.filter((r) => r.success).length;
   const errorCount = results.filter((r) => !r.success).length;
 
   // 有効ペア数（実行ボタン用）
   const activePairCount =
-    pairingDialogMode === "auto"
-      ? totalPairsCount - excludedPairIndices.size
-      : manualPairs.length;
+    pairingDialogMode === "auto" ? totalPairsCount - excludedPairIndices.size : manualPairs.length;
 
   // ESC to close (only when not processing)
   useEffect(() => {
@@ -267,15 +262,11 @@ export function ReplacePairingModal({ onExecute, onRescan }: Props) {
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="text-text-muted text-xs">モード</span>
-                  <p className="text-text-primary font-medium">
-                    {getModeLabel()}
-                  </p>
+                  <p className="text-text-primary font-medium">{getModeLabel()}</p>
                 </div>
                 <div>
                   <span className="text-text-muted text-xs">方向</span>
-                  <p className="text-text-primary font-medium">
-                    {getDirectionLabel()}
-                  </p>
+                  <p className="text-text-primary font-medium">{getDirectionLabel()}</p>
                 </div>
                 <div>
                   <span className="text-text-muted text-xs">ペア数</span>
@@ -288,12 +279,8 @@ export function ReplacePairingModal({ onExecute, onRescan }: Props) {
                 </div>
                 {detectedLinkChar && (
                   <div>
-                    <span className="text-text-muted text-xs">
-                      検出リンク文字
-                    </span>
-                    <p className="text-accent font-medium">
-                      「{detectedLinkChar}」
-                    </p>
+                    <span className="text-text-muted text-xs">検出リンク文字</span>
+                    <p className="text-accent font-medium">「{detectedLinkChar}」</p>
                   </div>
                 )}
               </div>
@@ -313,14 +300,10 @@ export function ReplacePairingModal({ onExecute, onRescan }: Props) {
             <div className="bg-accent/10 rounded-xl p-4 border border-accent/30">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-4 h-4 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
-                <span className="text-sm text-accent font-medium">
-                  Photoshopで処理中...
-                </span>
+                <span className="text-sm text-accent font-medium">Photoshopで処理中...</span>
               </div>
               {currentPair && (
-                <p className="text-xs text-text-muted truncate mb-2">
-                  {currentPair}
-                </p>
+                <p className="text-xs text-text-muted truncate mb-2">{currentPair}</p>
               )}
               <div className="bg-bg-elevated rounded-full h-2 overflow-hidden">
                 <div
@@ -349,15 +332,9 @@ export function ReplacePairingModal({ onExecute, onRescan }: Props) {
                       stroke="currentColor"
                       strokeWidth={2}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 13l4 4L19 7"
-                      />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                     </svg>
-                    <span className="text-sm font-medium text-success">
-                      {successCount} 成功
-                    </span>
+                    <span className="text-sm font-medium text-success">{successCount} 成功</span>
                   </div>
                 </div>
               )}
@@ -377,9 +354,7 @@ export function ReplacePairingModal({ onExecute, onRescan }: Props) {
                         d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
                       />
                     </svg>
-                    <span className="text-sm font-medium text-error">
-                      {errorCount} 失敗
-                    </span>
+                    <span className="text-sm font-medium text-error">{errorCount} 失敗</span>
                   </div>
                 </div>
               )}
@@ -423,9 +398,7 @@ export function ReplacePairingModal({ onExecute, onRescan }: Props) {
                         </tr>
                       )}
                       {job.pairs.map((pair) => {
-                        const result = results.find(
-                          (r) => r.pairIndex === pair.pairIndex
-                        );
+                        const result = results.find((r) => r.pairIndex === pair.pairIndex);
                         return (
                           <tr
                             key={pair.pairIndex}
@@ -524,18 +497,13 @@ export function ReplacePairingModal({ onExecute, onRescan }: Props) {
           {/* Error Details */}
           {phase === "complete" && errorCount > 0 && (
             <div className="bg-error/5 rounded-xl p-3 border border-error/20">
-              <h4 className="text-xs font-medium text-error mb-2">
-                エラー詳細
-              </h4>
+              <h4 className="text-xs font-medium text-error mb-2">エラー詳細</h4>
               <div className="space-y-1">
                 {results
                   .filter((r) => !r.success)
                   .slice(0, 5)
                   .map((r) => (
-                    <p
-                      key={r.pairIndex}
-                      className="text-[10px] text-error/80 truncate"
-                    >
+                    <p key={r.pairIndex} className="text-[10px] text-error/80 truncate">
                       {isReversed ? r.targetName : r.sourceName} →{" "}
                       {isReversed ? r.sourceName : r.targetName}: {r.error}
                     </p>
@@ -611,7 +579,13 @@ export function ReplacePairingModal({ onExecute, onRescan }: Props) {
                   }}
                   className="px-4 py-2 text-sm font-medium rounded-xl text-accent bg-accent/10 border border-accent/30 hover:bg-accent/20 transition-colors flex items-center gap-1.5"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
                   KENBANで差分比較
@@ -632,7 +606,13 @@ export function ReplacePairingModal({ onExecute, onRescan }: Props) {
                   }}
                   className="px-4 py-2 text-sm font-medium rounded-xl text-accent bg-accent/10 border border-accent/30 hover:bg-accent/20 transition-colors flex items-center gap-1.5"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
                   KENBANで差分比較
@@ -653,20 +633,22 @@ export function ReplacePairingModal({ onExecute, onRescan }: Props) {
                   }}
                   className="px-4 py-2 text-sm font-medium rounded-xl text-accent bg-accent/10 border border-accent/30 hover:bg-accent/20 transition-colors flex items-center gap-1.5"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                   </svg>
                   KENBANで差分比較
                 </button>
               )}
               {(() => {
-                const firstSuccess = results.find(
-                  (r) => r.success && r.outputFile
-                );
+                const firstSuccess = results.find((r) => r.success && r.outputFile);
                 if (!firstSuccess?.outputFile) return null;
-                const parts = firstSuccess.outputFile
-                  .replace(/\//g, "\\")
-                  .split("\\");
+                const parts = firstSuccess.outputFile.replace(/\//g, "\\").split("\\");
                 parts.pop(); // ファイル名を除去
                 if (settings.mode === "batch") parts.pop(); // バッチ時はサブフォルダも除去して親へ
                 const outputFolder = parts.join("\\");

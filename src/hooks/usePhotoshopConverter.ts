@@ -74,149 +74,161 @@ export function usePhotoshopConverter() {
 
   // Convert NG files using Photoshop
   // If fileIds is provided, only convert those specific files (that are also NG)
-  const convertWithPhotoshop = useCallback(async (fileIds?: string[]) => {
-    if (!isPhotoshopInstalled) {
-      console.error("Photoshop is not installed");
-      return;
-    }
+  const convertWithPhotoshop = useCallback(
+    async (fileIds?: string[]) => {
+      if (!isPhotoshopInstalled) {
+        console.error("Photoshop is not installed");
+        return;
+      }
 
-    // Get NG files, optionally filtered by specific IDs
-    const ngFiles = files.filter((file) => {
-      if (fileIds && !fileIds.includes(file.id)) return false;
-      const result = checkResults.get(file.id);
-      return result && !result.passed;
-    });
-
-    if (ngFiles.length === 0) {
-      console.log("No NG files to convert");
-      return;
-    }
-
-    setIsConverting(true);
-    setStoreIsConverting(true);
-    clearConversionResults();
-
-    try {
-      // Build file settings based on what each file needs
-      const fileSettings: PhotoshopFileSettings[] = ngFiles.map((file) => {
+      // Get NG files, optionally filtered by specific IDs
+      const ngFiles = files.filter((file) => {
+        if (fileIds && !fileIds.includes(file.id)) return false;
         const result = checkResults.get(file.id);
-        const failedChecks = result?.results.filter((r) => !r.passed) ?? [];
-
-        return {
-          path: file.filePath,
-          needs_dpi_change: failedChecks.some((r) => r.rule.type === "dpi"),
-          needs_color_mode_change: failedChecks.some((r) => r.rule.type === "colorMode"),
-          needs_bit_depth_change: failedChecks.some((r) => r.rule.type === "bitsPerChannel"),
-          needs_alpha_removal: failedChecks.some((r) => r.rule.type === "hasAlphaChannels"),
-        };
+        return result && !result.passed;
       });
 
-      // Build conversion options
-      const options: PhotoshopConversionOptions = {
-        target_dpi: conversionSettings.targetDpi,
-        target_color_mode: conversionSettings.targetColorMode,
-        target_bit_depth: conversionSettings.targetBitDepth,
-        remove_hidden_layers: false, // 現在は使用しない
-        remove_alpha_channels: true, // αチャンネル削除は常に有効
-      };
-
-      const settings: PhotoshopConversionSettings = {
-        files: fileSettings,
-        options,
-        outputPath: "", // Will be set by Rust
-      };
-
-      // Call Rust to run Photoshop
-      const results = await invoke<PhotoshopResult[]>("run_photoshop_conversion", {
-        settings,
-      });
-
-      // Process results and collect successfully converted files
-      const successfulFiles: { id: string; filePath: string }[] = [];
-
-      for (const result of results) {
-        // Find the file (normalize path separators - JSX returns forward slashes)
-        const normalizedPath = result.filePath.replace(/\//g, "\\");
-        const file = ngFiles.find(
-          (f) => f.filePath === result.filePath || f.filePath === normalizedPath
-        );
-        if (!file) continue;
-
-        const conversionResult: ConversionResult = {
-          fileId: file.id,
-          fileName: file.fileName,
-          success: result.success,
-          changes: result.changes,
-          error: result.error ?? undefined,
-        };
-
-        addConversionResult(conversionResult);
-
-        // Track successfully converted files for reload
-        if (result.success && result.changes.length > 0 && !result.changes.includes("No changes needed")) {
-          successfulFiles.push({ id: file.id, filePath: file.filePath });
-        }
+      if (ngFiles.length === 0) {
+        console.log("No NG files to convert");
+        return;
       }
 
-      // Reload converted files from disk to get actual metadata (Rust-native)
-      if (successfulFiles.length > 0) {
-        console.log(`Reloading ${successfulFiles.length} converted files...`);
+      setIsConverting(true);
+      setStoreIsConverting(true);
+      clearConversionResults();
 
-        try {
-          const parseResults = await invoke<{ filePath: string; metadata: PsdMetadata | null; thumbnailData: string | null; fileSize: number; error: string | null }[]>(
-            "parse_psd_metadata_batch",
-            { filePaths: successfulFiles.map((f) => f.filePath) }
-          );
+      try {
+        // Build file settings based on what each file needs
+        const fileSettings: PhotoshopFileSettings[] = ngFiles.map((file) => {
+          const result = checkResults.get(file.id);
+          const failedChecks = result?.results.filter((r) => !r.passed) ?? [];
 
-          for (const result of parseResults) {
-            const file = successfulFiles.find((f) => f.filePath === result.filePath);
-            if (!file || !result.metadata) continue;
-
-            const thumbnailUrl = result.thumbnailData
-              ? `data:image/jpeg;base64,${result.thumbnailData}`
-              : undefined;
-            updateFile(file.id, {
-              metadata: result.metadata,
-              thumbnailUrl,
-              thumbnailStatus: "ready",
-            });
-          }
-        } catch (reloadError) {
-          console.error("Failed to reload converted files:", reloadError);
-        }
-
-        // Re-run spec check with updated metadata
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        checkAllFiles(specifications);
-      }
-    } catch (error) {
-      console.error("Photoshop conversion failed:", error);
-      // Add error result for all files
-      for (const file of ngFiles) {
-        addConversionResult({
-          fileId: file.id,
-          fileName: file.fileName,
-          success: false,
-          changes: [],
-          error: error instanceof Error ? error.message : String(error),
+          return {
+            path: file.filePath,
+            needs_dpi_change: failedChecks.some((r) => r.rule.type === "dpi"),
+            needs_color_mode_change: failedChecks.some((r) => r.rule.type === "colorMode"),
+            needs_bit_depth_change: failedChecks.some((r) => r.rule.type === "bitsPerChannel"),
+            needs_alpha_removal: failedChecks.some((r) => r.rule.type === "hasAlphaChannels"),
+          };
         });
+
+        // Build conversion options
+        const options: PhotoshopConversionOptions = {
+          target_dpi: conversionSettings.targetDpi,
+          target_color_mode: conversionSettings.targetColorMode,
+          target_bit_depth: conversionSettings.targetBitDepth,
+          remove_hidden_layers: false, // 現在は使用しない
+          remove_alpha_channels: true, // αチャンネル削除は常に有効
+        };
+
+        const settings: PhotoshopConversionSettings = {
+          files: fileSettings,
+          options,
+          outputPath: "", // Will be set by Rust
+        };
+
+        // Call Rust to run Photoshop
+        const results = await invoke<PhotoshopResult[]>("run_photoshop_conversion", {
+          settings,
+        });
+
+        // Process results and collect successfully converted files
+        const successfulFiles: { id: string; filePath: string }[] = [];
+
+        for (const result of results) {
+          // Find the file (normalize path separators - JSX returns forward slashes)
+          const normalizedPath = result.filePath.replace(/\//g, "\\");
+          const file = ngFiles.find(
+            (f) => f.filePath === result.filePath || f.filePath === normalizedPath,
+          );
+          if (!file) continue;
+
+          const conversionResult: ConversionResult = {
+            fileId: file.id,
+            fileName: file.fileName,
+            success: result.success,
+            changes: result.changes,
+            error: result.error ?? undefined,
+          };
+
+          addConversionResult(conversionResult);
+
+          // Track successfully converted files for reload
+          if (
+            result.success &&
+            result.changes.length > 0 &&
+            !result.changes.includes("No changes needed")
+          ) {
+            successfulFiles.push({ id: file.id, filePath: file.filePath });
+          }
+        }
+
+        // Reload converted files from disk to get actual metadata (Rust-native)
+        if (successfulFiles.length > 0) {
+          console.log(`Reloading ${successfulFiles.length} converted files...`);
+
+          try {
+            const parseResults = await invoke<
+              {
+                filePath: string;
+                metadata: PsdMetadata | null;
+                thumbnailData: string | null;
+                fileSize: number;
+                error: string | null;
+              }[]
+            >("parse_psd_metadata_batch", { filePaths: successfulFiles.map((f) => f.filePath) });
+
+            for (const result of parseResults) {
+              const file = successfulFiles.find((f) => f.filePath === result.filePath);
+              if (!file || !result.metadata) continue;
+
+              const thumbnailUrl = result.thumbnailData
+                ? `data:image/jpeg;base64,${result.thumbnailData}`
+                : undefined;
+              updateFile(file.id, {
+                metadata: result.metadata,
+                thumbnailUrl,
+                thumbnailStatus: "ready",
+              });
+            }
+          } catch (reloadError) {
+            console.error("Failed to reload converted files:", reloadError);
+          }
+
+          // Re-run spec check with updated metadata
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          checkAllFiles(specifications);
+        }
+      } catch (error) {
+        console.error("Photoshop conversion failed:", error);
+        // Add error result for all files
+        for (const file of ngFiles) {
+          addConversionResult({
+            fileId: file.id,
+            fileName: file.fileName,
+            success: false,
+            changes: [],
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      } finally {
+        setIsConverting(false);
+        setStoreIsConverting(false);
       }
-    } finally {
-      setIsConverting(false);
-      setStoreIsConverting(false);
-    }
-  }, [
-    isPhotoshopInstalled,
-    files,
-    checkResults,
-    conversionSettings,
-    specifications,
-    clearConversionResults,
-    addConversionResult,
-    setStoreIsConverting,
-    updateFile,
-    checkAllFiles,
-  ]);
+    },
+    [
+      isPhotoshopInstalled,
+      files,
+      checkResults,
+      conversionSettings,
+      specifications,
+      clearConversionResults,
+      addConversionResult,
+      setStoreIsConverting,
+      updateFile,
+      checkAllFiles,
+    ],
+  );
 
   return {
     isPhotoshopInstalled,

@@ -19,12 +19,16 @@ export function TiffPageRulesEditor({ onClose }: { onClose: () => void }) {
     <>
       <div
         className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-        onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
       >
         <div className="bg-bg-secondary border border-border rounded-2xl shadow-xl max-w-2xl w-full mx-4 overflow-hidden flex flex-col max-h-[85vh]">
           {/* Header */}
           <div className="px-6 py-4 border-b border-border flex-shrink-0">
-            <h3 className="text-sm font-display font-bold text-text-primary">カラー・ぼかし 詳細設定</h3>
+            <h3 className="text-sm font-display font-bold text-text-primary">
+              カラー・ぼかし 詳細設定
+            </h3>
             <p className="text-xs text-text-muted mt-1">
               ページ範囲ごとのカラーモード・個別ぼかし、部分ぼかし設定
             </p>
@@ -34,7 +38,6 @@ export function TiffPageRulesEditor({ onClose }: { onClose: () => void }) {
           <div className="flex gap-4 p-6 overflow-auto flex-1">
             {/* Left: Rules + Blur */}
             <div className="flex-1 space-y-4 min-w-0">
-
               {/* ── カラーモード個別ルール ── */}
               <div>
                 <h4 className="text-[10px] font-medium text-text-muted mb-1.5">
@@ -51,7 +54,9 @@ export function TiffPageRulesEditor({ onClose }: { onClose: () => void }) {
                         type="number"
                         min="1"
                         value={rule.fromPage}
-                        onChange={(e) => updatePageRangeRule(rule.id, { fromPage: parseInt(e.target.value) || 1 })}
+                        onChange={(e) =>
+                          updatePageRangeRule(rule.id, { fromPage: parseInt(e.target.value) || 1 })
+                        }
                         className="w-14 px-1.5 py-1 text-xs bg-bg-elevated border border-border/50 rounded text-text-primary text-center focus:outline-none focus:border-accent-warm/50"
                       />
                       <span className="text-xs text-text-muted">〜</span>
@@ -59,12 +64,18 @@ export function TiffPageRulesEditor({ onClose }: { onClose: () => void }) {
                         type="number"
                         min="1"
                         value={rule.toPage}
-                        onChange={(e) => updatePageRangeRule(rule.id, { toPage: parseInt(e.target.value) || 1 })}
+                        onChange={(e) =>
+                          updatePageRangeRule(rule.id, { toPage: parseInt(e.target.value) || 1 })
+                        }
                         className="w-14 px-1.5 py-1 text-xs bg-bg-elevated border border-border/50 rounded text-text-primary text-center focus:outline-none focus:border-accent-warm/50"
                       />
                       <select
                         value={rule.colorMode}
-                        onChange={(e) => updatePageRangeRule(rule.id, { colorMode: e.target.value as "mono" | "color" | "noChange" })}
+                        onChange={(e) =>
+                          updatePageRangeRule(rule.id, {
+                            colorMode: e.target.value as "mono" | "color" | "noChange",
+                          })
+                        }
                         className="flex-1 px-2 py-1 text-xs bg-bg-elevated border border-border/50 rounded text-text-primary focus:outline-none"
                       >
                         <option value="color">カラー</option>
@@ -75,8 +86,18 @@ export function TiffPageRulesEditor({ onClose }: { onClose: () => void }) {
                         onClick={() => removePageRangeRule(rule.id)}
                         className="p-1 text-text-muted hover:text-error transition-colors flex-shrink-0"
                       >
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        <svg
+                          className="w-3.5 h-3.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M6 18L18 6M6 6l12 12"
+                          />
                         </svg>
                       </button>
                     </div>
@@ -87,7 +108,9 @@ export function TiffPageRulesEditor({ onClose }: { onClose: () => void }) {
                         <input
                           type="checkbox"
                           checked={rule.applyBlur}
-                          onChange={(e) => updatePageRangeRule(rule.id, { applyBlur: e.target.checked })}
+                          onChange={(e) =>
+                            updatePageRangeRule(rule.id, { applyBlur: e.target.checked })
+                          }
                           className="rounded accent-accent-warm"
                         />
                         <span className="text-[10px] text-text-secondary">ぼかし適用</span>
@@ -97,18 +120,23 @@ export function TiffPageRulesEditor({ onClose }: { onClose: () => void }) {
                           <span className="text-[10px] text-text-muted">半径:</span>
                           <input
                             type="number"
-                            min="0" max="100" step="0.1"
+                            min="0"
+                            max="100"
+                            step="0.1"
                             placeholder={`${settings.blur.radius}`}
                             value={rule.blurRadius ?? ""}
                             onChange={(e) => {
-                              const v = e.target.value === "" ? undefined : parseFloat(e.target.value) || 0;
+                              const v =
+                                e.target.value === "" ? undefined : parseFloat(e.target.value) || 0;
                               updatePageRangeRule(rule.id, { blurRadius: v });
                             }}
                             className="w-16 px-1.5 py-0.5 text-[10px] bg-bg-elevated border border-border/50 rounded text-text-primary focus:outline-none focus:border-accent-warm/50"
                           />
                           <span className="text-[10px] text-text-muted">px</span>
                           {rule.blurRadius === undefined && (
-                            <span className="text-[9px] text-text-muted/60">(グローバル値を使用)</span>
+                            <span className="text-[9px] text-text-muted/60">
+                              (グローバル値を使用)
+                            </span>
                           )}
                         </>
                       )}
@@ -127,7 +155,9 @@ export function TiffPageRulesEditor({ onClose }: { onClose: () => void }) {
 
                 {/* デフォルト処理 */}
                 <div className="mt-3 space-y-1.5">
-                  <h4 className="text-[10px] font-medium text-text-muted">デフォルト処理（ルール外のページ）</h4>
+                  <h4 className="text-[10px] font-medium text-text-muted">
+                    デフォルト処理（ルール外のページ）
+                  </h4>
                   <div className="flex gap-2">
                     {(["mono", "color", "noChange"] as const).map((mode) => (
                       <button
@@ -135,9 +165,10 @@ export function TiffPageRulesEditor({ onClose }: { onClose: () => void }) {
                         onClick={() => setSettings({ defaultColorForPerPage: mode })}
                         className={`
                           flex-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-all
-                          ${settings.defaultColorForPerPage === mode
-                            ? "bg-accent-warm text-white"
-                            : "bg-bg-elevated text-text-secondary hover:text-text-primary border border-border/50"
+                          ${
+                            settings.defaultColorForPerPage === mode
+                              ? "bg-accent-warm text-white"
+                              : "bg-bg-elevated text-text-secondary hover:text-text-primary border border-border/50"
                           }
                         `}
                       >
@@ -163,8 +194,18 @@ export function TiffPageRulesEditor({ onClose }: { onClose: () => void }) {
                       : "opacity-40 cursor-not-allowed bg-bg-elevated text-text-muted border-border/50"
                   }`}
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3a9 9 0 100 18A9 9 0 0012 3z" />
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 3a9 9 0 100 18A9 9 0 0012 3z"
+                    />
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01" />
                   </svg>
                   部分ぼかし設定を開く
@@ -175,19 +216,24 @@ export function TiffPageRulesEditor({ onClose }: { onClose: () => void }) {
                   )}
                 </button>
                 {!settings.blur.enabled && (
-                  <p className="mt-1 text-[9px] text-text-muted/60 text-center">ガウスぼかしをONにすると使用できます</p>
+                  <p className="mt-1 text-[9px] text-text-muted/60 text-center">
+                    ガウスぼかしをONにすると使用できます
+                  </p>
                 )}
               </div>
-
             </div>
 
             {/* Right: File Reference */}
             <div className="w-48 flex-shrink-0">
-              <h4 className="text-[10px] font-medium text-text-muted mb-1.5">ファイル一覧（順番参照）</h4>
+              <h4 className="text-[10px] font-medium text-text-muted mb-1.5">
+                ファイル一覧（順番参照）
+              </h4>
               <div className="bg-bg-tertiary rounded-lg p-2 max-h-[400px] overflow-auto space-y-0.5">
                 {files.map((file, i) => (
                   <div key={file.id} className="flex items-center gap-1.5 text-xs">
-                    <span className="text-text-muted font-mono w-7 text-right flex-shrink-0">({i + 1})</span>
+                    <span className="text-text-muted font-mono w-7 text-right flex-shrink-0">
+                      ({i + 1})
+                    </span>
                     <span className="text-text-secondary truncate">{file.fileName}</span>
                   </div>
                 ))}
@@ -213,10 +259,8 @@ export function TiffPageRulesEditor({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      {showPartialBlur && (
-        <TiffPartialBlurModal onClose={() => setShowPartialBlur(false)} />
-      )}
+      {showPartialBlur && <TiffPartialBlurModal onClose={() => setShowPartialBlur(false)} />}
     </>,
-    document.body
+    document.body,
   );
 }

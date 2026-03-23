@@ -42,9 +42,7 @@ export function DropZone({ showPdf = false }: DropZoneProps) {
         <p className="text-xl font-display font-medium mb-3 text-text-primary">
           PSDファイルをドロップ
         </p>
-        <p className="text-sm text-text-muted mb-6">
-          フォルダまたはファイルをドラッグ＆ドロップ
-        </p>
+        <p className="text-sm text-text-muted mb-6">フォルダまたはファイルをドラッグ＆ドロップ</p>
 
         {/* 対応形式バッジ */}
         <div className="flex items-center justify-center gap-2">

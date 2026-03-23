@@ -1,12 +1,7 @@
 import { useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useComposeStore } from "../store/composeStore";
-import type {
-  FilePair,
-  PairingJob,
-  ReplaceResult,
-  ScannedFileGroup,
-} from "../types/replace";
+import type { FilePair, PairingJob, ReplaceResult, ScannedFileGroup } from "../types/replace";
 
 interface PhotoshopResult {
   filePath: string;
@@ -50,10 +45,7 @@ function getPageNumber(fileName: string): number | null {
 }
 
 // --- ヘルパー: リンク文字自動検出 ---
-function autoDetectLinkCharacter(
-  sourceFiles: string[],
-  targetFiles: string[]
-): string | null {
+function autoDetectLinkCharacter(sourceFiles: string[], targetFiles: string[]): string | null {
   const diffs: Record<string, number> = {};
 
   const sourceBaseNames = new Set(sourceFiles.map(getBaseName));
@@ -93,10 +85,7 @@ function getNumberFromFolderName(folderPath: string): number | null {
 
 // --- ペアリングアルゴリズム ---
 
-function pairByFileOrder(
-  sourceFiles: string[],
-  targetFiles: string[]
-): FilePair[] {
+function pairByFileOrder(sourceFiles: string[], targetFiles: string[]): FilePair[] {
   const pairs: FilePair[] = [];
   const len = Math.min(sourceFiles.length, targetFiles.length);
   for (let i = 0; i < len; i++) {
@@ -111,10 +100,7 @@ function pairByFileOrder(
   return pairs;
 }
 
-function pairByNumericKey(
-  sourceFiles: string[],
-  targetFiles: string[]
-): FilePair[] {
+function pairByNumericKey(sourceFiles: string[], targetFiles: string[]): FilePair[] {
   const sourceMap = new Map<number, string>();
   for (const f of sourceFiles) {
     const key = getPageNumber(getDisplayName(f));
@@ -140,7 +126,7 @@ function pairByNumericKey(
 function pairByLinkCharacter(
   sourceFiles: string[],
   targetFiles: string[],
-  linkChar: string
+  linkChar: string,
 ): FilePair[] {
   const normalize = (name: string) => name.split(linkChar).join("");
 
@@ -192,7 +178,7 @@ export function useComposeProcessor() {
   const computePairs = useCallback(
     (
       sourceFiles: string[],
-      targetFiles: string[]
+      targetFiles: string[],
     ): { pairs: FilePair[]; detectedChar: string | null } => {
       const mode = pairingSettings.mode;
       let detectedChar: string | null = null;
@@ -206,11 +192,7 @@ export function useComposeProcessor() {
           pairs = pairByNumericKey(sourceFiles, targetFiles);
           break;
         case "linkCharManual":
-          pairs = pairByLinkCharacter(
-            sourceFiles,
-            targetFiles,
-            pairingSettings.linkCharacter
-          );
+          pairs = pairByLinkCharacter(sourceFiles, targetFiles, pairingSettings.linkCharacter);
           break;
         case "linkCharAuto":
           detectedChar = autoDetectLinkCharacter(sourceFiles, targetFiles);
@@ -226,7 +208,7 @@ export function useComposeProcessor() {
 
       return { pairs, detectedChar };
     },
-    [pairingSettings]
+    [pairingSettings],
   );
 
   // --- タイムスタンプ生成 (YYYY-MM-DD_HH-mm) ---
@@ -432,8 +414,13 @@ export function useComposeProcessor() {
   // --- Photoshop 実行 ---
   const executeReplacement = useCallback(async () => {
     const state = useComposeStore.getState();
-    const { pairingJobs: jobs, pairingDialogMode, manualPairs,
-      excludedPairIndices, scannedFileGroups } = state;
+    const {
+      pairingJobs: jobs,
+      pairingDialogMode,
+      manualPairs,
+      excludedPairIndices,
+      scannedFileGroups,
+    } = state;
     const currentGeneralSettings = state.generalSettings;
     const currentComposeSettings = state.composeSettings;
 
@@ -447,7 +434,7 @@ export function useComposeProcessor() {
       allPairs = manualPairs;
       pairEntries = manualPairs.map((p) => {
         const group = scannedFileGroups.find(
-          (g) => g.sourceFiles.includes(p.sourceFile) || g.targetFiles.includes(p.targetFile)
+          (g) => g.sourceFiles.includes(p.sourceFile) || g.targetFiles.includes(p.targetFile),
         );
         return {
           sourceFile: p.sourceFile,
@@ -457,7 +444,7 @@ export function useComposeProcessor() {
       });
     } else {
       allPairs = jobs.flatMap((job) =>
-        job.pairs.filter((p) => !excludedPairIndices.has(p.pairIndex))
+        job.pairs.filter((p) => !excludedPairIndices.has(p.pairIndex)),
       );
       pairEntries = jobs.flatMap((job, jobIdx) =>
         job.pairs
@@ -466,7 +453,7 @@ export function useComposeProcessor() {
             sourceFile: pair.sourceFile,
             targetFile: pair.targetFile,
             outputDir: outBase + (scannedFileGroups[jobIdx]?.outputDirSuffix ?? ""),
-          }))
+          })),
       );
     }
 
@@ -521,21 +508,18 @@ export function useComposeProcessor() {
         placeFromBottom: true,
       };
 
-      const psResults = await invoke<PhotoshopResult[]>(
-        "run_photoshop_replace",
-        {
-          jobs: {
-            mode: "compose",
-            pairs: pairEntries,
-            textSettings: defaultTextSettings,
-            imageSettings: defaultImageSettings,
-            switchSettings: defaultSwitchSettings,
-            generalSettings: currentGeneralSettings,
-            composeSettings: currentComposeSettings,
-            outputPath: "",
-          },
-        }
-      );
+      const psResults = await invoke<PhotoshopResult[]>("run_photoshop_replace", {
+        jobs: {
+          mode: "compose",
+          pairs: pairEntries,
+          textSettings: defaultTextSettings,
+          imageSettings: defaultImageSettings,
+          switchSettings: defaultSwitchSettings,
+          generalSettings: currentGeneralSettings,
+          composeSettings: currentComposeSettings,
+          outputPath: "",
+        },
+      });
 
       for (let i = 0; i < psResults.length; i++) {
         const psResult = psResults[i];

@@ -85,10 +85,10 @@ export function FileList() {
                   file.metadata.colorMode === "RGB"
                     ? "bg-success/20 text-success"
                     : file.metadata.colorMode === "Grayscale"
-                    ? "bg-text-secondary/20 text-text-secondary"
-                    : file.metadata.colorMode === "CMYK"
-                    ? "bg-cyan-500/20 text-cyan-400"
-                    : "bg-text-muted/20 text-text-muted"
+                      ? "bg-text-secondary/20 text-text-secondary"
+                      : file.metadata.colorMode === "CMYK"
+                        ? "bg-cyan-500/20 text-cyan-400"
+                        : "bg-text-muted/20 text-text-muted"
                 }`}
               >
                 {file.metadata.colorMode}

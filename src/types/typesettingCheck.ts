@@ -37,8 +37,16 @@ export type CheckTabMode = "both" | "correctness" | "proposal";
 
 /** カテゴリ色 (カテゴリ番号 1〜10 に対応) */
 export const CATEGORY_COLORS = [
-  "#3498db", "#27ae60", "#e67e22", "#9b59b6", "#1abc9c",
-  "#e91e63", "#3f51b5", "#e74c3c", "#f1c40f", "#95a5a6",
+  "#3498db",
+  "#27ae60",
+  "#e67e22",
+  "#9b59b6",
+  "#1abc9c",
+  "#e91e63",
+  "#3f51b5",
+  "#e74c3c",
+  "#f1c40f",
+  "#95a5a6",
 ] as const;
 
 /** カテゴリ名から色インデックスを取得 */

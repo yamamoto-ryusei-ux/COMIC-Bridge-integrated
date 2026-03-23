@@ -3,9 +3,9 @@ export type PairingDialogMode = "auto" | "manual";
 
 // === スキャン済みファイルグループ ===
 export interface ScannedFileGroup {
-  groupKey: string;        // ジョブ識別子（"通常処理", サブフォルダ名等）
-  sourceFiles: string[];   // フルパス、ソート済み
-  targetFiles: string[];   // フルパス、ソート済み
+  groupKey: string; // ジョブ識別子（"通常処理", サブフォルダ名等）
+  sourceFiles: string[]; // フルパス、ソート済み
+  targetFiles: string[]; // フルパス、ソート済み
   outputDirSuffix: string; // outBase以降のパス（"" or "/{name}_差替え後PSD"）
 }
 
@@ -13,19 +13,9 @@ export interface ScannedFileGroup {
 export type ReplaceMode = "text" | "image" | "batch" | "switch" | "compose";
 export type TextSubMode = "textLayers" | "namedGroup";
 export type SwitchSubMode = "whiteToBar" | "barToWhite";
-export type PairingMode =
-  | "fileOrder"
-  | "numericKey"
-  | "linkCharManual"
-  | "linkCharAuto";
+export type PairingMode = "fileOrder" | "numericKey" | "linkCharManual" | "linkCharAuto";
 export type SubfolderMode = "none" | "advanced";
-export type ProcessingPhase =
-  | "idle"
-  | "scanning"
-  | "pairing"
-  | "processing"
-  | "complete"
-  | "error";
+export type ProcessingPhase = "idle" | "scanning" | "pairing" | "processing" | "complete" | "error";
 
 // === テキストモード設定 ===
 export interface TextModeSettings {
@@ -49,11 +39,11 @@ export interface ImageModeSettings {
 // === スイッチモード設定 ===
 export interface SwitchModeSettings {
   subMode: SwitchSubMode;
-  whiteLayerName: string;      // e.g. "白消し"
+  whiteLayerName: string; // e.g. "白消し"
   whitePartialMatch: boolean;
-  barGroupName: string;        // e.g. "棒消し"
+  barGroupName: string; // e.g. "棒消し"
   barPartialMatch: boolean;
-  placeFromBottom: boolean;    // 下から数えて同じ位置に配置
+  placeFromBottom: boolean; // 下から数えて同じ位置に配置
 }
 
 // === 合成モード要素ソース ===

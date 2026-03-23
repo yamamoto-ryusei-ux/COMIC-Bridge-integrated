@@ -72,8 +72,7 @@ export const useGuideStore = create<GuideStore>((set, get) => ({
     get().pushHistory();
     set((state) => ({
       guides: state.guides.filter((_, i) => i !== index),
-      selectedGuideIndex:
-        state.selectedGuideIndex === index ? null : state.selectedGuideIndex,
+      selectedGuideIndex: state.selectedGuideIndex === index ? null : state.selectedGuideIndex,
       future: [],
     }));
   },

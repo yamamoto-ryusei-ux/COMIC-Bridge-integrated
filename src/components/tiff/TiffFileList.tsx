@@ -74,7 +74,9 @@ export function TiffFileList({ onOpenCropEditor }: TiffFileListProps) {
                           imageFiles.push(`${fp}\\${entry.name}`);
                         }
                       }
-                    } catch { /* ignore */ }
+                    } catch {
+                      /* ignore */
+                    }
                   }
                   if (imageFiles.length > 0) await loadFiles(imageFiles);
                 }
@@ -119,7 +121,7 @@ export function TiffFileList({ onOpenCropEditor }: TiffFileListProps) {
             ? `${file.metadata.width}×${file.metadata.height}`
             : null;
 
-          const prevSubfolder = index > 0 ? (files[index - 1].subfolderName || "") : null;
+          const prevSubfolder = index > 0 ? files[index - 1].subfolderName || "" : null;
           const currentSubfolder = file.subfolderName || "";
           const showSubfolderHeader = currentSubfolder && prevSubfolder !== currentSubfolder;
 
@@ -180,7 +182,9 @@ export function TiffFileList({ onOpenCropEditor }: TiffFileListProps) {
                       className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                         cropOverrideIsSkip ? "bg-error/70" : "bg-accent-warm"
                       }`}
-                      title={cropOverrideIsSkip ? "クロップスキップ設定済み" : "個別クロップ範囲設定済み"}
+                      title={
+                        cropOverrideIsSkip ? "クロップスキップ設定済み" : "個別クロップ範囲設定済み"
+                      }
                     />
                   )}
 
@@ -192,17 +196,28 @@ export function TiffFileList({ onOpenCropEditor }: TiffFileListProps) {
                     }}
                     className={`
                       p-0.5 rounded transition-all
-                      ${isExpanded
-                        ? "text-accent-warm bg-accent-warm/10"
-                        : hasAnyOverride
-                          ? "text-accent-warm/70 bg-accent-warm/5"
-                          : "opacity-0 group-hover:opacity-100 text-text-muted hover:text-text-secondary"
+                      ${
+                        isExpanded
+                          ? "text-accent-warm bg-accent-warm/10"
+                          : hasAnyOverride
+                            ? "text-accent-warm/70 bg-accent-warm/5"
+                            : "opacity-0 group-hover:opacity-100 text-text-muted hover:text-text-secondary"
                       }
                     `}
                     title="ファイル別設定"
                   >
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
+                      />
                     </svg>
                   </button>
                 </div>
@@ -212,7 +227,6 @@ export function TiffFileList({ onOpenCropEditor }: TiffFileListProps) {
               {isExpanded && (
                 <div className="px-2 pb-2 border-b border-border/50 bg-bg-tertiary/20">
                   <div className="rounded-md p-2 space-y-2.5 bg-bg-elevated border border-border/30 mt-1.5">
-
                     {/* ── カラーモード ── */}
                     <div>
                       <label className="text-[9px] font-medium text-text-muted block mb-1">
@@ -225,9 +239,10 @@ export function TiffFileList({ onOpenCropEditor }: TiffFileListProps) {
                             onClick={() => setFileOverride(file.id, { colorMode: mode })}
                             className={`
                               flex-1 px-1 py-1 text-[9px] font-medium rounded transition-all
-                              ${colorOverride === mode
-                                ? "bg-accent-warm text-white"
-                                : "bg-bg-tertiary text-text-secondary hover:text-text-primary"
+                              ${
+                                colorOverride === mode
+                                  ? "bg-accent-warm text-white"
+                                  : "bg-bg-tertiary text-text-secondary hover:text-text-primary"
                               }
                             `}
                           >
@@ -279,11 +294,15 @@ export function TiffFileList({ onOpenCropEditor }: TiffFileListProps) {
                       <div className="flex items-center gap-1">
                         <input
                           type="number"
-                          min="0" max="100" step="0.1"
+                          min="0"
+                          max="100"
+                          step="0.1"
                           value={blurOverrideRadius}
                           disabled={blurOverrideEnabled === false}
                           onChange={(e) =>
-                            setFileOverride(file.id, { blurRadius: parseFloat(e.target.value) || 0 })
+                            setFileOverride(file.id, {
+                              blurRadius: parseFloat(e.target.value) || 0,
+                            })
                           }
                           className={`
                             flex-1 px-1.5 py-0.5 text-[9px] bg-bg-elevated border border-border/50
@@ -291,7 +310,9 @@ export function TiffFileList({ onOpenCropEditor }: TiffFileListProps) {
                             ${blurOverrideEnabled === false ? "opacity-40 cursor-not-allowed" : ""}
                           `}
                         />
-                        <span className={`text-[9px] text-text-muted ${blurOverrideEnabled === false ? "opacity-40" : ""}`}>
+                        <span
+                          className={`text-[9px] text-text-muted ${blurOverrideEnabled === false ? "opacity-40" : ""}`}
+                        >
                           px
                         </span>
                       </div>
@@ -318,9 +339,13 @@ export function TiffFileList({ onOpenCropEditor }: TiffFileListProps) {
                     {/* ── クロップ範囲 ── */}
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="text-[9px] font-medium text-text-muted">クロップ範囲</label>
+                        <label className="text-[9px] font-medium text-text-muted">
+                          クロップ範囲
+                        </label>
                         {hasCropOverride && (
-                          <span className={`text-[9px] font-medium ${cropOverrideIsSkip ? "text-error" : "text-accent-warm"}`}>
+                          <span
+                            className={`text-[9px] font-medium ${cropOverrideIsSkip ? "text-error" : "text-accent-warm"}`}
+                          >
                             {cropOverrideIsSkip ? "スキップ" : "個別設定済み"}
                           </span>
                         )}
@@ -332,13 +357,22 @@ export function TiffFileList({ onOpenCropEditor }: TiffFileListProps) {
                         }}
                         className="w-full flex items-center justify-center gap-1 px-2 py-1 text-[9px] font-medium rounded bg-accent-warm/10 text-accent-warm hover:bg-accent-warm/20 transition-all"
                       >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                        <svg
+                          className="w-3 h-3"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+                          />
                         </svg>
                         エディタで設定
                       </button>
                     </div>
-
                   </div>
                 </div>
               )}

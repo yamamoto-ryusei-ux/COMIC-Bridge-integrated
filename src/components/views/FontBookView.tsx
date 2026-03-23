@@ -59,9 +59,12 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
   // プレビューサイズ設定
   const sizeConfig = useMemo(() => {
     switch (previewSize) {
-      case "S": return { minWidth: "380px", cols: 2 };
-      case "M": return { minWidth: "520px", cols: 2 };
-      case "L": return { minWidth: "700px", cols: 2 };
+      case "S":
+        return { minWidth: "380px", cols: 2 };
+      case "M":
+        return { minWidth: "520px", cols: 2 };
+      case "L":
+        return { minWidth: "700px", cols: 2 };
     }
   }, [previewSize]);
 
@@ -78,19 +81,31 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
   }, [presetSets, currentSetName]);
 
   // カテゴリ編集
-  const startCategoryEdit = useCallback((fontKey: string) => {
-    const entry = fontCategoryMap.get(fontKey);
-    setEditingCategoryFont(fontKey);
-    setCategoryEditValue(entry?.subName || "");
-  }, [fontCategoryMap]);
+  const startCategoryEdit = useCallback(
+    (fontKey: string) => {
+      const entry = fontCategoryMap.get(fontKey);
+      setEditingCategoryFont(fontKey);
+      setCategoryEditValue(entry?.subName || "");
+    },
+    [fontCategoryMap],
+  );
 
   const saveCategoryEdit = useCallback(async () => {
     if (!editingCategoryFont) return;
     const entry = fontCategoryMap.get(editingCategoryFont);
-    if (!entry) { setEditingCategoryFont(null); return; }
-    useScanPsdStore.getState().updateFontInPreset(currentSetName, entry.index, { subName: categoryEditValue });
+    if (!entry) {
+      setEditingCategoryFont(null);
+      return;
+    }
+    useScanPsdStore
+      .getState()
+      .updateFontInPreset(currentSetName, entry.index, { subName: categoryEditValue });
     setEditingCategoryFont(null);
-    try { await performPresetJsonSave(); } catch { /* ignore */ }
+    try {
+      await performPresetJsonSave();
+    } catch {
+      /* ignore */
+    }
   }, [editingCategoryFont, fontCategoryMap, currentSetName, categoryEditValue]);
 
   const cancelCategoryEdit = useCallback(() => {
@@ -98,11 +113,14 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
   }, []);
 
   // ノート編集
-  const startNoteEdit = useCallback((entryId: string) => {
-    const entry = entries.find((e) => e.id === entryId);
-    setEditingNoteId(entryId);
-    setNoteEditValue(entry?.note || "");
-  }, [entries]);
+  const startNoteEdit = useCallback(
+    (entryId: string) => {
+      const entry = entries.find((e) => e.id === entryId);
+      setEditingNoteId(entryId);
+      setNoteEditValue(entry?.note || "");
+    },
+    [entries],
+  );
 
   const saveNoteEdit = useCallback(async () => {
     if (!editingNoteId) return;
@@ -123,33 +141,36 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
     setDragOverEntryId(entryId);
   }, []);
 
-  const handleDrop = useCallback(async (e: DragEvent, targetEntryId: string, groupEntries: FontBookEntry[]) => {
-    e.preventDefault();
-    const sourceId = e.dataTransfer.getData("text/plain");
-    if (!sourceId || sourceId === targetEntryId) {
+  const handleDrop = useCallback(
+    async (e: DragEvent, targetEntryId: string, groupEntries: FontBookEntry[]) => {
+      e.preventDefault();
+      const sourceId = e.dataTransfer.getData("text/plain");
+      if (!sourceId || sourceId === targetEntryId) {
+        setDragEntryId(null);
+        setDragOverEntryId(null);
+        return;
+      }
+      // グループ内のエントリIDリストを並べ替え
+      const ids = groupEntries.map((ent) => ent.id);
+      const srcIdx = ids.indexOf(sourceId);
+      const tgtIdx = ids.indexOf(targetEntryId);
+      if (srcIdx === -1 || tgtIdx === -1) return;
+      ids.splice(srcIdx, 1);
+      ids.splice(tgtIdx, 0, sourceId);
+      // 全エントリのID順を再構築（このグループ分だけ並べ替え）
+      const groupIdSet = new Set(groupEntries.map((ent) => ent.id));
+      // グループ内エントリの元の最初の出現位置を保持
+      const firstGroupIdx = entries.findIndex((ent) => groupIdSet.has(ent.id));
+      const allIds = [...entries.map((ent) => ent.id)];
+      // グループ分を除去してから挿入
+      const withoutGroup = allIds.filter((id) => !groupIdSet.has(id));
+      withoutGroup.splice(firstGroupIdx, 0, ...ids);
+      await reorderEntries(withoutGroup);
       setDragEntryId(null);
       setDragOverEntryId(null);
-      return;
-    }
-    // グループ内のエントリIDリストを並べ替え
-    const ids = groupEntries.map((ent) => ent.id);
-    const srcIdx = ids.indexOf(sourceId);
-    const tgtIdx = ids.indexOf(targetEntryId);
-    if (srcIdx === -1 || tgtIdx === -1) return;
-    ids.splice(srcIdx, 1);
-    ids.splice(tgtIdx, 0, sourceId);
-    // 全エントリのID順を再構築（このグループ分だけ並べ替え）
-    const groupIdSet = new Set(groupEntries.map((ent) => ent.id));
-    // グループ内エントリの元の最初の出現位置を保持
-    const firstGroupIdx = entries.findIndex((ent) => groupIdSet.has(ent.id));
-    const allIds = [...entries.map((ent) => ent.id)];
-    // グループ分を除去してから挿入
-    const withoutGroup = allIds.filter((id) => !groupIdSet.has(id));
-    withoutGroup.splice(firstGroupIdx, 0, ...ids);
-    await reorderEntries(withoutGroup);
-    setDragEntryId(null);
-    setDragOverEntryId(null);
-  }, [entries, reorderEntries]);
+    },
+    [entries, reorderEntries],
+  );
 
   const handleDragEnd = useCallback(() => {
     setDragEntryId(null);
@@ -166,7 +187,7 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
   // フォントプリセット
   const fonts: FontPreset[] = useMemo(
     () => presetSets[currentSetName] || [],
-    [presetSets, currentSetName]
+    [presetSets, currentSetName],
   );
 
   // フォントごとにエントリをグループ化
@@ -225,9 +246,12 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
     }
   }, []);
 
-  const handleRemoveEntry = useCallback(async (id: string) => {
-    await removeEntry(id);
-  }, [removeEntry]);
+  const handleRemoveEntry = useCallback(
+    async (id: string) => {
+      await removeEntry(id);
+    },
+    [removeEntry],
+  );
 
   // 画像URL取得
   const getImageUrl = useCallback(
@@ -235,7 +259,7 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
       if (!fontBookDir) return "";
       return convertFileSrc(`${fontBookDir}/${entryId}.jpg`);
     },
-    [fontBookDir]
+    [fontBookDir],
   );
 
   // フォントにスクロール
@@ -252,11 +276,23 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4">
         <div className="text-center space-y-2">
-          <svg className="w-12 h-12 mx-auto text-text-muted/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          <svg
+            className="w-12 h-12 mx-auto text-text-muted/30"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+            />
           </svg>
           <p className="text-sm text-text-muted">作品のJSONを読み込んでください</p>
-          <p className="text-[10px] text-text-muted/60">DTPビューアーでスクショを撮ってフォントと紐づけられます</p>
+          <p className="text-[10px] text-text-muted/60">
+            DTPビューアーでスクショを撮ってフォントと紐づけられます
+          </p>
         </div>
         <button
           className="px-4 py-2 text-xs font-medium text-white bg-gradient-to-r from-accent to-accent-secondary rounded-xl hover:-translate-y-0.5 transition-all shadow-sm"
@@ -268,7 +304,9 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
         {showJsonBrowser && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-            onMouseDown={(e) => { if (e.target === e.currentTarget) setShowJsonBrowser(false); }}
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) setShowJsonBrowser(false);
+            }}
           >
             <div className="w-[420px]" onMouseDown={(e) => e.stopPropagation()}>
               <JsonFileBrowser
@@ -305,8 +343,18 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
           <div className="ml-auto flex items-center gap-2">
             {/* Preview size toggle */}
             <div className="flex items-center gap-1.5">
-              <svg className="w-3 h-3 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
+              <svg
+                className="w-3 h-3 text-text-muted"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z"
+                />
               </svg>
               <div className="flex items-center bg-bg-tertiary rounded-lg p-0.5">
                 {(["S", "M", "L"] as PreviewSize[]).map((size) => (
@@ -335,11 +383,25 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
               onClick={() => setHideEmpty(!hideEmpty)}
               title={hideEmpty ? "すべてのフォントを表示" : "スクショなしを非表示"}
             >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
                 {hideEmpty ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228l-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88"
+                  />
                 ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178zM15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178zM15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
                 )}
               </svg>
               {hideEmpty ? "非表示中" : "空を隠す"}
@@ -350,8 +412,18 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
                 onClick={() => invoke("open_folder_in_explorer", { folderPath: fontBookDir })}
                 title={`保存先を開く: ${fontBookDir}`}
               >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
+                  />
                 </svg>
                 保存先
               </button>
@@ -388,9 +460,11 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
                   style={{
                     color: palette?.color || "#888",
                     backgroundColor: isActive
-                      ? (palette?.bg || "rgba(255,255,255,0.1)")
+                      ? palette?.bg || "rgba(255,255,255,0.1)"
                       : "transparent",
-                    border: isActive ? `1px solid ${palette?.border || "#444"}` : "1px solid transparent",
+                    border: isActive
+                      ? `1px solid ${palette?.border || "#444"}`
+                      : "1px solid transparent",
                   }}
                   onClick={() => setFilterSubName(isActive ? null : name)}
                 >
@@ -408,9 +482,7 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
         <div className="w-[200px] flex-shrink-0 border-r border-border overflow-y-auto select-none">
           <div className="py-1">
             {filteredGroups.map((group) => {
-              const palette = group.font.subName
-                ? SUB_NAME_PALETTE[group.font.subName]
-                : undefined;
+              const palette = group.font.subName ? SUB_NAME_PALETTE[group.font.subName] : undefined;
               const isActive = activeFontKey === group.font.font;
               const hasScreenshots = group.entries.length > 0;
               return (
@@ -472,7 +544,12 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
               <div className="w-6 h-6 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
             </div>
           ) : (
-            <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${sizeConfig.minWidth}, 1fr))` }}>
+            <div
+              className="grid gap-3"
+              style={{
+                gridTemplateColumns: `repeat(auto-fill, minmax(${sizeConfig.minWidth}, 1fr))`,
+              }}
+            >
               {filteredGroups.map((group) => {
                 const palette = group.font.subName
                   ? SUB_NAME_PALETTE[group.font.subName]
@@ -491,7 +568,9 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
                     <div className="px-2.5 py-1.5 border-b border-border/50 flex items-center gap-1.5 flex-shrink-0">
                       <span
                         className={`text-[11px] font-medium text-text-primary truncate ${
-                          onNavigateToViewer ? "cursor-pointer hover:text-accent transition-colors" : ""
+                          onNavigateToViewer
+                            ? "cursor-pointer hover:text-accent transition-colors"
+                            : ""
                         }`}
                         onClick={() => onNavigateToViewer?.(group.font.font)}
                         title={onNavigateToViewer ? "DTPビューアーでこのフォントを表示" : undefined}
@@ -499,7 +578,10 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
                         {group.font.name}
                       </span>
                       {editingCategoryFont === group.font.font ? (
-                        <div className="flex items-center gap-1 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <div
+                          className="flex items-center gap-1 flex-shrink-0"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <input
                             list="fontbook-subname-list"
                             className="text-[9px] w-24 px-1.5 py-0.5 rounded border border-accent/40 bg-bg-primary text-text-primary outline-none focus:border-accent"
@@ -557,7 +639,9 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
 
                     {/* Screenshots */}
                     {group.entries.length > 0 ? (
-                      <div className={`p-1.5 grid gap-1.5 flex-1 ${previewSize === "S" ? "grid-cols-3" : "grid-cols-2"}`}>
+                      <div
+                        className={`p-1.5 grid gap-1.5 flex-1 ${previewSize === "S" ? "grid-cols-3" : "grid-cols-2"}`}
+                      >
                         {group.entries.map((entry) => (
                           <div
                             key={entry.id}
@@ -602,8 +686,18 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
                                 }}
                                 title="削除"
                               >
-                                <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                <svg
+                                  className="w-2.5 h-2.5"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                  strokeWidth={2.5}
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M6 18L18 6M6 6l12 12"
+                                  />
                                 </svg>
                               </button>
                             </div>
@@ -671,7 +765,13 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
               className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-bg-secondary border border-border shadow-lg flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
               onClick={() => setExpandedImage(null)}
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -723,7 +823,9 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
       {showJsonBrowser && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setShowJsonBrowser(false); }}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setShowJsonBrowser(false);
+          }}
         >
           <div className="w-[420px]" onMouseDown={(e) => e.stopPropagation()}>
             <JsonFileBrowser

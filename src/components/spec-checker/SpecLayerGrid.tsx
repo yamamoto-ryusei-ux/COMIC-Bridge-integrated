@@ -20,9 +20,10 @@ export function SpecLayerGrid() {
             className={`
               border rounded-xl cursor-pointer bg-bg-secondary/50 transition-all
               hover:bg-bg-secondary/80
-              ${activeFileId === file.id
-                ? "border-accent/50 ring-1 ring-accent/20"
-                : "border-border hover:border-border-strong/50"
+              ${
+                activeFileId === file.id
+                  ? "border-accent/50 ring-1 ring-accent/20"
+                  : "border-border hover:border-border-strong/50"
               }
             `}
             onClick={(e) => {

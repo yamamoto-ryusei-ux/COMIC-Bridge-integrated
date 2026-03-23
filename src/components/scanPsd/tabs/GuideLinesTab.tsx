@@ -28,22 +28,24 @@ export function GuideLinesTab() {
 
   const guideSets = scanData.guideSets ?? [];
   const focusedIndex = selectedGuideIndex;
-  const focusedSet = focusedIndex != null ? guideSets[focusedIndex] ?? null : null;
+  const focusedSet = focusedIndex != null ? (guideSets[focusedIndex] ?? null) : null;
 
-  function isValidTachikiri(gs: typeof guideSets[0]): boolean {
+  function isValidTachikiri(gs: (typeof guideSets)[0]): boolean {
     if (!gs.docWidth || !gs.docHeight) return true;
     const centerX = gs.docWidth / 2;
     const centerY = gs.docHeight / 2;
     const tolerance = 1;
 
-    let hasAbove = false, hasBelow = false;
+    let hasAbove = false,
+      hasBelow = false;
     for (const h of gs.horizontal) {
       if (Math.abs(h - centerY) <= tolerance) continue;
       if (h < centerY) hasAbove = true;
       else hasBelow = true;
     }
 
-    let hasLeft = false, hasRight = false;
+    let hasLeft = false,
+      hasRight = false;
     for (const v of gs.vertical) {
       if (Math.abs(v - centerX) <= tolerance) continue;
       if (v < centerX) hasLeft = true;
@@ -114,30 +116,49 @@ export function GuideLinesTab() {
                   onClick={() => setSelectedGuideIndex(isSelected ? null : i)}
                   className={`
                     w-full text-left rounded-xl px-3 py-2 transition-all border
-                    ${isSelected
-                      ? "bg-accent-tertiary/8 border-accent-tertiary/40 shadow-sm"
-                      : isExcluded
-                        ? "bg-bg-tertiary/30 border-transparent opacity-50"
-                        : "bg-bg-tertiary/40 border-border/30 hover:border-accent-tertiary/30 hover:bg-bg-tertiary/60"
+                    ${
+                      isSelected
+                        ? "bg-accent-tertiary/8 border-accent-tertiary/40 shadow-sm"
+                        : isExcluded
+                          ? "bg-bg-tertiary/30 border-transparent opacity-50"
+                          : "bg-bg-tertiary/40 border-border/30 hover:border-accent-tertiary/30 hover:bg-bg-tertiary/60"
                     }
                   `}
                 >
                   <div className="flex items-center gap-2">
                     {/* ステータス */}
-                    <div className={`w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                      isSelected
-                        ? "bg-accent-tertiary/20"
-                        : isExcluded
-                          ? "bg-error/10"
-                          : "bg-bg-primary"
-                    }`}>
+                    <div
+                      className={`w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        isSelected
+                          ? "bg-accent-tertiary/20"
+                          : isExcluded
+                            ? "bg-error/10"
+                            : "bg-bg-primary"
+                      }`}
+                    >
                       {isSelected ? (
-                        <svg className="w-3 h-3 text-accent-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <svg
+                          className="w-3 h-3 text-accent-tertiary"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                        >
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                       ) : isExcluded ? (
-                        <svg className="w-3 h-3 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        <svg
+                          className="w-3 h-3 text-error"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M6 18L18 6M6 6l12 12"
+                          />
                         </svg>
                       ) : (
                         <span className="w-1.5 h-1.5 rounded-full bg-text-muted/40" />
@@ -162,7 +183,8 @@ export function GuideLinesTab() {
 
                     {/* バッジ */}
                     {isSelected ? (
-                      <span className="text-[8px] font-bold text-white px-2 py-0.5 rounded-full flex-shrink-0"
+                      <span
+                        className="text-[8px] font-bold text-white px-2 py-0.5 rounded-full flex-shrink-0"
                         style={{ background: "linear-gradient(135deg, #00c9a7, #5ce0c9)" }}
                       >
                         選択中
@@ -219,20 +241,30 @@ export function GuideLinesTab() {
             )}
           </div>
           <div>
-            <span className="text-[10px] text-text-muted font-medium">水平ガイド ({focusedSet.horizontal.length}本)</span>
+            <span className="text-[10px] text-text-muted font-medium">
+              水平ガイド ({focusedSet.horizontal.length}本)
+            </span>
             <div className="flex flex-wrap gap-1 mt-1">
               {focusedSet.horizontal.map((h, i) => (
-                <span key={i} className="text-[10px] text-guide-h bg-guide-h/8 px-1.5 py-0.5 rounded-lg border border-guide-h/15 font-mono">
+                <span
+                  key={i}
+                  className="text-[10px] text-guide-h bg-guide-h/8 px-1.5 py-0.5 rounded-lg border border-guide-h/15 font-mono"
+                >
                   {h}px
                 </span>
               ))}
             </div>
           </div>
           <div>
-            <span className="text-[10px] text-text-muted font-medium">垂直ガイド ({focusedSet.vertical.length}本)</span>
+            <span className="text-[10px] text-text-muted font-medium">
+              垂直ガイド ({focusedSet.vertical.length}本)
+            </span>
             <div className="flex flex-wrap gap-1 mt-1">
               {focusedSet.vertical.map((v, i) => (
-                <span key={i} className="text-[10px] text-guide-v bg-guide-v/8 px-1.5 py-0.5 rounded-lg border border-guide-v/15 font-mono">
+                <span
+                  key={i}
+                  className="text-[10px] text-guide-v bg-guide-v/8 px-1.5 py-0.5 rounded-lg border border-guide-v/15 font-mono"
+                >
                   {v}px
                 </span>
               ))}
@@ -247,7 +279,12 @@ export function GuideLinesTab() {
             </summary>
             <div className="mt-1 space-y-0.5">
               {focusedSet.docNames.map((name, i) => (
-                <div key={i} className="text-[9px] text-text-muted truncate pl-2 border-l-2 border-accent-tertiary/20">{name}</div>
+                <div
+                  key={i}
+                  className="text-[9px] text-text-muted truncate pl-2 border-l-2 border-accent-tertiary/20"
+                >
+                  {name}
+                </div>
               ))}
             </div>
           </details>
@@ -258,24 +295,46 @@ export function GuideLinesTab() {
             disabled={isApplying}
             className={`
               w-full py-2 text-[10px] font-bold rounded-xl border transition-all
-              ${isApplying
-                ? "text-text-muted bg-bg-tertiary/60 border-border/30 cursor-not-allowed"
-                : "text-accent-secondary bg-accent-secondary/10 border-accent-secondary/20 hover:bg-accent-secondary/20"
+              ${
+                isApplying
+                  ? "text-text-muted bg-bg-tertiary/60 border-border/30 cursor-not-allowed"
+                  : "text-accent-secondary bg-accent-secondary/10 border-accent-secondary/20 hover:bg-accent-secondary/20"
               }
             `}
           >
             {isApplying ? (
               <span className="flex items-center justify-center gap-1.5">
                 <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
                 </svg>
                 適用中...
               </span>
             ) : (
               <span className="flex items-center justify-center gap-1.5">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7" />
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7"
+                  />
                 </svg>
                 Photoshopで確認
               </span>
@@ -308,22 +367,37 @@ export function GuideLinesTab() {
                   onClick={() => setExpandedRangeIndex(isExpanded ? null : i)}
                   className={`
                     w-full text-left rounded-xl px-3 py-2 transition-all border
-                    ${isExpanded
-                      ? "bg-accent/8 border-accent/40 shadow-sm"
-                      : "bg-bg-tertiary/40 border-border/30 hover:border-accent/30 hover:bg-bg-tertiary/60"
+                    ${
+                      isExpanded
+                        ? "bg-accent/8 border-accent/40 shadow-sm"
+                        : "bg-bg-tertiary/40 border-border/30 hover:border-accent/30 hover:bg-bg-tertiary/60"
                     }
                   `}
                 >
                   <div className="flex items-center gap-2">
-                    <div className={`w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                      isExpanded ? "bg-accent/20" : "bg-bg-primary"
-                    }`}>
+                    <div
+                      className={`w-5 h-5 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        isExpanded ? "bg-accent/20" : "bg-bg-primary"
+                      }`}
+                    >
                       {isExpanded ? (
-                        <svg className="w-3 h-3 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <svg
+                          className="w-3 h-3 text-accent"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                        >
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                         </svg>
                       ) : (
-                        <svg className="w-3 h-3 text-text-muted/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <svg
+                          className="w-3 h-3 text-text-muted/60"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                        >
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                         </svg>
                       )}
@@ -335,7 +409,11 @@ export function GuideLinesTab() {
 
                     {isLastUsed && (
                       <span className="flex items-center gap-0.5 text-[8px] font-bold text-warning bg-warning/10 px-1.5 py-0.5 rounded-full border border-warning/20 flex-shrink-0">
-                        <svg className="w-3 h-3 text-warning" fill="currentColor" viewBox="0 0 24 24">
+                        <svg
+                          className="w-3 h-3 text-warning"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
                           <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                         </svg>
                         最終使用
@@ -356,15 +434,20 @@ export function GuideLinesTab() {
                         </div>
                         <div className="text-[9px] text-text-muted">
                           <span className="font-medium">Right:</span>{" "}
-                          <span className="font-mono text-text-primary">{range.bounds.right}px</span>
+                          <span className="font-mono text-text-primary">
+                            {range.bounds.right}px
+                          </span>
                         </div>
                         <div className="text-[9px] text-text-muted">
                           <span className="font-medium">Bottom:</span>{" "}
-                          <span className="font-mono text-text-primary">{range.bounds.bottom}px</span>
+                          <span className="font-mono text-text-primary">
+                            {range.bounds.bottom}px
+                          </span>
                         </div>
                       </div>
                       <div className="mt-1.5 text-[9px] text-text-muted font-mono">
-                        {range.bounds.right - range.bounds.left} x {range.bounds.bottom - range.bounds.top} px
+                        {range.bounds.right - range.bounds.left} x{" "}
+                        {range.bounds.bottom - range.bounds.top} px
                       </div>
                     </div>
                   )}

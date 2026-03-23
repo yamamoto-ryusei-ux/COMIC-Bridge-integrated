@@ -1,6 +1,6 @@
 [package]
 name = "comic-bridge"
-version = "1.9.0"
+version = "1.9.3"
 description = "漫画原稿の入稿チェック・差替え・分割を行うデスクトップアプリ"
 authors = ["Ina986"]
 edition = "2021"

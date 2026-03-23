@@ -93,10 +93,10 @@ export function FontBrowserDialog({ basePath, missingFontNames, onInstalled, onC
     setSearching(true);
     const timer = setTimeout(async () => {
       try {
-        const results = await invoke<FontSearchResult[]>(
-          "search_font_files",
-          { basePath: normalizedBase, query: searchQuery.trim() }
-        );
+        const results = await invoke<FontSearchResult[]>("search_font_files", {
+          basePath: normalizedBase,
+          query: searchQuery.trim(),
+        });
         setSearchResults(results);
       } catch {
         setSearchResults([]);
@@ -154,19 +154,38 @@ export function FontBrowserDialog({ basePath, missingFontNames, onInstalled, onC
 
   // 現在表示中のフォントファイル一覧（検索 or フォルダ内）
   const displayFiles: { fileName: string; fullPath: string; relative?: string }[] = isSearchMode
-    ? searchResults.map((r) => ({ fileName: r.file_name, fullPath: r.full_path, relative: r.relative_path }))
+    ? searchResults.map((r) => ({
+        fileName: r.file_name,
+        fullPath: r.full_path,
+        relative: r.relative_path,
+      }))
     : (contents?.font_files || []).map((f) => ({ fileName: f, fullPath: getFullPath(f) }));
 
   return (
-    <div className="bg-bg-secondary rounded-xl border border-border overflow-hidden flex flex-col" style={{ maxHeight: "560px" }}>
+    <div
+      className="bg-bg-secondary rounded-xl border border-border overflow-hidden flex flex-col"
+      style={{ maxHeight: "560px" }}
+    >
       {/* Header */}
       <div className="px-3 py-2 border-b border-border flex items-center gap-2">
-        <svg className="w-4 h-4 text-accent flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+        <svg
+          className="w-4 h-4 text-accent flex-shrink-0"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+          />
         </svg>
         <span className="text-xs font-medium text-text-primary">フォントインストール</span>
         {installedFiles.size > 0 && (
-          <span className="text-[9px] text-emerald-400 ml-auto">{installedFiles.size}件インストール済み</span>
+          <span className="text-[9px] text-emerald-400 ml-auto">
+            {installedFiles.size}件インストール済み
+          </span>
         )}
       </div>
 
@@ -174,10 +193,22 @@ export function FontBrowserDialog({ basePath, missingFontNames, onInstalled, onC
       {missingFontNames.length > 0 && (
         <div className="px-3 py-2 border-b border-border/50 bg-red-500/3">
           <div className="flex items-center gap-1.5 mb-1">
-            <svg className="w-3 h-3 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            <svg
+              className="w-3 h-3 text-red-400 flex-shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
             </svg>
-            <span className="text-[9px] text-red-400 font-medium">探しているフォント ({missingFontNames.length}件)</span>
+            <span className="text-[9px] text-red-400 font-medium">
+              探しているフォント ({missingFontNames.length}件)
+            </span>
           </div>
           <div className="flex flex-wrap gap-1">
             {missingFontNames.map((name) => (
@@ -195,8 +226,18 @@ export function FontBrowserDialog({ basePath, missingFontNames, onInstalled, onC
       {/* Search */}
       <div className="px-3 py-2 border-b border-border">
         <div className="relative">
-          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          <svg
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
           </svg>
           <input
             type="text"
@@ -207,10 +248,20 @@ export function FontBrowserDialog({ basePath, missingFontNames, onInstalled, onC
           />
           {searchQuery && (
             <button
-              onClick={() => { setSearchQuery(""); setIsSearchMode(false); setSelectedFiles(new Set()); }}
+              onClick={() => {
+                setSearchQuery("");
+                setIsSearchMode(false);
+                setSelectedFiles(new Set());
+              }}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -226,7 +277,13 @@ export function FontBrowserDialog({ basePath, missingFontNames, onInstalled, onC
             disabled={isAtRoot}
             className="text-text-muted hover:text-text-primary p-1 rounded hover:bg-bg-tertiary transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
@@ -241,7 +298,9 @@ export function FontBrowserDialog({ basePath, missingFontNames, onInstalled, onC
               <span key={i} className="flex items-center gap-0.5 flex-shrink-0">
                 <span className="text-text-muted">/</span>
                 <button
-                  onClick={() => loadFolder(normalizedBase + "/" + relParts.slice(0, i + 1).join("/"))}
+                  onClick={() =>
+                    loadFolder(normalizedBase + "/" + relParts.slice(0, i + 1).join("/"))
+                  }
                   className={`transition-colors ${i === relParts.length - 1 ? "text-accent font-medium" : "text-text-secondary hover:text-accent"}`}
                 >
                   {part}
@@ -254,8 +313,18 @@ export function FontBrowserDialog({ basePath, missingFontNames, onInstalled, onC
             className="text-text-muted hover:text-text-primary p-1 rounded hover:bg-bg-tertiary transition-colors"
             title="更新（キャッシュクリア）"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
             </svg>
           </button>
         </div>
@@ -277,21 +346,38 @@ export function FontBrowserDialog({ basePath, missingFontNames, onInstalled, onC
         {!loading && !error && (
           <>
             {/* Folders (not in search mode) */}
-            {!isSearchMode && contents?.folders.map((folder) => (
-              <button
-                key={folder}
-                onClick={() => navigateToFolder(folder)}
-                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-bg-tertiary transition-colors"
-              >
-                <svg className="w-4 h-4 text-accent flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-                <span className="text-xs text-text-primary truncate">{folder}</span>
-                <svg className="w-3.5 h-3.5 flex-shrink-0 text-text-muted/50 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            ))}
+            {!isSearchMode &&
+              contents?.folders.map((folder) => (
+                <button
+                  key={folder}
+                  onClick={() => navigateToFolder(folder)}
+                  className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-bg-tertiary transition-colors"
+                >
+                  <svg
+                    className="w-4 h-4 text-accent flex-shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                    />
+                  </svg>
+                  <span className="text-xs text-text-primary truncate">{folder}</span>
+                  <svg
+                    className="w-3.5 h-3.5 flex-shrink-0 text-text-muted/50 ml-auto"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              ))}
 
             {/* Font files */}
             {displayFiles.map((item) => {
@@ -310,27 +396,41 @@ export function FontBrowserDialog({ basePath, missingFontNames, onInstalled, onC
                   }`}
                 >
                   {/* Checkbox */}
-                  <div className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center ${
-                    isInstalled
-                      ? "bg-emerald-500/20 border-emerald-500/50"
-                      : isSelected
-                        ? "bg-accent/20 border-accent/50"
-                        : "border-border"
-                  }`}>
+                  <div
+                    className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center ${
+                      isInstalled
+                        ? "bg-emerald-500/20 border-emerald-500/50"
+                        : isSelected
+                          ? "bg-accent/20 border-accent/50"
+                          : "border-border"
+                    }`}
+                  >
                     {(isSelected || isInstalled) && (
-                      <svg className={`w-2.5 h-2.5 ${isInstalled ? "text-emerald-400" : "text-accent"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <svg
+                        className={`w-2.5 h-2.5 ${isInstalled ? "text-emerald-400" : "text-accent"}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={3}
+                      >
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     )}
                   </div>
 
                   {/* Font icon */}
-                  <svg className="w-3.5 h-3.5 text-text-muted flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <svg
+                    className="w-3.5 h-3.5 text-text-muted flex-shrink-0"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
                     <path d="M5 4h10v2.5h-1.2V5.5H10.6V14h1.5v1.5h-4.2V14h1.5V5.5H6.2v1H5V4z" />
                   </svg>
 
                   <div className="flex-1 min-w-0">
-                    <span className="text-xs text-text-primary truncate block">{item.fileName}</span>
+                    <span className="text-xs text-text-primary truncate block">
+                      {item.fileName}
+                    </span>
                     {isSearchMode && item.relative && (
                       <span className="text-[9px] text-text-muted truncate block">
                         {item.relative.split(/[/\\]/).slice(0, -1).join(" / ")}
@@ -346,14 +446,19 @@ export function FontBrowserDialog({ basePath, missingFontNames, onInstalled, onC
             })}
 
             {/* Empty state */}
-            {!isSearchMode && contents && contents.folders.length === 0 && contents.font_files.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-[10px] text-text-muted">フォントファイルがありません</p>
-              </div>
-            )}
+            {!isSearchMode &&
+              contents &&
+              contents.folders.length === 0 &&
+              contents.font_files.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-[10px] text-text-muted">フォントファイルがありません</p>
+                </div>
+              )}
             {isSearchMode && searching && (
               <div className="text-center py-8">
-                <p className="text-xs text-text-muted">{indexReady ? "検索中..." : "インデックス構築中（初回のみ）..."}</p>
+                <p className="text-xs text-text-muted">
+                  {indexReady ? "検索中..." : "インデックス構築中（初回のみ）..."}
+                </p>
               </div>
             )}
             {isSearchMode && !searching && searchResults.length === 0 && searchQuery.trim() && (

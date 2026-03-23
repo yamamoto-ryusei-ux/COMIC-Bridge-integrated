@@ -72,7 +72,9 @@ export const useFontBookStore = create<FontBookState>((set, get) => ({
     // 画像ファイルも削除を試みる
     try {
       await invoke("delete_file", { filePath: `${fontBookDir}/${id}.jpg` });
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   },
 
   updateEntry: async (id, partial) => {

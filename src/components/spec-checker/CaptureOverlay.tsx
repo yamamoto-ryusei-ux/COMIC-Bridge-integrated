@@ -42,7 +42,10 @@ export function CaptureOverlay({
 
   // フィルタ中のフォントがあればそれをデフォルト選択
   const defaultIdx = defaultFontPostScript
-    ? Math.max(0, fonts.findIndex((f) => f.font === defaultFontPostScript))
+    ? Math.max(
+        0,
+        fonts.findIndex((f) => f.font === defaultFontPostScript),
+      )
     : 0;
   const [selectedFontIdx, setSelectedFontIdx] = useState(defaultIdx);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -81,7 +84,7 @@ export function CaptureOverlay({
         y: Math.max(0, Math.min(psdHeight, psdY)),
       };
     },
-    [containerRef, psdWidth, psdHeight]
+    [containerRef, psdWidth, psdHeight],
   );
 
   const handleMouseDown = useCallback(
@@ -95,7 +98,7 @@ export function CaptureOverlay({
         setDragEnd(pos);
       }
     },
-    [screenToPsd, cropRect]
+    [screenToPsd, cropRect],
   );
 
   const handleMouseMove = useCallback(
@@ -105,7 +108,7 @@ export function CaptureOverlay({
       const pos = screenToPsd(e.clientX, e.clientY);
       if (pos) setDragEnd(pos);
     },
-    [dragStart, screenToPsd, cropRect]
+    [dragStart, screenToPsd, cropRect],
   );
 
   const handleMouseUp = useCallback(() => {
@@ -152,14 +155,15 @@ export function CaptureOverlay({
   }, [cropRect, handleReset, onCancel]);
 
   // ドラッグ中の矩形
-  const selRect = dragStart && dragEnd
-    ? {
-        x: Math.min(dragStart.x, dragEnd.x),
-        y: Math.min(dragStart.y, dragEnd.y),
-        width: Math.abs(dragEnd.x - dragStart.x),
-        height: Math.abs(dragEnd.y - dragStart.y),
-      }
-    : cropRect;
+  const selRect =
+    dragStart && dragEnd
+      ? {
+          x: Math.min(dragStart.x, dragEnd.x),
+          y: Math.min(dragStart.y, dragEnd.y),
+          width: Math.abs(dragEnd.x - dragStart.x),
+          height: Math.abs(dragEnd.y - dragStart.y),
+        }
+      : cropRect;
 
   return (
     <div
@@ -223,10 +227,19 @@ export function CaptureOverlay({
       {/* Cancel button */}
       <button
         className="absolute top-3 right-3 z-40 w-8 h-8 rounded-lg bg-black/50 hover:bg-black/70 flex items-center justify-center text-white/70 hover:text-white transition-all backdrop-blur-sm"
-        onClick={(e) => { e.stopPropagation(); onCancel(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onCancel();
+        }}
         title="キャンセル (Esc)"
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
@@ -246,7 +259,8 @@ export function CaptureOverlay({
             >
               {fonts.map((f, i) => (
                 <option key={i} value={i}>
-                  {f.name}{f.subName ? ` [${f.subName}]` : ""}
+                  {f.name}
+                  {f.subName ? ` [${f.subName}]` : ""}
                 </option>
               ))}
             </select>
@@ -256,7 +270,9 @@ export function CaptureOverlay({
                   className="text-[9px] px-1.5 py-0.5 rounded"
                   style={{
                     color: SUB_NAME_PALETTE[fonts[selectedFontIdx].subName]?.color || "#888",
-                    backgroundColor: SUB_NAME_PALETTE[fonts[selectedFontIdx].subName]?.bg || "rgba(255,255,255,0.05)",
+                    backgroundColor:
+                      SUB_NAME_PALETTE[fonts[selectedFontIdx].subName]?.bg ||
+                      "rgba(255,255,255,0.05)",
                   }}
                 >
                   {fonts[selectedFontIdx].subName}
@@ -266,13 +282,19 @@ export function CaptureOverlay({
             <div className="flex gap-2 pt-1">
               <button
                 className="flex-1 px-3 py-1.5 text-xs font-medium text-text-secondary bg-bg-tertiary rounded-lg hover:bg-bg-tertiary/80 transition-colors"
-                onClick={(e) => { e.stopPropagation(); handleReset(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleReset();
+                }}
               >
                 やり直し
               </button>
               <button
                 className="flex-1 px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-accent to-accent-secondary rounded-lg hover:-translate-y-0.5 transition-all shadow-sm"
-                onClick={(e) => { e.stopPropagation(); handleConfirm(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleConfirm();
+                }}
               >
                 保存
               </button>

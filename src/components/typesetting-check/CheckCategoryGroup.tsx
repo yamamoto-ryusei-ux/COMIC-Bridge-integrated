@@ -34,7 +34,9 @@ function highlightText(text: string, query: string) {
   return (
     <>
       {text.slice(0, idx)}
-      <mark className="bg-accent-warm/30 text-inherit rounded-sm px-0.5">{text.slice(idx, idx + query.length)}</mark>
+      <mark className="bg-accent-warm/30 text-inherit rounded-sm px-0.5">
+        {text.slice(idx, idx + query.length)}
+      </mark>
       {text.slice(idx + query.length)}
     </>
   );
@@ -59,7 +61,10 @@ export function CheckCategoryGroup({ category, items, onPageClick, searchQuery }
       >
         <svg
           className={`w-3 h-3 text-text-muted transition-transform flex-shrink-0 ${collapsed ? "-rotate-90" : ""}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
@@ -68,7 +73,9 @@ export function CheckCategoryGroup({ category, items, onPageClick, searchQuery }
         </span>
         <span className="text-[10px] text-text-muted flex-shrink-0">
           {checkedCount > 0 ? (
-            <><span className="text-success">{checkedCount}</span>/{items.length}</>
+            <>
+              <span className="text-success">{checkedCount}</span>/{items.length}
+            </>
           ) : (
             <>({items.length})</>
           )}
@@ -100,7 +107,13 @@ export function CheckCategoryGroup({ category, items, onPageClick, searchQuery }
                         title={isChecked ? "未完了に戻す" : "完了にする"}
                       >
                         {isChecked && (
-                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <svg
+                            className="w-2.5 h-2.5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={3}
+                          >
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                           </svg>
                         )}
@@ -117,11 +130,15 @@ export function CheckCategoryGroup({ category, items, onPageClick, searchQuery }
                       </button>
                     </td>
                     {/* Excerpt */}
-                    <td className={`px-2 py-1.5 align-top max-w-[140px] truncate ${isChecked ? "text-text-muted line-through" : "text-text-secondary"}`}>
+                    <td
+                      className={`px-2 py-1.5 align-top max-w-[140px] truncate ${isChecked ? "text-text-muted line-through" : "text-text-secondary"}`}
+                    >
                       {searchQuery ? highlightText(item.excerpt || "", searchQuery) : item.excerpt}
                     </td>
                     {/* Content */}
-                    <td className={`px-2 py-1.5 font-medium align-top ${isChecked ? "text-text-muted line-through" : "text-error"}`}>
+                    <td
+                      className={`px-2 py-1.5 font-medium align-top ${isChecked ? "text-text-muted line-through" : "text-error"}`}
+                    >
                       {searchQuery ? highlightText(item.content || "", searchQuery) : item.content}
                     </td>
                   </tr>
@@ -134,4 +151,3 @@ export function CheckCategoryGroup({ category, items, onPageClick, searchQuery }
     </div>
   );
 }
-

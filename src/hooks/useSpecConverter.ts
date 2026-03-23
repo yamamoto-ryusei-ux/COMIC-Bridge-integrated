@@ -50,7 +50,7 @@ export function useSpecConverter() {
     async (
       filePath: string,
       targetDpi: number,
-      sourceDpi?: number
+      sourceDpi?: number,
     ): Promise<{ success: boolean; changes: string[]; outputPath?: string; error?: string }> => {
       try {
         const result = await invoke<ProcessResult>("resample_image", {
@@ -77,14 +77,14 @@ export function useSpecConverter() {
         };
       }
     },
-    []
+    [],
   );
 
   // Rustバックエンドでカラーモード変換
   const convertColorModeWithRust = useCallback(
     async (
       filePath: string,
-      targetMode: string
+      targetMode: string,
     ): Promise<{ success: boolean; changes: string[]; outputPath?: string; error?: string }> => {
       try {
         const result = await invoke<ProcessResult>("convert_color_mode", {
@@ -107,14 +107,14 @@ export function useSpecConverter() {
         };
       }
     },
-    []
+    [],
   );
 
   // PSDを変換（ag-psd + Rust）
   const convertPsd = useCallback(
     async (
       filePath: string,
-      settings: ConversionSettings
+      settings: ConversionSettings,
     ): Promise<{ success: boolean; changes: string[]; error?: string }> => {
       const changes: string[] = [];
       let currentFilePath = filePath;
@@ -153,8 +153,14 @@ export function useSpecConverter() {
           const targetModeNum = settings.targetColorMode === "RGB" ? 3 : 1;
           if (psd.colorMode !== targetModeNum) {
             const modeMap: Record<number, string> = {
-              0: "Bitmap", 1: "Grayscale", 2: "Indexed", 3: "RGB",
-              4: "CMYK", 7: "Multichannel", 8: "Duotone", 9: "Lab",
+              0: "Bitmap",
+              1: "Grayscale",
+              2: "Indexed",
+              3: "RGB",
+              4: "CMYK",
+              7: "Multichannel",
+              8: "Duotone",
+              9: "Lab",
             };
             const oldModeName = modeMap[psd.colorMode ?? 3] || String(psd.colorMode);
             psd.colorMode = targetModeNum;
@@ -179,7 +185,9 @@ export function useSpecConverter() {
               verticalResolutionUnit: "PPI",
               heightUnit: "Inches",
             };
-            changes.push(`解像度: ${Math.round(currentDpi)}dpi → ${settings.targetDpi}dpi (メタデータのみ)`);
+            changes.push(
+              `解像度: ${Math.round(currentDpi)}dpi → ${settings.targetDpi}dpi (メタデータのみ)`,
+            );
             modified = true;
           }
         }
@@ -223,7 +231,7 @@ export function useSpecConverter() {
         };
       }
     },
-    [removeHiddenLayers, resampleWithRust, convertColorModeWithRust]
+    [removeHiddenLayers, resampleWithRust, convertColorModeWithRust],
   );
 
   // レイヤー数をカウント
@@ -300,9 +308,8 @@ export function useSpecConverter() {
 
   // 選択ファイルを変換
   const convertSelectedFiles = useCallback(async () => {
-    const targetFiles = selectedFileIds.length > 0
-      ? files.filter((f) => selectedFileIds.includes(f.id))
-      : files;
+    const targetFiles =
+      selectedFileIds.length > 0 ? files.filter((f) => selectedFileIds.includes(f.id)) : files;
 
     if (targetFiles.length === 0) return;
 

@@ -54,11 +54,13 @@ export function usePsdLoader() {
         await loadFilesInternal(imagePaths);
       } catch (error) {
         console.error("Failed to load folder:", error);
-        setErrorMessage(error instanceof Error ? error.message : "フォルダの読み込みに失敗しました");
+        setErrorMessage(
+          error instanceof Error ? error.message : "フォルダの読み込みに失敗しました",
+        );
         setLoadingStatus("error");
       }
     },
-    [setFiles, setLoadingStatus, setCurrentFolderPath, setErrorMessage]
+    [setFiles, setLoadingStatus, setCurrentFolderPath, setErrorMessage],
   );
 
   // サブフォルダ込みのフォルダ読み込み（1階層深さ）
@@ -92,10 +94,15 @@ export function usePsdLoader() {
                 const subEntries = await readDir(subPath);
                 for (const subEntry of subEntries) {
                   if (subEntry.isFile && subEntry.name && isSupportedFile(subEntry.name)) {
-                    allFiles.push({ path: `${subPath}\\${subEntry.name}`, subfolderName: entry.name });
+                    allFiles.push({
+                      path: `${subPath}\\${subEntry.name}`,
+                      subfolderName: entry.name,
+                    });
                   }
                 }
-              } catch { /* サブフォルダ読み込みエラーは無視 */ }
+              } catch {
+                /* サブフォルダ読み込みエラーは無視 */
+              }
             }
           }
         }
@@ -120,11 +127,13 @@ export function usePsdLoader() {
         );
       } catch (error) {
         console.error("Failed to load folder with subfolders:", error);
-        setErrorMessage(error instanceof Error ? error.message : "フォルダの読み込みに失敗しました");
+        setErrorMessage(
+          error instanceof Error ? error.message : "フォルダの読み込みに失敗しました",
+        );
         setLoadingStatus("error");
       }
     },
-    [setFiles, setLoadingStatus, setCurrentFolderPath, setErrorMessage]
+    [setFiles, setLoadingStatus, setCurrentFolderPath, setErrorMessage],
   );
 
   const loadFiles = useCallback(
@@ -136,11 +145,13 @@ export function usePsdLoader() {
         await loadFilesInternal(filePaths);
       } catch (error) {
         console.error("Failed to load files:", error);
-        setErrorMessage(error instanceof Error ? error.message : "ファイルの読み込みに失敗しました");
+        setErrorMessage(
+          error instanceof Error ? error.message : "ファイルの読み込みに失敗しました",
+        );
         setLoadingStatus("error");
       }
     },
-    [setLoadingStatus, setErrorMessage]
+    [setLoadingStatus, setErrorMessage],
   );
 
   const loadFilesInternal = useCallback(
@@ -283,7 +294,10 @@ export function usePsdLoader() {
                         thumbnailStatus: "ready",
                       });
                     } catch (thumbErr) {
-                      console.error(`Failed to generate PDF thumbnail for page ${pageFile.pdfPageIndex}:`, thumbErr);
+                      console.error(
+                        `Failed to generate PDF thumbnail for page ${pageFile.pdfPageIndex}:`,
+                        thumbErr,
+                      );
                       pdfThumbUpdates.set(pageFile.id, { thumbnailStatus: "ready" });
                     }
                   }
@@ -316,7 +330,7 @@ export function usePsdLoader() {
                 error: error instanceof Error ? error.message : "読み込みエラー",
               });
             }
-          })
+          }),
         );
 
         if (chunkUpdates.size > 0) {
@@ -326,7 +340,7 @@ export function usePsdLoader() {
 
       // 仕様チェックはSpecCheckViewでのみ実行される（useSpecCheckerが自動検出）
     },
-    [setFiles, updateFile, batchUpdateFiles, replaceFile, setLoadingStatus]
+    [setFiles, updateFile, batchUpdateFiles, replaceFile, setLoadingStatus],
   );
 
   return { loadFolder, loadFolderWithSubfolders, loadFiles };

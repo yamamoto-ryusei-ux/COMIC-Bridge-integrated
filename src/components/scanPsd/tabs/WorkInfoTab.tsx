@@ -18,7 +18,10 @@ export function WorkInfoTab() {
 
       let fields = text.split("\t");
       if (fields.length <= 1) {
-        fields = text.split("\n").map((f) => f.trim()).filter(Boolean);
+        fields = text
+          .split("\n")
+          .map((f) => f.trim())
+          .filter(Boolean);
       }
       if (fields.length === 0) return;
 
@@ -55,7 +58,9 @@ export function WorkInfoTab() {
             >
               <option value="">選択...</option>
               {genres.map((g) => (
-                <option key={g} value={g}>{g}</option>
+                <option key={g} value={g}>
+                  {g}
+                </option>
               ))}
             </select>
           </div>
@@ -70,7 +75,9 @@ export function WorkInfoTab() {
             >
               <option value="">選択...</option>
               {labels.map((l) => (
-                <option key={l} value={l}>{l}</option>
+                <option key={l} value={l}>
+                  {l}
+                </option>
               ))}
             </select>
           </div>
@@ -105,18 +112,30 @@ export function WorkInfoTab() {
         {workInfo.authorType === "single" && (
           <div>
             <Label>著者名</Label>
-            <Input value={workInfo.author} onChange={(v) => setWorkInfo({ author: v })} placeholder="著者名" />
+            <Input
+              value={workInfo.author}
+              onChange={(v) => setWorkInfo({ author: v })}
+              placeholder="著者名"
+            />
           </div>
         )}
         {workInfo.authorType === "dual" && (
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label>原作</Label>
-              <Input value={workInfo.original} onChange={(v) => setWorkInfo({ original: v })} placeholder="原作者" />
+              <Input
+                value={workInfo.original}
+                onChange={(v) => setWorkInfo({ original: v })}
+                placeholder="原作者"
+              />
             </div>
             <div>
               <Label>作画</Label>
-              <Input value={workInfo.artist} onChange={(v) => setWorkInfo({ artist: v })} placeholder="作画者" />
+              <Input
+                value={workInfo.artist}
+                onChange={(v) => setWorkInfo({ artist: v })}
+                placeholder="作画者"
+              />
             </div>
           </div>
         )}
@@ -127,15 +146,27 @@ export function WorkInfoTab() {
         <div className="space-y-2">
           <div>
             <Label>タイトル</Label>
-            <Input value={workInfo.title} onChange={(v) => setWorkInfo({ title: v })} placeholder="作品タイトル" />
+            <Input
+              value={workInfo.title}
+              onChange={(v) => setWorkInfo({ title: v })}
+              placeholder="作品タイトル"
+            />
           </div>
           <div>
             <Label>サブタイトル</Label>
-            <Input value={workInfo.subtitle} onChange={(v) => setWorkInfo({ subtitle: v })} placeholder="サブタイトル（任意）" />
+            <Input
+              value={workInfo.subtitle}
+              onChange={(v) => setWorkInfo({ subtitle: v })}
+              placeholder="サブタイトル（任意）"
+            />
           </div>
           <div>
             <Label>編集者</Label>
-            <Input value={workInfo.editor} onChange={(v) => setWorkInfo({ editor: v })} placeholder="編集者名" />
+            <Input
+              value={workInfo.editor}
+              onChange={(v) => setWorkInfo({ editor: v })}
+              placeholder="編集者名"
+            />
           </div>
         </div>
       </Section>
@@ -145,7 +176,11 @@ export function WorkInfoTab() {
         <div className="space-y-2">
           <div>
             <Label>保存パス</Label>
-            <Input value={workInfo.storagePath} onChange={(v) => setWorkInfo({ storagePath: v })} placeholder="保存先パス（任意）" />
+            <Input
+              value={workInfo.storagePath}
+              onChange={(v) => setWorkInfo({ storagePath: v })}
+              placeholder="保存先パス（任意）"
+            />
           </div>
           <div>
             <Label>備考</Label>
@@ -206,13 +241,16 @@ function SavedFileListSection({
         if (!cancelled) setLoading(false);
       });
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [label, title, textLogFolderPath, phase]);
 
   const volumePattern = /(\d+)巻\.txt$/;
-  const folderPath = textLogFolderPath && label && title
-    ? `${textLogFolderPath}/${label}/${title}`.replace(/\\/g, "/")
-    : null;
+  const folderPath =
+    textLogFolderPath && label && title
+      ? `${textLogFolderPath}/${label}/${title}`.replace(/\\/g, "/")
+      : null;
 
   const handleOpenFile = (fileName: string) => {
     if (!folderPath) return;
@@ -257,8 +295,18 @@ function SavedFileListSection({
             onClick={handleOpenFolder}
             className="mt-1.5 flex items-center gap-1 text-[10px] text-text-muted hover:text-text-primary transition-colors"
           >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+            <svg
+              className="w-3 h-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z"
+              />
             </svg>
             フォルダを開く
           </button>
@@ -268,12 +316,26 @@ function SavedFileListSection({
   );
 }
 
-function Section({ title, accent, children }: { title: string; accent: string; children: React.ReactNode }) {
+function Section({
+  title,
+  accent,
+  children,
+}: {
+  title: string;
+  accent: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="relative rounded-xl bg-bg-tertiary/60 border border-border/40 overflow-hidden">
-      <div className="absolute top-0 left-0 w-1 h-full rounded-l-xl" style={{ background: accent }} />
+      <div
+        className="absolute top-0 left-0 w-1 h-full rounded-l-xl"
+        style={{ background: accent }}
+      />
       <div className="pl-4 pr-3 py-3">
-        <h4 className="text-[10px] font-bold uppercase tracking-wider mb-2.5" style={{ color: accent }}>
+        <h4
+          className="text-[10px] font-bold uppercase tracking-wider mb-2.5"
+          style={{ color: accent }}
+        >
           {title}
         </h4>
         {children}
@@ -287,9 +349,13 @@ function Label({ children }: { children: React.ReactNode }) {
 }
 
 function Input({
-  value, onChange, placeholder,
+  value,
+  onChange,
+  placeholder,
 }: {
-  value: string; onChange: (v: string) => void; placeholder?: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
 }) {
   return (
     <input

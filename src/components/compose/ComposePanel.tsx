@@ -70,18 +70,14 @@ export function ComposePanel() {
           </svg>
           レイヤー合成
         </h3>
-        <p className="text-xs text-text-muted mt-1">
-          原稿Aと原稿Bから要素を選択して合成
-        </p>
+        <p className="text-xs text-text-muted mt-1">原稿Aと原稿Bから要素を選択して合成</p>
       </div>
 
       {/* Settings */}
       <div className="flex-1 overflow-auto p-3 space-y-3">
         {/* Folder Selection */}
         <div className="bg-bg-tertiary rounded-xl p-3">
-          <h4 className="text-xs font-medium text-text-muted mb-2">
-            フォルダ選択
-          </h4>
+          <h4 className="text-xs font-medium text-text-muted mb-2">フォルダ選択</h4>
           <div className="space-y-2">
             <FolderPicker
               label="原稿A"
@@ -105,23 +101,16 @@ export function ComposePanel() {
               checked={subfolderSettings.mode === "advanced"}
               onChange={(v) => setSubfolderMode(v ? "advanced" : "none")}
             >
-              <span className="text-[10px] text-text-secondary">
-                サブフォルダ対応
-              </span>
+              <span className="text-[10px] text-text-secondary">サブフォルダ対応</span>
             </CheckBox>
           </div>
         </div>
 
         {/* Pre-process: Organize layers */}
         <div className="bg-bg-tertiary rounded-xl p-3">
-          <CheckBox
-            checked={organizePre.enabled}
-            onChange={(v) => setOrganizePre({ enabled: v })}
-          >
+          <CheckBox checked={organizePre.enabled} onChange={(v) => setOrganizePre({ enabled: v })}>
             <div>
-              <span className="text-xs text-text-primary font-medium">
-                合成前にフォルダ格納
-              </span>
+              <span className="text-xs text-text-primary font-medium">合成前にフォルダ格納</span>
               <p className="text-[9px] text-text-muted mt-0.5">
                 原稿Bのレイヤーを指定フォルダに格納してから合成
               </p>
@@ -143,9 +132,7 @@ export function ComposePanel() {
                 checked={organizePre.includeSpecial}
                 onChange={(v) => setOrganizePre({ includeSpecial: v })}
               >
-                <span className="text-[10px] text-text-secondary">
-                  白消し・棒消しも格納する
-                </span>
+                <span className="text-[10px] text-text-secondary">白消し・棒消しも格納する</span>
               </CheckBox>
             </div>
           )}
@@ -153,9 +140,7 @@ export function ComposePanel() {
 
         {/* Compose Settings */}
         <div className="bg-bg-tertiary rounded-xl p-3">
-          <h4 className="text-xs font-medium text-text-muted mb-2">
-            合成設定
-          </h4>
+          <h4 className="text-xs font-medium text-text-muted mb-2">合成設定</h4>
           <p className="text-[10px] text-text-muted mb-2">
             原稿Aと原稿Bから要素ごとにソースを選択して合成します。
           </p>
@@ -166,7 +151,7 @@ export function ComposePanel() {
               const isExclusivePair = el.id === "background" || el.id === "manuscript";
               const otherEl = isExclusivePair
                 ? composeSettings.elements.find(
-                    (e) => e.id === (el.id === "background" ? "manuscript" : "background")
+                    (e) => e.id === (el.id === "background" ? "manuscript" : "background"),
                   )
                 : null;
               const otherIsActive = otherEl && otherEl.source !== "exclude";
@@ -191,43 +176,65 @@ export function ComposePanel() {
                         onClick={() => removeComposeElement(el.id)}
                         className="flex-shrink-0 p-0.5 rounded text-text-muted hover:text-error transition-colors"
                       >
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        <svg
+                          className="w-3 h-3"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M6 18L18 6M6 6l12 12"
+                          />
                         </svg>
                       </button>
                     )}
                   </div>
 
                   {/* Options for specialLayer / namedGroup / custom */}
-                  {(el.type === "specialLayer" || el.type === "namedGroup" || el.type === "custom") && el.source !== "exclude" && (
-                    <div className="ml-4 mt-1 space-y-1">
-                      {el.type === "custom" && (
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="text"
-                            value={el.customName || ""}
-                            onChange={(e) => updateComposeElement(el.id, { customName: e.target.value, label: e.target.value || "カスタム" })}
-                            placeholder="検索名"
-                            className="flex-1 bg-bg-elevated border border-white/10 rounded-lg px-2 py-1 text-[10px] text-text-primary focus:border-warning focus:outline-none"
-                          />
-                          <select
-                            value={el.customKind || "layer"}
-                            onChange={(e) => updateComposeElement(el.id, { customKind: e.target.value as "layer" | "group" })}
-                            className="bg-bg-elevated border border-white/10 rounded-lg px-1.5 py-1 text-[10px] text-text-primary focus:border-warning focus:outline-none"
-                          >
-                            <option value="layer">レイヤー</option>
-                            <option value="group">グループ</option>
-                          </select>
-                        </div>
-                      )}
-                      <CheckBox
-                        checked={el.partialMatch ?? true}
-                        onChange={(v) => updateComposeElement(el.id, { partialMatch: v })}
-                      >
-                        <span className="text-[10px] text-text-secondary">部分一致</span>
-                      </CheckBox>
-                    </div>
-                  )}
+                  {(el.type === "specialLayer" ||
+                    el.type === "namedGroup" ||
+                    el.type === "custom") &&
+                    el.source !== "exclude" && (
+                      <div className="ml-4 mt-1 space-y-1">
+                        {el.type === "custom" && (
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="text"
+                              value={el.customName || ""}
+                              onChange={(e) =>
+                                updateComposeElement(el.id, {
+                                  customName: e.target.value,
+                                  label: e.target.value || "カスタム",
+                                })
+                              }
+                              placeholder="検索名"
+                              className="flex-1 bg-bg-elevated border border-white/10 rounded-lg px-2 py-1 text-[10px] text-text-primary focus:border-warning focus:outline-none"
+                            />
+                            <select
+                              value={el.customKind || "layer"}
+                              onChange={(e) =>
+                                updateComposeElement(el.id, {
+                                  customKind: e.target.value as "layer" | "group",
+                                })
+                              }
+                              className="bg-bg-elevated border border-white/10 rounded-lg px-1.5 py-1 text-[10px] text-text-primary focus:border-warning focus:outline-none"
+                            >
+                              <option value="layer">レイヤー</option>
+                              <option value="group">グループ</option>
+                            </select>
+                          </div>
+                        )}
+                        <CheckBox
+                          checked={el.partialMatch ?? true}
+                          onChange={(v) => updateComposeElement(el.id, { partialMatch: v })}
+                        >
+                          <span className="text-[10px] text-text-secondary">部分一致</span>
+                        </CheckBox>
+                      </div>
+                    )}
                 </div>
               );
             })}
@@ -249,7 +256,13 @@ export function ComposePanel() {
             }}
             className="flex items-center gap-1 text-[10px] text-warning hover:text-warning/80 transition-colors mt-2"
           >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="w-3 h-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
             カスタム要素を追加
@@ -259,10 +272,7 @@ export function ComposePanel() {
           <div className="pt-1.5 mt-1.5 border-t border-warning/15">
             <div className="flex items-center gap-2">
               <span className="text-xs text-text-primary flex-1">指定以外</span>
-              <RestSourcePill
-                value={composeSettings.restSource}
-                onChange={setComposeRestSource}
-              />
+              <RestSourcePill value={composeSettings.restSource} onChange={setComposeRestSource} />
             </div>
           </div>
 
@@ -272,17 +282,13 @@ export function ComposePanel() {
               checked={composeSettings.skipResize}
               onChange={(v) => setComposeSettings({ skipResize: v })}
             >
-              <span className="text-[10px] text-text-secondary">
-                サイズ変更を行わない
-              </span>
+              <span className="text-[10px] text-text-secondary">サイズ変更を行わない</span>
             </CheckBox>
             <CheckBox
               checked={composeSettings.roundFontSize}
               onChange={(v) => setComposeSettings({ roundFontSize: v })}
             >
-              <span className="text-[10px] text-text-secondary">
-                フォントサイズを丸める
-              </span>
+              <span className="text-[10px] text-text-secondary">フォントサイズを丸める</span>
             </CheckBox>
           </div>
         </div>
@@ -336,9 +342,7 @@ export function ComposePanel() {
       </div>
 
       {/* Pairing Modal */}
-      {isModalOpen && (
-        <ComposePairingModal onExecute={executeReplacement} onRescan={scanAndPair} />
-      )}
+      {isModalOpen && <ComposePairingModal onExecute={executeReplacement} onRescan={scanAndPair} />}
 
       {/* Completion Toast */}
       <ComposeToast />
@@ -365,9 +369,7 @@ function FolderPicker({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <div
-        className={`w-1.5 h-8 rounded-full bg-${color} flex-shrink-0`}
-      />
+      <div className={`w-1.5 h-8 rounded-full bg-${color} flex-shrink-0`} />
       <div className="flex-1 min-w-0">
         <span className="text-[10px] text-text-muted">{label}</span>
         {path ? (
@@ -386,11 +388,7 @@ function FolderPicker({
                 stroke="currentColor"
                 strokeWidth={2}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6 18L18 6M6 6l12 12"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
           </div>
@@ -448,11 +446,7 @@ function CheckBox({
             stroke="currentColor"
             strokeWidth={3}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M5 13l4 4L19 7"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         )}
       </div>
@@ -480,13 +474,14 @@ function SourcePill({
           key={opt.key}
           onClick={() => onChange(opt.key)}
           className={`px-2 py-0.5 text-[10px] font-medium transition-colors
-            ${value === opt.key
-              ? opt.key === "A"
-                ? "bg-accent text-white"
-                : opt.key === "B"
-                  ? "bg-accent-secondary text-white"
-                  : "bg-text-muted/30 text-text-primary"
-              : "bg-bg-elevated text-text-muted hover:text-text-secondary"
+            ${
+              value === opt.key
+                ? opt.key === "A"
+                  ? "bg-accent text-white"
+                  : opt.key === "B"
+                    ? "bg-accent-secondary text-white"
+                    : "bg-text-muted/30 text-text-primary"
+                : "bg-bg-elevated text-text-muted hover:text-text-secondary"
             }
           `}
         >
@@ -516,13 +511,14 @@ function RestSourcePill({
           key={opt.key}
           onClick={() => onChange(opt.key)}
           className={`px-2 py-0.5 text-[10px] font-medium transition-colors
-            ${value === opt.key
-              ? opt.key === "A"
-                ? "bg-accent text-white"
-                : opt.key === "B"
-                  ? "bg-accent-secondary text-white"
-                  : "bg-text-muted/30 text-text-primary"
-              : "bg-bg-elevated text-text-muted hover:text-text-secondary"
+            ${
+              value === opt.key
+                ? opt.key === "A"
+                  ? "bg-accent text-white"
+                  : opt.key === "B"
+                    ? "bg-accent-secondary text-white"
+                    : "bg-text-muted/30 text-text-primary"
+                : "bg-bg-elevated text-text-muted hover:text-text-secondary"
             }
           `}
         >

@@ -1,21 +1,21 @@
-import { HTMLAttributes, forwardRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import { HTMLAttributes, forwardRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 interface ModalProps extends HTMLAttributes<HTMLDivElement> {
   isOpen: boolean;
   onClose: () => void;
   title?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
+  size?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl";
   showCloseButton?: boolean;
 }
 
 const sizeStyles = {
-  sm: 'max-w-sm',
-  md: 'max-w-md',
-  lg: 'max-w-lg',
-  xl: 'max-w-xl',
-  '2xl': 'max-w-3xl',
-  '3xl': 'max-w-4xl',
+  sm: "max-w-sm",
+  md: "max-w-md",
+  lg: "max-w-lg",
+  xl: "max-w-xl",
+  "2xl": "max-w-3xl",
+  "3xl": "max-w-4xl",
 };
 
 export const Modal = forwardRef<HTMLDivElement, ModalProps>(
@@ -24,45 +24,42 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
       isOpen,
       onClose,
       title,
-      size = 'md',
+      size = "md",
       showCloseButton = true,
-      className = '',
+      className = "",
       children,
       ...props
     },
-    ref
+    ref,
   ) => {
     // ESCキーで閉じる
     useEffect(() => {
       const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape' && isOpen) {
+        if (e.key === "Escape" && isOpen) {
           onClose();
         }
       };
 
-      document.addEventListener('keydown', handleKeyDown);
-      return () => document.removeEventListener('keydown', handleKeyDown);
+      document.addEventListener("keydown", handleKeyDown);
+      return () => document.removeEventListener("keydown", handleKeyDown);
     }, [isOpen, onClose]);
 
     // スクロール無効化
     useEffect(() => {
       if (isOpen) {
-        document.body.style.overflow = 'hidden';
+        document.body.style.overflow = "hidden";
       } else {
-        document.body.style.overflow = '';
+        document.body.style.overflow = "";
       }
       return () => {
-        document.body.style.overflow = '';
+        document.body.style.overflow = "";
       };
     }, [isOpen]);
 
     if (!isOpen) return null;
 
     const modalContent = (
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        onClick={onClose}
-      >
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
         {/* オーバーレイ */}
         <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
 
@@ -84,9 +81,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
           {(title || showCloseButton) && (
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               {title && (
-                <h2 className="text-lg font-display font-medium text-text-primary">
-                  {title}
-                </h2>
+                <h2 className="text-lg font-display font-medium text-text-primary">{title}</h2>
               )}
               {showCloseButton && (
                 <button
@@ -111,10 +106,10 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
     );
 
     return createPortal(modalContent, document.body);
-  }
+  },
 );
 
-Modal.displayName = 'Modal';
+Modal.displayName = "Modal";
 
 function CloseIcon() {
   return (

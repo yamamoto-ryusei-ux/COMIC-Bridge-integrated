@@ -92,10 +92,10 @@ export function JsonFileBrowser({ basePath, onSelect, onCancel, mode, defaultFil
     setIsSearchMode(true);
     const timer = setTimeout(async () => {
       try {
-        const results = await invoke<SearchResult[]>(
-          "search_json_folders",
-          { basePath: normalizedBase, query: searchQuery.trim() }
-        );
+        const results = await invoke<SearchResult[]>("search_json_folders", {
+          basePath: normalizedBase,
+          query: searchQuery.trim(),
+        });
         setSearchResults(results);
       } catch {
         setSearchResults([]);
@@ -105,13 +105,16 @@ export function JsonFileBrowser({ basePath, onSelect, onCancel, mode, defaultFil
   }, [searchQuery, normalizedBase]);
 
   // 検索結果クリック → フォルダに移動
-  const handleSearchSelect = useCallback((result: SearchResult) => {
-    const normalized = result.path.replace(/\\/g, "/").replace(/\/+$/, "");
-    setSearchQuery("");
-    setIsSearchMode(false);
-    setSearchResults([]);
-    loadFolder(normalized);
-  }, [loadFolder]);
+  const handleSearchSelect = useCallback(
+    (result: SearchResult) => {
+      const normalized = result.path.replace(/\\/g, "/").replace(/\/+$/, "");
+      setSearchQuery("");
+      setIsSearchMode(false);
+      setSearchResults([]);
+      loadFolder(normalized);
+    },
+    [loadFolder],
+  );
 
   // basePath からの相対パスをパンくずに表示
   const relativePath = currentPath.slice(normalizedBase.length);
@@ -124,8 +127,18 @@ export function JsonFileBrowser({ basePath, onSelect, onCancel, mode, defaultFil
       {mode === "open" && (
         <div className="px-3 py-2 border-b border-border">
           <div className="relative">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
             </svg>
             <input
               type="text"
@@ -136,10 +149,19 @@ export function JsonFileBrowser({ basePath, onSelect, onCancel, mode, defaultFil
             />
             {searchQuery && (
               <button
-                onClick={() => { setSearchQuery(""); setIsSearchMode(false); }}
+                onClick={() => {
+                  setSearchQuery("");
+                  setIsSearchMode(false);
+                }}
                 className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -157,7 +179,13 @@ export function JsonFileBrowser({ basePath, onSelect, onCancel, mode, defaultFil
             className="text-text-muted hover:text-text-primary p-1 rounded hover:bg-bg-tertiary transition-colors
               disabled:opacity-30 disabled:cursor-not-allowed"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
@@ -166,7 +194,9 @@ export function JsonFileBrowser({ basePath, onSelect, onCancel, mode, defaultFil
             <button
               onClick={() => loadFolder(normalizedBase)}
               className={`flex-shrink-0 transition-colors ${
-                relParts.length === 0 ? "text-accent font-medium" : "text-text-secondary hover:text-accent"
+                relParts.length === 0
+                  ? "text-accent font-medium"
+                  : "text-text-secondary hover:text-accent"
               }`}
             >
               {baseName}
@@ -181,7 +211,9 @@ export function JsonFileBrowser({ basePath, onSelect, onCancel, mode, defaultFil
                     loadFolder(target);
                   }}
                   className={`transition-colors ${
-                    i === relParts.length - 1 ? "text-accent font-medium" : "text-text-secondary hover:text-accent"
+                    i === relParts.length - 1
+                      ? "text-accent font-medium"
+                      : "text-text-secondary hover:text-accent"
                   }`}
                 >
                   {part}
@@ -194,8 +226,18 @@ export function JsonFileBrowser({ basePath, onSelect, onCancel, mode, defaultFil
             className="text-text-muted hover:text-text-primary p-1 rounded hover:bg-bg-tertiary transition-colors"
             title="更新"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
             </svg>
           </button>
         </div>
@@ -217,8 +259,18 @@ export function JsonFileBrowser({ basePath, onSelect, onCancel, mode, defaultFil
                 onClick={() => handleSearchSelect(result)}
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left hover:bg-bg-tertiary transition-colors"
               >
-                <svg className="w-4 h-4 text-accent flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                <svg
+                  className="w-4 h-4 text-accent flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                  />
                 </svg>
                 <div className="truncate">
                   <span className="text-[9px] text-accent/70 mr-1.5">{result.label}</span>
@@ -249,11 +301,27 @@ export function JsonFileBrowser({ basePath, onSelect, onCancel, mode, defaultFil
                     className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left
                       hover:bg-bg-tertiary transition-colors group"
                   >
-                    <svg className="w-4 h-4 text-accent flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                    <svg
+                      className="w-4 h-4 text-accent flex-shrink-0"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                      />
                     </svg>
                     <span className="text-xs text-text-primary truncate">{folder}</span>
-                    <svg className="w-3.5 h-3.5 flex-shrink-0 text-text-muted/50 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <svg
+                      className="w-3.5 h-3.5 flex-shrink-0 text-text-muted/50 ml-auto"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
                   </button>
@@ -271,13 +339,24 @@ export function JsonFileBrowser({ basePath, onSelect, onCancel, mode, defaultFil
                       if (mode === "open") onSelect(currentPath + "/" + file);
                     }}
                     className={`w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-left transition-colors
-                      ${selectedFile === file
-                        ? "bg-accent/10 border border-accent/30"
-                        : "hover:bg-bg-tertiary border border-transparent"
+                      ${
+                        selectedFile === file
+                          ? "bg-accent/10 border border-accent/30"
+                          : "hover:bg-bg-tertiary border border-transparent"
                       }`}
                   >
-                    <svg className="w-4 h-4 text-text-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    <svg
+                      className="w-4 h-4 text-text-muted flex-shrink-0"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                      />
                     </svg>
                     <span className="text-xs text-text-primary truncate">{file}</span>
                   </button>
@@ -303,7 +382,9 @@ export function JsonFileBrowser({ basePath, onSelect, onCancel, mode, defaultFil
               type="text"
               value={saveFileName}
               onChange={(e) => setSaveFileName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleConfirm(); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleConfirm();
+              }}
               className="flex-1 bg-bg-tertiary border border-white/10 rounded px-2 py-1 text-xs text-text-primary
                 focus:border-accent focus:outline-none"
             />

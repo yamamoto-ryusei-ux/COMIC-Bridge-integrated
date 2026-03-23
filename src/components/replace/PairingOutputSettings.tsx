@@ -10,17 +10,13 @@ export function PairingOutputSettings() {
   const [isOpen, setIsOpen] = useState(false);
 
   // Example file name for preview
-  const firstPair =
-    pairingDialogMode === "manual"
-      ? manualPairs[0]
-      : pairingJobs[0]?.pairs[0];
+  const firstPair = pairingDialogMode === "manual" ? manualPairs[0] : pairingJobs[0]?.pairs[0];
   const exampleName = firstPair
     ? settings.generalSettings.saveFileName === "target"
       ? firstPair.targetName
       : firstPair.sourceName
     : "example_001.psd";
-  const folderName =
-    settings.generalSettings.outputFolderName.trim() || "YYYYMMDD_HHmmss";
+  const folderName = settings.generalSettings.outputFolderName.trim() || "YYYYMMDD_HHmmss";
 
   return (
     <div className="border-t border-border">
@@ -44,15 +40,11 @@ export function PairingOutputSettings() {
         <div className="px-4 pb-3 space-y-3">
           {/* Output Folder Name */}
           <div>
-            <label className="text-[10px] text-text-muted mb-1 block">
-              出力フォルダ名
-            </label>
+            <label className="text-[10px] text-text-muted mb-1 block">出力フォルダ名</label>
             <input
               type="text"
               value={settings.generalSettings.outputFolderName}
-              onChange={(e) =>
-                setGeneralSettings({ outputFolderName: e.target.value })
-              }
+              onChange={(e) => setGeneralSettings({ outputFolderName: e.target.value })}
               placeholder="空欄＝日時で自動生成"
               className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-1.5 text-xs text-text-primary placeholder:text-text-muted/50 focus:border-accent focus:outline-none"
             />
@@ -60,9 +52,7 @@ export function PairingOutputSettings() {
 
           {/* Save File Name */}
           <div>
-            <label className="text-[10px] text-text-muted mb-1 block">
-              保存ファイル名
-            </label>
+            <label className="text-[10px] text-text-muted mb-1 block">保存ファイル名</label>
             <div className="flex gap-1.5">
               <button
                 className={`flex-1 px-2 py-1.5 text-[10px] rounded-lg transition-all ${

@@ -9,7 +9,6 @@ import { TiffView } from "../views/TiffView";
 import { ScanPsdView } from "../views/ScanPsdView";
 import { TypsettingView } from "../views/TypsettingView";
 
-
 export function ViewRouter() {
   const activeView = useViewStore((s) => s.activeView);
 

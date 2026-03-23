@@ -14,7 +14,11 @@ export function TextExtractButton({ compact = false }: { compact?: boolean }) {
   const [showOptions, setShowOptions] = useState(false);
   const [sortMode, setSortMode] = useState<"bottomToTop" | "topToBottom">("bottomToTop");
   const [includeHidden, setIncludeHidden] = useState(false);
-  const [result, setResult] = useState<{ success: boolean; message: string; filePath?: string } | null>(null);
+  const [result, setResult] = useState<{
+    success: boolean;
+    message: string;
+    filePath?: string;
+  } | null>(null);
 
   const psdFiles = files.filter((f) => f.metadata?.layerTree?.length);
 
@@ -129,9 +133,7 @@ export function TextExtractButton({ compact = false }: { compact?: boolean }) {
                 aria-checked={includeHidden}
                 tabIndex={0}
                 className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                  includeHidden
-                    ? "bg-accent border-accent"
-                    : "border-border hover:border-accent/50"
+                  includeHidden ? "bg-accent border-accent" : "border-border hover:border-accent/50"
                 }`}
                 onClick={() => setIncludeHidden(!includeHidden)}
                 onKeyDown={(e) => {
@@ -139,7 +141,13 @@ export function TextExtractButton({ compact = false }: { compact?: boolean }) {
                 }}
               >
                 {includeHidden && (
-                  <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <svg
+                    className="w-3 h-3 text-white"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={3}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 )}
@@ -169,17 +177,31 @@ export function TextExtractButton({ compact = false }: { compact?: boolean }) {
         >
           {isExtracting ? (
             <>
-              <div className={`${compact ? "w-4 h-4" : "w-5 h-5"} rounded-full border-2 border-[#7c5cff]/30 border-t-[#7c5cff] animate-spin`} />
+              <div
+                className={`${compact ? "w-4 h-4" : "w-5 h-5"} rounded-full border-2 border-[#7c5cff]/30 border-t-[#7c5cff] animate-spin`}
+              />
               <span className={compact ? "text-xs" : "text-base"}>抽出中...</span>
             </>
           ) : (
             <>
-              <svg className={compact ? "w-4 h-4" : "w-5 h-5"} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                className={compact ? "w-4 h-4" : "w-5 h-5"}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 3v5a1 1 0 001 1h5" />
               </svg>
               テキスト抽出
-              <span className={`${compact ? "px-1.5 py-0.5 text-xs" : "px-2 py-1 text-sm"} rounded-lg bg-[#7c5cff]/10 text-[#7c5cff] font-bold`}>
+              <span
+                className={`${compact ? "px-1.5 py-0.5 text-xs" : "px-2 py-1 text-sm"} rounded-lg bg-[#7c5cff]/10 text-[#7c5cff] font-bold`}
+              >
                 {psdFiles.length}
               </span>
             </>
@@ -223,14 +245,13 @@ export function TextExtractButton({ compact = false }: { compact?: boolean }) {
 
 // ===== ヘルパー関数 =====
 
-
 /**
  * テキストレイヤーを再帰的に収集する
  * ag-psdのlayerTreeはtop-to-bottom順で格納されている
  */
 function collectTextLayers(
   layers: LayerNode[],
-  includeHidden: boolean
+  includeHidden: boolean,
 ): { text: string; name: string; visible: boolean }[] {
   const result: { text: string; name: string; visible: boolean }[] = [];
 
@@ -266,7 +287,7 @@ function collectTextLayers(
 function generateText(
   files: PsdFile[],
   sortMode: "bottomToTop" | "topToBottom",
-  includeHidden: boolean
+  includeHidden: boolean,
 ): string {
   const lines: string[] = [];
 

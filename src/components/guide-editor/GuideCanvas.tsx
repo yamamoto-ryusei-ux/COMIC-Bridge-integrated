@@ -52,7 +52,7 @@ export function GuideCanvas({ imageUrl, imageSize, isLoading }: GuideCanvasProps
   const baseScale = Math.min(
     previewAreaWidth / imageSize.width,
     previewAreaHeight / imageSize.height,
-    1
+    1,
   );
   const scale = baseScale * zoom;
 
@@ -89,7 +89,7 @@ export function GuideCanvas({ imageUrl, imageSize, isLoading }: GuideCanvasProps
         y: Math.round((screenY - offsetY) / scale),
       };
     },
-    [offsetX, offsetY, scale]
+    [offsetX, offsetY, scale],
   );
 
   // Ruler drag start (creates new guide)
@@ -109,7 +109,7 @@ export function GuideCanvas({ imageUrl, imageSize, isLoading }: GuideCanvasProps
       pushHistory(); // 移動前の状態を保存
       setDraggingGuideIndex(index);
     },
-    [setSelectedGuideIndex, pushHistory]
+    [setSelectedGuideIndex, pushHistory],
   );
 
   // Mouse move during drag
@@ -134,7 +134,7 @@ export function GuideCanvas({ imageUrl, imageSize, isLoading }: GuideCanvasProps
         const scrollTop = previewContainerRef.current.scrollTop;
         const pos = screenToImage(
           e.clientX - rect.left + scrollLeft,
-          e.clientY - rect.top + scrollTop
+          e.clientY - rect.top + scrollTop,
         );
 
         const position = guide.direction === "horizontal" ? pos.y : pos.x;
@@ -153,7 +153,7 @@ export function GuideCanvas({ imageUrl, imageSize, isLoading }: GuideCanvasProps
 
       const pos = screenToImage(
         e.clientX - rect.left + scrollLeft,
-        e.clientY - rect.top + scrollTop
+        e.clientY - rect.top + scrollTop,
       );
 
       const position = dragDirection === "horizontal" ? pos.y : pos.x;
@@ -163,7 +163,17 @@ export function GuideCanvas({ imageUrl, imageSize, isLoading }: GuideCanvasProps
         setPreviewPosition(position);
       }
     },
-    [isDragging, isPanning, dragDirection, draggingGuideIndex, guides, screenToImage, imageSize, panStart, moveGuide]
+    [
+      isDragging,
+      isPanning,
+      dragDirection,
+      draggingGuideIndex,
+      guides,
+      screenToImage,
+      imageSize,
+      panStart,
+      moveGuide,
+    ],
   );
 
   // Mouse up - add guide / end guide drag / end pan
@@ -191,7 +201,16 @@ export function GuideCanvas({ imageUrl, imageSize, isLoading }: GuideCanvasProps
     setIsDragging(false);
     setDragDirection(null);
     setPreviewPosition(null);
-  }, [isDragging, isPanning, dragDirection, previewPosition, addGuide, guides.length, draggingGuideIndex, setSelectedGuideIndex]);
+  }, [
+    isDragging,
+    isPanning,
+    dragDirection,
+    previewPosition,
+    addGuide,
+    guides.length,
+    draggingGuideIndex,
+    setSelectedGuideIndex,
+  ]);
 
   // Keyboard events
   useEffect(() => {
@@ -317,11 +336,16 @@ export function GuideCanvas({ imageUrl, imageSize, isLoading }: GuideCanvasProps
   const guideOverflowY = showScrollbars ? 0 : offsetY;
 
   // Cursor for preview container
-  const previewCursor = isSpacePressed && zoom > 1
-    ? (isPanning ? "grabbing" : "grab")
-    : draggingGuideIndex !== null
-      ? (guides[draggingGuideIndex]?.direction === "horizontal" ? "ns-resize" : "ew-resize")
-      : "default";
+  const previewCursor =
+    isSpacePressed && zoom > 1
+      ? isPanning
+        ? "grabbing"
+        : "grab"
+      : draggingGuideIndex !== null
+        ? guides[draggingGuideIndex]?.direction === "horizontal"
+          ? "ns-resize"
+          : "ew-resize"
+        : "default";
 
   return (
     <div
@@ -521,8 +545,9 @@ export function GuideCanvas({ imageUrl, imageSize, isLoading }: GuideCanvasProps
               })}
 
               {/* Preview Guide (while dragging from ruler) */}
-              {isDragging && previewPosition !== null && (
-                dragDirection === "horizontal" ? (
+              {isDragging &&
+                previewPosition !== null &&
+                (dragDirection === "horizontal" ? (
                   <div
                     className="absolute pointer-events-none z-30"
                     style={{
@@ -548,8 +573,7 @@ export function GuideCanvas({ imageUrl, imageSize, isLoading }: GuideCanvasProps
                       boxShadow: "0 0 8px rgba(255, 177, 66, 0.6)",
                     }}
                   />
-                )
-              )}
+                ))}
             </div>
           </div>
         </div>

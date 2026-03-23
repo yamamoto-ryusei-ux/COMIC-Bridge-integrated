@@ -6,7 +6,11 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { usePsdStore } from "../../store/psdStore";
 import { useScanPsdStore } from "../../store/scanPsdStore";
-import { useHighResPreview, prefetchPreview, invalidateUrlCache } from "../../hooks/useHighResPreview";
+import {
+  useHighResPreview,
+  prefetchPreview,
+  invalidateUrlCache,
+} from "../../hooks/useHighResPreview";
 import { useOpenFolder } from "../../hooks/useOpenFolder";
 import { performPresetJsonSave } from "../../hooks/useScanPsdProcessor";
 import { useFontResolver, collectTextLayers } from "../../hooks/useFontResolver";
@@ -21,7 +25,10 @@ import type { FontBookEntry } from "../../types/fontBook";
 
 const AA_SHARP_VALUES = new Set(["antiAliasSharp", "sharp", "Shrp"]);
 
-function hasIssue(entry: { textInfo?: import("../../types").TextInfo }, issue: TextIssueFilter): boolean {
+function hasIssue(
+  entry: { textInfo?: import("../../types").TextInfo },
+  issue: TextIssueFilter,
+): boolean {
   if (!entry.textInfo) return false;
   if (issue === "antiAlias") {
     const aa = entry.textInfo.antiAlias;
@@ -44,7 +51,15 @@ interface SpecViewerPanelProps {
   onFilterStrokeConsumed?: () => void;
 }
 
-export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilterFontConsumed, initialFilterIssue, onFilterIssueConsumed, initialFilterStroke, onFilterStrokeConsumed }: SpecViewerPanelProps) {
+export function SpecViewerPanel({
+  onOpenInPhotoshop,
+  initialFilterFont,
+  onFilterFontConsumed,
+  initialFilterIssue,
+  onFilterIssueConsumed,
+  initialFilterStroke,
+  onFilterStrokeConsumed,
+}: SpecViewerPanelProps) {
   const files = usePsdStore((s) => s.files);
   const selectedFileIds = usePsdStore((s) => s.selectedFileIds);
   const { openFolderForFile } = useOpenFolder();
@@ -69,7 +84,9 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
   const [highlightLayerIdx, setHighlightLayerIdx] = useState<number | null>(null);
   // Layer tree highlight (by layer id)
   const [highlightTreeLayerId, setHighlightTreeLayerId] = useState<string | null>(null);
-  const [highlightTreeBounds, setHighlightTreeBounds] = useState<import("../../types").LayerBounds | null>(null);
+  const [highlightTreeBounds, setHighlightTreeBounds] = useState<
+    import("../../types").LayerBounds | null
+  >(null);
   // Category dropdown state
   const [categoryDropdownFont, setCategoryDropdownFont] = useState<string | null>(null);
   // JSON file browser modal
@@ -112,18 +129,19 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
       if (pd?.workInfo?.label && pd?.workInfo?.title) {
         const safeLabel = pd.workInfo.label.replace(/[\\/:*?"<>|]/g, "_");
         const safeTitle = pd.workInfo.title.replace(/[\\/:*?"<>|]/g, "_");
-        const scandataPath = `${store.saveDataBasePath}/${safeLabel}/${safeTitle}_scandata.json`.replace(/\\/g, "/");
+        const scandataPath =
+          `${store.saveDataBasePath}/${safeLabel}/${safeTitle}_scandata.json`.replace(/\\/g, "/");
         try {
           const sc = await invoke<string>("read_text_file", { filePath: scandataPath });
           store.setScanData(JSON.parse(sc));
           store.setCurrentScandataFilePath(scandataPath);
-        } catch { /* scandata not found, ok */ }
+        } catch {
+          /* scandata not found, ok */
+        }
         // フォント帳も読み込み
-        useFontBookStore.getState().loadFontBook(
-          store.textLogFolderPath,
-          pd.workInfo.label,
-          pd.workInfo.title
-        );
+        useFontBookStore
+          .getState()
+          .loadFontBook(store.textLogFolderPath, pd.workInfo.label, pd.workInfo.title);
       }
     } catch (e) {
       console.error("Failed to load JSON:", e);
@@ -131,14 +149,21 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
   }, []);
 
   // Update font category
-  const updateFontCategory = useCallback(async (font: string, subName: string) => {
-    const entry = fontCategoryMap.get(font);
-    if (!entry) return;
-    useScanPsdStore.getState().updateFontInPreset(currentSetName, entry.index, { subName });
-    setCategoryDropdownFont(null);
-    // Auto-save JSON
-    try { await performPresetJsonSave(); } catch { /* ignore */ }
-  }, [fontCategoryMap, currentSetName]);
+  const updateFontCategory = useCallback(
+    async (font: string, subName: string) => {
+      const entry = fontCategoryMap.get(font);
+      if (!entry) return;
+      useScanPsdStore.getState().updateFontInPreset(currentSetName, entry.index, { subName });
+      setCategoryDropdownFont(null);
+      // Auto-save JSON
+      try {
+        await performPresetJsonSave();
+      } catch {
+        /* ignore */
+      }
+    },
+    [fontCategoryMap, currentSetName],
+  );
 
   // Close category dropdown on outside click
   useEffect(() => {
@@ -188,36 +213,41 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
   const [splashPhase, setSplashPhase] = useState<"hidden" | "in" | "hold" | "out">("hidden");
   const transitionLock = useRef(false);
 
-  const toggleFullscreen = useCallback(async (force?: boolean) => {
-    const next = force !== undefined ? force : !isFullscreen;
-    if (next === isFullscreen || transitionLock.current) return;
-    transitionLock.current = true;
+  const toggleFullscreen = useCallback(
+    async (force?: boolean) => {
+      const next = force !== undefined ? force : !isFullscreen;
+      if (next === isFullscreen || transitionLock.current) return;
+      transitionLock.current = true;
 
-    // 1) Show splash (fade in white cover)
-    setSplashPhase("in");
-    await new Promise((r) => setTimeout(r, 200));
+      // 1) Show splash (fade in white cover)
+      setSplashPhase("in");
+      await new Promise((r) => setTimeout(r, 200));
 
-    // 2) Splash now fully covers screen — toggle OS fullscreen behind it
-    setSplashPhase("hold");
-    try {
-      await getCurrentWindow().setFullscreen(next);
-    } catch { /* ignore */ }
-    setIsFullscreen(next);
+      // 2) Splash now fully covers screen — toggle OS fullscreen behind it
+      setSplashPhase("hold");
+      try {
+        await getCurrentWindow().setFullscreen(next);
+      } catch {
+        /* ignore */
+      }
+      setIsFullscreen(next);
 
-    // 3) Let OS settle while splash still covers
-    await new Promise((r) => setTimeout(r, 200));
+      // 3) Let OS settle while splash still covers
+      await new Promise((r) => setTimeout(r, 200));
 
-    // 4) Fade splash out, revealing new layout
-    setSplashPhase("out");
-    await new Promise((r) => setTimeout(r, 350));
+      // 4) Fade splash out, revealing new layout
+      setSplashPhase("out");
+      await new Promise((r) => setTimeout(r, 350));
 
-    setSplashPhase("hidden");
-    transitionLock.current = false;
+      setSplashPhase("hidden");
+      transitionLock.current = false;
 
-    if (next) {
-      setShowEscHint(true);
-    }
-  }, [isFullscreen]);
+      if (next) {
+        setShowEscHint(true);
+      }
+    },
+    [isFullscreen],
+  );
 
   // Auto-hide ESC hint after 2.5s
   useEffect(() => {
@@ -230,7 +260,9 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
   useEffect(() => {
     return () => {
       if (isFullscreen) {
-        getCurrentWindow().setFullscreen(false).catch(() => {});
+        getCurrentWindow()
+          .setFullscreen(false)
+          .catch(() => {});
       }
     };
   }, [isFullscreen]);
@@ -245,7 +277,8 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
         const layers = collectTextLayers(f.metadata.layerTree);
         if (filterFont) return layers.some((e) => e.textInfo?.fonts.includes(filterFont));
         if (filterIssue) return layers.some((e) => hasIssue(e, filterIssue));
-        if (filterStroke != null) return layers.some((e) => e.textInfo?.strokeSize === filterStroke);
+        if (filterStroke != null)
+          return layers.some((e) => e.textInfo?.strokeSize === filterStroke);
         return false;
       })
       .map(({ i }) => i);
@@ -440,7 +473,8 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
   const navigateNext = useCallback(() => {
     if (filteredIndices) {
       const pos = filteredIndices.indexOf(viewerFileIndex);
-      if (pos >= 0 && pos < filteredIndices.length - 1) setViewerFileIndex(filteredIndices[pos + 1]);
+      if (pos >= 0 && pos < filteredIndices.length - 1)
+        setViewerFileIndex(filteredIndices[pos + 1]);
     } else {
       setViewerFileIndex((i) => Math.min(files.length - 1, i + 1));
     }
@@ -450,7 +484,10 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
     ? filteredIndices.indexOf(viewerFileIndex) > 0
     : viewerFileIndex > 0;
   const canGoNext = filteredIndices
-    ? (() => { const p = filteredIndices.indexOf(viewerFileIndex); return p >= 0 && p < filteredIndices.length - 1; })()
+    ? (() => {
+        const p = filteredIndices.indexOf(viewerFileIndex);
+        return p >= 0 && p < filteredIndices.length - 1;
+      })()
     : viewerFileIndex < files.length - 1;
   const navTotal = filteredIndices ? filteredIndices.length : files.length;
   const navPos = filteredIndices ? filteredPos + 1 : viewerFileIndex + 1;
@@ -518,7 +555,7 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
 
     const filterLabel = filterFont
       ? fontInfo.getFontLabel(filterFont).replace(/\s+/g, "")
-      : filterIssue ?? (filterStroke != null ? `白フチ${filterStroke}px` : "filter");
+      : (filterIssue ?? (filterStroke != null ? `白フチ${filterStroke}px` : "filter"));
 
     const baseName = (viewerFile?.fileName ?? "page").replace(/\.[^.]+$/, "");
     const selected = await save({
@@ -577,7 +614,9 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
 
         const color = filterFont
           ? fontInfo.getFontColor(filterFont)
-          : filterStroke != null ? "#00c9a7" : "#c25a5a";
+          : filterStroke != null
+            ? "#00c9a7"
+            : "#c25a5a";
         const lineWidth = Math.max(3, pw * 0.002) * scaleX;
 
         for (const b of bounds) {
@@ -615,7 +654,9 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
       try {
         const folderPath = outputPath.replace(/\/[^/]+$/, "").replace(/\//g, "\\");
         await invoke("open_folder_in_explorer", { folderPath });
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     } catch (err) {
       console.error("Failed to save image:", err);
     } finally {
@@ -627,7 +668,7 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
   const handleFontBookCapture = useCallback(
     async (
       region: { x: number; y: number; width: number; height: number },
-      font: import("../../types/scanPsd").FontPreset
+      font: import("../../types/scanPsd").FontPreset,
     ) => {
       if (!imageUrl) return;
       setIsCapturing(false);
@@ -681,7 +722,7 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
           canvas.toBlob(
             (b) => (b ? resolve(b) : reject(new Error("toBlob failed"))),
             "image/jpeg",
-            0.92
+            0.92,
           );
         });
         const arrayBuffer = await blob.arrayBuffer();
@@ -700,13 +741,13 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
         console.error("Font book capture failed:", err);
       }
     },
-    [imageUrl, viewerFile]
+    [imageUrl, viewerFile],
   );
 
   // キャプチャ用フォント一覧
   const capturefonts = useMemo(
     () => presetSets[currentSetName] || [],
-    [presetSets, currentSetName]
+    [presetSets, currentSetName],
   );
 
   if (files.length === 0) {
@@ -788,11 +829,24 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
         {/* Error state */}
         {viewerError && !imageUrl && (
           <div className="flex flex-col items-center gap-2 text-center px-6">
-            <svg className="w-8 h-8 text-error/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <svg
+              className="w-8 h-8 text-error/50"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+              />
             </svg>
             <p className="text-[11px] text-text-muted">プレビューの読み込みに失敗</p>
-            <button onClick={viewerReload} className="text-[10px] text-accent hover:text-accent/80 transition-colors">
+            <button
+              onClick={viewerReload}
+              className="text-[10px] text-accent hover:text-accent/80 transition-colors"
+            >
               再試行
             </button>
           </div>
@@ -820,7 +874,13 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
         >
           {isFullscreen ? (
             /* Minimize / exit fullscreen: inward arrows at corners */
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 4l4 4M4 4v3m0-3h3" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M20 4l-4 4M20 4v3m0-3h-3" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 20l4-4M4 20v-3m0 3h3" />
@@ -828,7 +888,13 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
             </svg>
           ) : (
             /* Maximize / enter fullscreen: outward arrows at corners */
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 3h6m0 0v6m0-6l-7 7" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 21H3m0 0v-6m0 6l7-7" />
             </svg>
@@ -842,9 +908,23 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
             className="absolute top-3 left-12 z-10 w-8 h-8 rounded-lg bg-black/50 hover:bg-black/70 flex items-center justify-center text-white/70 hover:text-white transition-all backdrop-blur-sm"
             title="フォント帳にキャプチャ"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+              />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+              />
             </svg>
           </button>
         )}
@@ -864,7 +944,13 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
                 onClick={navigatePrev}
                 className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white/70 hover:text-white transition-all backdrop-blur-sm"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
@@ -874,7 +960,13 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
                 onClick={navigateNext}
                 className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white/70 hover:text-white transition-all backdrop-blur-sm"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
@@ -894,7 +986,20 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
             {files.length > 1 && (
               <span className="text-[10px] text-text-muted flex-shrink-0">
                 {navPos} / {navTotal}
-                {(filterFont || filterIssue || filterStroke != null) && <span className="text-accent"> (絞込{filterIssue === "antiAlias" ? ": AA" : filterIssue === "tracking" ? ": カーニング" : filterStroke != null ? `: 白フチ${filterStroke}px` : ""})</span>}
+                {(filterFont || filterIssue || filterStroke != null) && (
+                  <span className="text-accent">
+                    {" "}
+                    (絞込
+                    {filterIssue === "antiAlias"
+                      ? ": AA"
+                      : filterIssue === "tracking"
+                        ? ": カーニング"
+                        : filterStroke != null
+                          ? `: 白フチ${filterStroke}px`
+                          : ""}
+                    )
+                  </span>
+                )}
               </span>
             )}
             {viewerFile && (
@@ -903,8 +1008,18 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
                 onClick={() => openFolderForFile(viewerFile.filePath)}
                 title="フォルダを開く (F)"
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                  />
                 </svg>
               </button>
             )}
@@ -924,12 +1039,8 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
               <span className="text-[10px] text-text-muted">
                 {viewerFile.metadata.width} x {viewerFile.metadata.height}
               </span>
-              <span className="text-[10px] text-text-muted">
-                {viewerFile.metadata.dpi} dpi
-              </span>
-              <span className="text-[10px] text-text-muted">
-                {viewerFile.metadata.colorMode}
-              </span>
+              <span className="text-[10px] text-text-muted">{viewerFile.metadata.dpi} dpi</span>
+              <span className="text-[10px] text-text-muted">{viewerFile.metadata.colorMode}</span>
             </div>
           )}
         </div>
@@ -968,8 +1079,18 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
               {fontInfo.allFontNames.length > 0 && (
                 <div className="px-1 pb-1.5 border-b border-border/30 mb-1.5">
                   <div className="flex items-center gap-1.5 mb-1">
-                    <svg className="w-3 h-3 text-text-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                    <svg
+                      className="w-3 h-3 text-text-muted flex-shrink-0"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+                      />
                     </svg>
                     <span className="text-[9px] text-text-muted">フォント絞り込み</span>
                     {(existingIssues.hasAA || existingIssues.hasTracking) && (
@@ -983,7 +1104,13 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
                                   : "bg-error/20 text-error ring-1 ring-error/30"
                                 : "bg-error/10 text-error/60 hover:bg-error/15 hover:text-error"
                             }`}
-                            title={filterIssue === "antiAlias" ? (filterHighlightAll ? "ハイライト解除" : "該当レイヤーをすべてハイライト") : "AA問題のあるページに絞り込み"}
+                            title={
+                              filterIssue === "antiAlias"
+                                ? filterHighlightAll
+                                  ? "ハイライト解除"
+                                  : "該当レイヤーをすべてハイライト"
+                                : "AA問題のあるページに絞り込み"
+                            }
                             onClick={() => {
                               if (filterIssue === "antiAlias") {
                                 setFilterHighlightAll(!filterHighlightAll);
@@ -1007,7 +1134,13 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
                                   : "bg-error/20 text-error ring-1 ring-error/30"
                                 : "bg-error/10 text-error/60 hover:bg-error/15 hover:text-error"
                             }`}
-                            title={filterIssue === "tracking" ? (filterHighlightAll ? "ハイライト解除" : "該当レイヤーをすべてハイライト") : "カーニング問題のあるページに絞り込み"}
+                            title={
+                              filterIssue === "tracking"
+                                ? filterHighlightAll
+                                  ? "ハイライト解除"
+                                  : "該当レイヤーをすべてハイライト"
+                                : "カーニング問題のあるページに絞り込み"
+                            }
                             onClick={() => {
                               if (filterIssue === "tracking") {
                                 setFilterHighlightAll(!filterHighlightAll);
@@ -1036,7 +1169,13 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
                                   : "bg-accent-tertiary/20 text-accent-tertiary ring-1 ring-accent-tertiary/30"
                                 : "bg-accent-tertiary/10 text-accent-tertiary/60 hover:bg-accent-tertiary/15 hover:text-accent-tertiary"
                             }`}
-                            title={filterStroke === size ? (filterHighlightAll ? "ハイライト解除" : "該当レイヤーをすべてハイライト") : `白フチ${size}pxのページに絞り込み`}
+                            title={
+                              filterStroke === size
+                                ? filterHighlightAll
+                                  ? "ハイライト解除"
+                                  : "該当レイヤーをすべてハイライト"
+                                : `白フチ${size}pxのページに絞り込み`
+                            }
                             onClick={() => {
                               if (filterStroke === size) {
                                 setFilterHighlightAll(!filterHighlightAll);
@@ -1064,16 +1203,35 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
                           {isSavingImage ? (
                             <div className="w-3 h-3 rounded-full border-2 border-accent-secondary/30 border-t-accent-secondary animate-spin" />
                           ) : (
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <svg
+                              className="w-3 h-3"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                              strokeWidth={2}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                              />
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                              />
                             </svg>
                           )}
                           画像保存
                         </button>
                         <button
                           className="text-[9px] px-1.5 py-0.5 rounded text-accent hover:bg-accent/10 transition-all"
-                          onClick={() => { setFilterFont(null); setFilterIssue(null); setFilterStroke(null); setFilterHighlightAll(false); }}
+                          onClick={() => {
+                            setFilterFont(null);
+                            setFilterIssue(null);
+                            setFilterStroke(null);
+                            setFilterHighlightAll(false);
+                          }}
                         >
                           解除
                         </button>
@@ -1088,9 +1246,14 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
                       const isHighlightAll = isFiltered && filterHighlightAll;
                       const isOnCurrentPage = fileFonts.includes(font);
                       const catEntry = currentJsonFilePath ? fontCategoryMap.get(font) : undefined;
-                      const catPalette = catEntry?.subName ? SUB_NAME_PALETTE[catEntry.subName] : undefined;
+                      const catPalette = catEntry?.subName
+                        ? SUB_NAME_PALETTE[catEntry.subName]
+                        : undefined;
                       return (
-                        <span key={font} className={`inline-flex items-center gap-0.5 ${!isOnCurrentPage && !isFiltered ? "opacity-40" : ""}`}>
+                        <span
+                          key={font}
+                          className={`inline-flex items-center gap-0.5 ${!isOnCurrentPage && !isFiltered ? "opacity-40" : ""}`}
+                        >
                           <button
                             className={`text-[9px] px-1.5 py-0.5 rounded-l font-medium transition-all ${
                               isFiltered
@@ -1098,12 +1261,24 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
                                 : "hover:brightness-125"
                             } ${!catEntry && !missing ? "rounded-r" : ""}`}
                             style={{
-                              backgroundColor: isHighlightAll ? `${color}45` : isFiltered ? `${color}30` : `${color}15`,
+                              backgroundColor: isHighlightAll
+                                ? `${color}45`
+                                : isFiltered
+                                  ? `${color}30`
+                                  : `${color}15`,
                               color,
-                              ...(isFiltered ? { "--tw-ring-color": color } as React.CSSProperties : {}),
+                              ...(isFiltered
+                                ? ({ "--tw-ring-color": color } as React.CSSProperties)
+                                : {}),
                               ...(missing ? { textDecoration: "line-through" } : {}),
                             }}
-                            title={isHighlightAll ? "フィルター解除" : isFiltered ? "全レイヤーをハイライト" : `${fontInfo.getFontLabel(font)} のページだけ表示`}
+                            title={
+                              isHighlightAll
+                                ? "フィルター解除"
+                                : isFiltered
+                                  ? "全レイヤーをハイライト"
+                                  : `${fontInfo.getFontLabel(font)} のページだけ表示`
+                            }
                             onClick={() => {
                               if (isHighlightAll) {
                                 // 3rd click: turn off highlight, keep filter
@@ -1128,13 +1303,17 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
                               <button
                                 className="text-[8px] px-1 py-0.5 rounded-r transition-all hover:brightness-125"
                                 style={{
-                                  backgroundColor: catPalette ? `${catPalette.color}18` : "rgba(255,255,255,0.05)",
+                                  backgroundColor: catPalette
+                                    ? `${catPalette.color}18`
+                                    : "rgba(255,255,255,0.05)",
                                   color: catPalette?.color || "#888",
                                 }}
                                 title="カテゴリ変更"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setCategoryDropdownFont(categoryDropdownFont === font ? null : font);
+                                  setCategoryDropdownFont(
+                                    categoryDropdownFont === font ? null : font,
+                                  );
                                 }}
                               >
                                 {catEntry.subName || "—"}
@@ -1154,8 +1333,13 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
                                           catEntry.subName === name ? "font-bold" : ""
                                         }`}
                                         style={{ color: p?.color || "#888" }}
-                                        onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)")}
-                                        onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                                        onMouseEnter={(e) =>
+                                          (e.currentTarget.style.backgroundColor =
+                                            "rgba(255,255,255,0.05)")
+                                        }
+                                        onMouseLeave={(e) =>
+                                          (e.currentTarget.style.backgroundColor = "transparent")
+                                        }
                                         onClick={() => updateFontCategory(font, name)}
                                       >
                                         {name}
@@ -1201,8 +1385,18 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
                       className="mt-1.5 flex items-center gap-1 text-[9px] text-text-muted hover:text-text-secondary transition-colors"
                       onClick={() => setShowJsonBrowser(true)}
                     >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
                       </svg>
                       JSON読込でカテゴリ編集
                     </button>
@@ -1309,7 +1503,9 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
       {showJsonBrowser && (
         <div
           className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setShowJsonBrowser(false); }}
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setShowJsonBrowser(false);
+          }}
         >
           <div className="w-[420px]" onMouseDown={(e) => e.stopPropagation()}>
             <JsonFileBrowser
@@ -1324,45 +1520,48 @@ export function SpecViewerPanel({ onOpenInPhotoshop, initialFilterFont, onFilter
     </div>
   );
 
-  const splashOverlay = splashPhase !== "hidden" && createPortal(
-    <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center bg-white pointer-events-none transition-opacity ease-in-out"
-      style={{
-        opacity: splashPhase === "in" || splashPhase === "out" ? 0 : 1,
-        transitionDuration: splashPhase === "in" ? "200ms" : splashPhase === "out" ? "350ms" : "0ms",
-      }}
-      ref={(el) => {
-        // Force reflow so "in" transition actually animates from 0→1
-        if (el && splashPhase === "in") {
-          void el.offsetHeight;
-          el.style.opacity = "1";
-        }
-      }}
-    >
-      <div className="flex flex-col items-center gap-3">
-        <span
-          className="font-display font-bold tracking-wide"
-          style={{
-            fontSize: "min(8vw, 8vh)",
-            lineHeight: 1.3,
-            background: "linear-gradient(135deg, #ff6b9d, #c084fc, #60a5fa, #34d399)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-          }}
-        >
-          COMIC-Bridge
-        </span>
-        <span
-          className="font-medium tracking-[0.3em] uppercase text-black/20"
-          style={{ fontSize: "min(1.5vw, 1.5vh)" }}
-        >
-          viewer
-        </span>
-      </div>
-    </div>,
-    document.body
-  );
+  const splashOverlay =
+    splashPhase !== "hidden" &&
+    createPortal(
+      <div
+        className="fixed inset-0 z-[99999] flex items-center justify-center bg-white pointer-events-none transition-opacity ease-in-out"
+        style={{
+          opacity: splashPhase === "in" || splashPhase === "out" ? 0 : 1,
+          transitionDuration:
+            splashPhase === "in" ? "200ms" : splashPhase === "out" ? "350ms" : "0ms",
+        }}
+        ref={(el) => {
+          // Force reflow so "in" transition actually animates from 0→1
+          if (el && splashPhase === "in") {
+            void el.offsetHeight;
+            el.style.opacity = "1";
+          }
+        }}
+      >
+        <div className="flex flex-col items-center gap-3">
+          <span
+            className="font-display font-bold tracking-wide"
+            style={{
+              fontSize: "min(8vw, 8vh)",
+              lineHeight: 1.3,
+              background: "linear-gradient(135deg, #ff6b9d, #c084fc, #60a5fa, #34d399)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              backgroundClip: "text",
+            }}
+          >
+            COMIC-Bridge
+          </span>
+          <span
+            className="font-medium tracking-[0.3em] uppercase text-black/20"
+            style={{ fontSize: "min(1.5vw, 1.5vh)" }}
+          >
+            viewer
+          </span>
+        </div>
+      </div>,
+      document.body,
+    );
 
   if (isFullscreen) {
     return (

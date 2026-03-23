@@ -81,11 +81,12 @@ function SpecCheckRow({
       className={`
         grid grid-cols-[32px_36px_1fr_100px_80px_80px_60px_60px_70px] gap-3 items-center
         px-3 py-1.5 cursor-pointer transition-colors border-b border-border/30
-        ${isActive
-          ? "bg-accent/15"
-          : isSelected
-            ? "bg-accent/8"
-            : "hover:bg-bg-tertiary/50 even:bg-bg-tertiary/20"
+        ${
+          isActive
+            ? "bg-accent/15"
+            : isSelected
+              ? "bg-accent/8"
+              : "hover:bg-bg-tertiary/50 even:bg-bg-tertiary/20"
         }
         ${hasError ? "border-l-2 border-l-error" : ""}
       `}
@@ -95,14 +96,21 @@ function SpecCheckRow({
       <div className="flex items-center justify-center">
         <div
           className={`w-4 h-4 rounded flex items-center justify-center transition-all
-            ${isSelected
-              ? "bg-gradient-to-br from-accent to-accent-secondary"
-              : "border-2 border-text-muted/30"
+            ${
+              isSelected
+                ? "bg-gradient-to-br from-accent to-accent-secondary"
+                : "border-2 border-text-muted/30"
             }
           `}
         >
           {isSelected && (
-            <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <svg
+              className="w-2.5 h-2.5 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={3}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           )}
@@ -169,7 +177,11 @@ function SpecCheckRow({
           file.metadata.hasGuides ? (
             <span className="text-guide-v">
               <svg className="w-3.5 h-3.5 inline-block" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                  clipRule="evenodd"
+                />
               </svg>
             </span>
           ) : (
@@ -186,14 +198,22 @@ function SpecCheckRow({
           checkResult.passed ? (
             <span className="inline-flex items-center gap-1 text-[10px] font-medium text-success bg-success/10 px-2 py-0.5 rounded-full">
               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                  clipRule="evenodd"
+                />
               </svg>
               OK
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 text-[10px] font-medium text-error bg-error/10 px-2 py-0.5 rounded-full">
               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                />
               </svg>
               NG
             </span>
@@ -220,16 +240,25 @@ function CellValue({
   }
 
   if (isNG && failedRule) {
-    const expected = typeof failedRule.rule.value === "boolean"
-      ? (failedRule.rule.value ? "あり" : "なし")
-      : String(failedRule.rule.value);
+    const expected =
+      typeof failedRule.rule.value === "boolean"
+        ? failedRule.rule.value
+          ? "あり"
+          : "なし"
+        : String(failedRule.rule.value);
     return (
       <div
         className="text-xs font-medium text-error bg-error/10 px-1.5 py-0.5 rounded flex items-center gap-0.5"
         title={failedRule.rule.message}
       >
         <span className="truncate">{String(value)}</span>
-        <svg className="w-2.5 h-2.5 text-text-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <svg
+          className="w-2.5 h-2.5 text-text-muted flex-shrink-0"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2.5}
+        >
           <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
         </svg>
         <span className="text-success truncate">{expected}</span>
@@ -237,9 +266,5 @@ function CellValue({
     );
   }
 
-  return (
-    <div className="text-xs text-text-secondary">
-      {String(value)}
-    </div>
-  );
+  return <div className="text-xs text-text-secondary">{String(value)}</div>;
 }

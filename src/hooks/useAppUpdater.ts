@@ -29,7 +29,9 @@ export function useAppUpdater() {
 
   // 現在のバージョンを取得
   useEffect(() => {
-    getVersion().then(setAppVersion).catch(() => {});
+    getVersion()
+      .then(setAppVersion)
+      .catch(() => {});
   }, []);
 
   // 起動時自動チェック（2秒遅延）

@@ -5,8 +5,8 @@ export type OutputFormat = "psd" | "jpg";
 export type PageNumbering = "rl" | "sequential";
 
 export interface SelectionBounds {
-  left: number;   // 選択範囲の左端 (画像px)
-  right: number;  // 選択範囲の右端 (画像px)
+  left: number; // 選択範囲の左端 (画像px)
+  right: number; // 選択範囲の右端 (画像px)
 }
 
 export interface SplitSettings {
@@ -110,8 +110,7 @@ export const useSplitStore = create<SplitState>((set) => ({
 
   setIsProcessing: (value) => set({ isProcessing: value }),
 
-  setProgress: (current, total) =>
-    set({ progress: current, totalFiles: total }),
+  setProgress: (current, total) => set({ progress: current, totalFiles: total }),
 
   setCurrentFile: (fileName) => set({ currentFile: fileName }),
 

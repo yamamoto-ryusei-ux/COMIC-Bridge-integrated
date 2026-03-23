@@ -59,7 +59,10 @@ export function useCropEditorKeyboard(options: CropEditorKeyboardOptions) {
       }
 
       // Ctrl+Y or Ctrl+Shift+Z: Redo
-      if (ctrl && (e.key === "y" || (e.key === "z" && e.shiftKey) || (e.key === "Z" && e.shiftKey))) {
+      if (
+        ctrl &&
+        (e.key === "y" || (e.key === "z" && e.shiftKey) || (e.key === "Z" && e.shiftKey))
+      ) {
         e.preventDefault();
         opts.onRedo();
         return;
@@ -108,7 +111,12 @@ export function useCropEditorKeyboard(options: CropEditorKeyboardOptions) {
       }
 
       // Arrow keys: ガイド移動 or 範囲移動（Tachimi互換 — ステップ値が逆）
-      if (e.key === "ArrowUp" || e.key === "ArrowDown" || e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      if (
+        e.key === "ArrowUp" ||
+        e.key === "ArrowDown" ||
+        e.key === "ArrowLeft" ||
+        e.key === "ArrowRight"
+      ) {
         e.preventDefault();
 
         if (opts.hasSelectedGuide) {

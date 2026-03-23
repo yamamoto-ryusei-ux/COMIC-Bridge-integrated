@@ -51,11 +51,12 @@ export function PreviewList() {
             className={`
               grid grid-cols-[auto_1fr_100px_100px_80px_80px_60px] gap-4 items-center
               px-4 py-2 cursor-pointer transition-colors border-b border-text-muted/5
-              ${isActive
-                ? "bg-accent/20"
-                : isSelected
-                ? "bg-bg-tertiary"
-                : "hover:bg-bg-tertiary/50"
+              ${
+                isActive
+                  ? "bg-accent/20"
+                  : isSelected
+                    ? "bg-bg-tertiary"
+                    : "hover:bg-bg-tertiary/50"
               }
               ${hasError ? "border-l-2 border-l-error" : ""}
             `}
@@ -83,9 +84,7 @@ export function PreviewList() {
 
             {/* Dimensions */}
             <div className="text-xs text-text-secondary font-mono">
-              {file.metadata
-                ? `${file.metadata.width} × ${file.metadata.height}`
-                : "-"}
+              {file.metadata ? `${file.metadata.width} × ${file.metadata.height}` : "-"}
             </div>
 
             {/* File Size */}
@@ -94,9 +93,7 @@ export function PreviewList() {
             </div>
 
             {/* DPI */}
-            <div className="text-xs text-text-secondary font-mono">
-              {file.metadata?.dpi || "-"}
-            </div>
+            <div className="text-xs text-text-secondary font-mono">{file.metadata?.dpi || "-"}</div>
 
             {/* Color Mode */}
             <div>
@@ -106,8 +103,8 @@ export function PreviewList() {
                     file.metadata.colorMode === "RGB"
                       ? "bg-success/20 text-success"
                       : file.metadata.colorMode === "Grayscale"
-                      ? "bg-text-secondary/20 text-text-secondary"
-                      : "bg-cyan-500/20 text-cyan-400"
+                        ? "bg-text-secondary/20 text-text-secondary"
+                        : "bg-cyan-500/20 text-cyan-400"
                   }`}
                 >
                   {file.metadata.colorMode}
@@ -118,9 +115,7 @@ export function PreviewList() {
             {/* Guides */}
             <div className="text-xs">
               {file.metadata?.hasGuides ? (
-                <span className="text-guide-v">
-                  {file.metadata.guides.length}本
-                </span>
+                <span className="text-guide-v">{file.metadata.guides.length}本</span>
               ) : (
                 <span className="text-text-muted">なし</span>
               )}

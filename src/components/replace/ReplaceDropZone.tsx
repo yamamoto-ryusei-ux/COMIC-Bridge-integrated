@@ -56,7 +56,10 @@ export function ReplaceDropZone() {
   const isWhiteToBar = settings.switchSettings.subMode === "whiteToBar";
   // 排他制御: 親フォルダモード ↔ 個別指定モード
   const parentActive = isBatch && !!folders.targetFolder;
-  const individualActive = isBatch && !folders.targetFolder && batchFolders.some((f) => f.name === "白消し" || f.name === "棒消し");
+  const individualActive =
+    isBatch &&
+    !folders.targetFolder &&
+    batchFolders.some((f) => f.name === "白消し" || f.name === "棒消し");
 
   // ファイル数カウント
   useEffect(() => {
@@ -111,15 +114,17 @@ export function ReplaceDropZone() {
     if (isBatch && folders.targetFolder) {
       invoke<string[]>("list_subfolders", {
         folderPath: folders.targetFolder,
-      }).then((subs) => {
-        const detected = subs
-          .map((s) => ({
-            name: s.split(/[\\/]/).pop() || "",
-            path: s,
-          }))
-          .filter((f) => f.name === "白消し" || f.name === "棒消し");
-        setBatchFolders(detected);
-      }).catch(() => {});
+      })
+        .then((subs) => {
+          const detected = subs
+            .map((s) => ({
+              name: s.split(/[\\/]/).pop() || "",
+              path: s,
+            }))
+            .filter((f) => f.name === "白消し" || f.name === "棒消し");
+          setBatchFolders(detected);
+        })
+        .catch(() => {});
     }
   }, [folders.targetFolder, isBatch, setBatchFolders]);
 
@@ -165,7 +170,7 @@ export function ReplaceDropZone() {
 
       return null;
     },
-    [isBatch, parentActive, individualActive]
+    [isBatch, parentActive, individualActive],
   );
 
   // ドロップハンドラ（stat で確実にファイル/フォルダを判別）
@@ -209,7 +214,7 @@ export function ReplaceDropZone() {
           break;
       }
     },
-    [setSourceFolder, setTargetFolder, setNamedBatchFolder]
+    [setSourceFolder, setTargetFolder, setNamedBatchFolder],
   );
 
   // Tauri drag-drop event
@@ -251,7 +256,9 @@ export function ReplaceDropZone() {
   }, [getDragTarget, handleDrop]);
 
   // ダイアログでフォルダ選択
-  const handleSelectFolder = async (type: "source" | "target" | "batch-parent" | "batch-shiro" | "batch-bou") => {
+  const handleSelectFolder = async (
+    type: "source" | "target" | "batch-parent" | "batch-shiro" | "batch-bou",
+  ) => {
     const titles: Record<string, string> = {
       source: isCompose ? "原稿Aフォルダを選択" : "植字データフォルダを選択",
       target: isCompose ? "原稿Bフォルダを選択" : "画像データフォルダを選択",
@@ -269,8 +276,11 @@ export function ReplaceDropZone() {
   const sourceOk = !!folders.sourceFolder && sourceFileCount !== 0;
   const targetOk = isBatch
     ? !!(folders.targetFolder && targetFileCount !== 0) ||
-      batchFolders.some((f) => (f.name === "白消し" || f.name === "棒消し") &&
-        (f.name === "白消し" ? shiroFileCount !== 0 : bouFileCount !== 0))
+      batchFolders.some(
+        (f) =>
+          (f.name === "白消し" || f.name === "棒消し") &&
+          (f.name === "白消し" ? shiroFileCount !== 0 : bouFileCount !== 0),
+      )
     : !!folders.targetFolder && targetFileCount !== 0;
   const isReady = sourceOk && targetOk;
 
@@ -291,8 +301,24 @@ export function ReplaceDropZone() {
         {/* === 植字データ / 差替え元 / 原稿A（左） === */}
         <div ref={sourceRef} className="flex-1 min-w-0">
           <DropCard
-            label={isCompose ? "原稿A" : isSwitch ? (isWhiteToBar ? "棒消しデータ" : "白消しデータ") : "植字データ"}
-            sublabel={isCompose ? "合成元ファイル" : isSwitch ? (isWhiteToBar ? "差し替え用の棒消しレイヤーを含むファイル" : "差し替え用の白消しレイヤーを含むファイル") : "テキスト等を取り出すファイル"}
+            label={
+              isCompose
+                ? "原稿A"
+                : isSwitch
+                  ? isWhiteToBar
+                    ? "棒消しデータ"
+                    : "白消しデータ"
+                  : "植字データ"
+            }
+            sublabel={
+              isCompose
+                ? "合成元ファイル"
+                : isSwitch
+                  ? isWhiteToBar
+                    ? "差し替え用の棒消しレイヤーを含むファイル"
+                    : "差し替え用の白消しレイヤーを含むファイル"
+                  : "テキスト等を取り出すファイル"
+            }
             icon={<TextIcon />}
             color={isSwitch ? "amber" : "pink"}
             folderPath={folders.sourceFolder}
@@ -308,26 +334,43 @@ export function ReplaceDropZone() {
         <div className="flex-shrink-0 flex flex-col items-center justify-center gap-3 px-1">
           {isReady ? (
             <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-accent-tertiary/15">
-              <svg className="w-3 h-3 text-accent-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <svg
+                className="w-3 h-3 text-accent-tertiary"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={3}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
               <span className="text-[10px] font-medium text-accent-tertiary">準備完了</span>
             </span>
           ) : (
             <span className="text-[10px] font-medium text-text-muted">
-              {settings.mode === "text" ? "テキスト差替え" : settings.mode === "batch" ? "一括差替え" : settings.mode === "switch" ? "スイッチ差替え" : settings.mode === "compose" ? "合成" : "画像差替え"}
+              {settings.mode === "text"
+                ? "テキスト差替え"
+                : settings.mode === "batch"
+                  ? "一括差替え"
+                  : settings.mode === "switch"
+                    ? "スイッチ差替え"
+                    : settings.mode === "compose"
+                      ? "合成"
+                      : "画像差替え"}
             </span>
           )}
 
           {/* 大きな方向矢印 */}
-          <div className={`
+          <div
+            className={`
             w-14 h-14 rounded-full flex items-center justify-center
             transition-all duration-500
-            ${isReady
-              ? "bg-accent-tertiary/15 border-2 border-accent-tertiary/30"
-              : "bg-bg-tertiary border border-border/50 opacity-30 scale-90"
+            ${
+              isReady
+                ? "bg-accent-tertiary/15 border-2 border-accent-tertiary/30"
+                : "bg-bg-tertiary border border-border/50 opacity-30 scale-90"
             }
-          `}>
+          `}
+          >
             <svg
               className={`w-7 h-7 ${isReady ? "text-accent-tertiary" : "text-text-muted"}`}
               fill="none"
@@ -336,13 +379,25 @@ export function ReplaceDropZone() {
               strokeWidth={2.5}
             >
               {settings.mode === "compose" ? (
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4-4m-4 4l4 4" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4-4m-4 4l4 4"
+                />
               ) : settings.mode === "switch" ? (
-                <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 4v12m0 0l4-4m-4 4l-4-4" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M7 16V4m0 0L3 8m4-4l4 4m6 4v12m0 0l4-4m-4 4l-4-4"
+                />
               ) : settings.mode === "text" ? (
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7m0 0l-7 7m7-7H4" />
               ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11 19l-7-7m0 0l7-7m-7 7h16" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M11 19l-7-7m0 0l7-7m-7 7h16"
+                />
               )}
             </svg>
           </div>
@@ -377,7 +432,15 @@ export function ReplaceDropZone() {
           ) : (
             <DropCard
               label={isCompose ? "原稿B" : isSwitch ? "差替え対象PSD" : "画像データ"}
-              sublabel={isCompose ? "合成元ファイル" : isSwitch ? (isWhiteToBar ? "白消しレイヤーが非表示になります" : "棒消しグループが非表示になります") : "ベースとなる原稿ファイル"}
+              sublabel={
+                isCompose
+                  ? "合成元ファイル"
+                  : isSwitch
+                    ? isWhiteToBar
+                      ? "白消しレイヤーが非表示になります"
+                      : "棒消しグループが非表示になります"
+                    : "ベースとなる原稿ファイル"
+              }
               icon={<ImageIcon />}
               color="purple"
               folderPath={folders.targetFolder}
@@ -470,15 +533,30 @@ function DropCard({
         // 選択済み
         <>
           <button
-            onClick={(e) => { e.stopPropagation(); onClear(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClear();
+            }}
             className="absolute top-3 right-3 p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
 
-          <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${styles.icon} flex items-center justify-center mb-4 shadow-lg`}>
+          <div
+            className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${styles.icon} flex items-center justify-center mb-4 shadow-lg`}
+          >
             <div className="text-white">{icon}</div>
           </div>
 
@@ -487,11 +565,21 @@ function DropCard({
             {folderPath.split(/[\\/]/).pop()}
           </p>
 
-          {fileCount !== null && (
-            fileCount === 0 ? (
+          {fileCount !== null &&
+            (fileCount === 0 ? (
               <span className="mt-3 px-3 py-1 text-xs rounded-full font-medium bg-error/15 text-error flex items-center gap-1">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                  />
                 </svg>
                 ファイルが見つかりません
               </span>
@@ -499,11 +587,13 @@ function DropCard({
               <span className={`mt-3 px-3 py-1 text-xs rounded-full font-medium ${styles.badge}`}>
                 {fileCount} ファイル{isFileSelection ? " 選択中" : ""}
               </span>
-            )
-          )}
+            ))}
 
           <button
-            onClick={(e) => { e.stopPropagation(); onSelect(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect();
+            }}
             className="mt-3 text-xs text-text-muted hover:text-text-primary transition-colors underline underline-offset-2"
           >
             変更
@@ -512,20 +602,25 @@ function DropCard({
       ) : (
         // 未選択
         <>
-          <div className={`
+          <div
+            className={`
             w-16 h-16 rounded-2xl flex items-center justify-center mb-5
             transition-all duration-300
-            ${isDragOver
-              ? `bg-gradient-to-br ${styles.icon} shadow-lg scale-110`
-              : "bg-bg-tertiary"
+            ${
+              isDragOver ? `bg-gradient-to-br ${styles.icon} shadow-lg scale-110` : "bg-bg-tertiary"
             }
-          `}>
-            <div className={`transition-colors duration-300 ${isDragOver ? "text-white" : "text-text-muted"}`}>
+          `}
+          >
+            <div
+              className={`transition-colors duration-300 ${isDragOver ? "text-white" : "text-text-muted"}`}
+            >
               {icon}
             </div>
           </div>
 
-          <p className={`text-lg font-display font-medium mb-2 transition-colors duration-300 ${isDragOver ? (color === "pink" ? "text-accent" : color === "amber" ? "text-warning" : "text-accent-secondary") : "text-text-primary"}`}>
+          <p
+            className={`text-lg font-display font-medium mb-2 transition-colors duration-300 ${isDragOver ? (color === "pink" ? "text-accent" : color === "amber" ? "text-warning" : "text-accent-secondary") : "text-text-primary"}`}
+          >
             {label}
           </p>
           <p className="text-xs text-text-muted mb-4">{sublabel}</p>
@@ -594,11 +689,12 @@ function BatchTargetCard({
         relative border-2 border-dashed rounded-2xl p-6
         flex flex-col text-center
         transition-all duration-300 min-h-[280px]
-        ${isDragOver
-          ? "border-accent-secondary bg-accent-secondary/10 shadow-[inset_0_0_40px_rgba(124,92,255,0.12)] scale-[1.02]"
-          : hasAny
-            ? "border-accent-secondary/40 bg-accent-secondary/5"
-            : "border-text-muted/20 hover:border-accent-secondary/40"
+        ${
+          isDragOver
+            ? "border-accent-secondary bg-accent-secondary/10 shadow-[inset_0_0_40px_rgba(124,92,255,0.12)] scale-[1.02]"
+            : hasAny
+              ? "border-accent-secondary/40 bg-accent-secondary/5"
+              : "border-text-muted/20 hover:border-accent-secondary/40"
         }
       `}
     >
@@ -616,8 +712,18 @@ function BatchTargetCard({
             onClick={onClearAll}
             className="ml-auto p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         )}
@@ -630,13 +736,14 @@ function BatchTargetCard({
           w-full border border-dashed rounded-xl p-4 mb-3
           flex items-center justify-center
           transition-all duration-200 min-h-[90px]
-          ${individualActive
-            ? "border-text-muted/10 bg-bg-tertiary/20 opacity-40 cursor-not-allowed"
-            : isDragOverParent
-              ? "border-accent-secondary bg-accent-secondary/10"
-              : parentFolder
-                ? "border-accent-secondary/30 bg-accent-secondary/5 cursor-pointer"
-                : "border-text-muted/20 hover:border-accent-secondary/30 hover:bg-bg-tertiary/50 cursor-pointer"
+          ${
+            individualActive
+              ? "border-text-muted/10 bg-bg-tertiary/20 opacity-40 cursor-not-allowed"
+              : isDragOverParent
+                ? "border-accent-secondary bg-accent-secondary/10"
+                : parentFolder
+                  ? "border-accent-secondary/30 bg-accent-secondary/5 cursor-pointer"
+                  : "border-text-muted/20 hover:border-accent-secondary/30 hover:bg-bg-tertiary/50 cursor-pointer"
           }
         `}
         onClick={!individualActive ? onSelectParent : undefined}
@@ -644,19 +751,41 @@ function BatchTargetCard({
         {parentFolder ? (
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-accent-secondary/15 flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 text-accent-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              <svg
+                className="w-4 h-4 text-accent-secondary"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                />
               </svg>
             </div>
             <div className="text-left min-w-0">
               <p className="text-[10px] text-text-muted">親フォルダ（自動検出）</p>
-              <p className="text-xs text-text-primary font-medium truncate">{parentFolder.split(/[\\/]/).pop()}</p>
+              <p className="text-xs text-text-primary font-medium truncate">
+                {parentFolder.split(/[\\/]/).pop()}
+              </p>
             </div>
-            {parentFileCount !== null && (
-              parentFileCount === 0 ? (
+            {parentFileCount !== null &&
+              (parentFileCount === 0 ? (
                 <span className="ml-auto px-2 py-0.5 text-[10px] rounded-full font-medium bg-error/15 text-error flex-shrink-0 flex items-center gap-0.5">
-                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                  <svg
+                    className="w-2.5 h-2.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                    />
                   </svg>
                   0 件
                 </span>
@@ -664,14 +793,25 @@ function BatchTargetCard({
                 <span className="ml-auto px-2 py-0.5 text-[10px] rounded-full font-medium bg-accent-secondary/15 text-accent-secondary flex-shrink-0">
                   {parentFileCount} ファイル
                 </span>
-              )
-            )}
+              ))}
           </div>
         ) : (
           <div className="flex flex-col items-center gap-1.5">
-            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isDragOverParent ? "bg-accent-secondary/20" : "bg-bg-tertiary"}`}>
-              <svg className={`w-4 h-4 transition-colors ${isDragOverParent ? "text-accent-secondary" : "text-text-muted"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            <div
+              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${isDragOverParent ? "bg-accent-secondary/20" : "bg-bg-tertiary"}`}
+            >
+              <svg
+                className={`w-4 h-4 transition-colors ${isDragOverParent ? "text-accent-secondary" : "text-text-muted"}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                />
               </svg>
             </div>
             <p className="text-xs font-medium text-text-primary">親フォルダ</p>
@@ -696,13 +836,14 @@ function BatchTargetCard({
             flex-1 border border-dashed rounded-xl p-4
             flex flex-col items-center justify-center
             transition-all duration-200 min-h-[120px]
-            ${parentActive
-              ? "border-text-muted/10 bg-bg-tertiary/20 opacity-40 cursor-not-allowed"
-              : isDragOverShiro
-                ? "border-accent-secondary bg-accent-secondary/15 scale-[1.03]"
-                : shiroFolder
-                  ? "border-accent-secondary/30 bg-accent-secondary/5 cursor-pointer"
-                  : "border-text-muted/15 hover:border-accent-secondary/30 hover:bg-bg-tertiary/50 cursor-pointer"
+            ${
+              parentActive
+                ? "border-text-muted/10 bg-bg-tertiary/20 opacity-40 cursor-not-allowed"
+                : isDragOverShiro
+                  ? "border-accent-secondary bg-accent-secondary/15 scale-[1.03]"
+                  : shiroFolder
+                    ? "border-accent-secondary/30 bg-accent-secondary/5 cursor-pointer"
+                    : "border-text-muted/15 hover:border-accent-secondary/30 hover:bg-bg-tertiary/50 cursor-pointer"
             }
           `}
           onClick={!parentActive && !shiroFolder ? onSelectShiro : undefined}
@@ -710,19 +851,39 @@ function BatchTargetCard({
           {shiroFolder ? (
             <>
               <div className="w-8 h-8 rounded-lg bg-accent-secondary/15 flex items-center justify-center mb-2">
-                <svg className="w-4 h-4 text-accent-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                <svg
+                  className="w-4 h-4 text-accent-secondary"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                  />
                 </svg>
               </div>
               <p className="text-[10px] text-text-muted mb-0.5">白消し</p>
               <p className="text-xs text-text-primary font-medium truncate max-w-full">
                 {shiroFolder.path.split(/[\\/]/).pop()}
               </p>
-              {shiroFileCount !== null && (
-                shiroFileCount === 0 ? (
+              {shiroFileCount !== null &&
+                (shiroFileCount === 0 ? (
                   <span className="mt-1 px-2 py-0.5 text-[10px] rounded-full font-medium bg-error/15 text-error flex items-center gap-0.5">
-                    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                    <svg
+                      className="w-2.5 h-2.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                      />
                     </svg>
                     0 件
                   </span>
@@ -730,13 +891,15 @@ function BatchTargetCard({
                   <span className="mt-1 px-2 py-0.5 text-[10px] rounded-full font-medium bg-accent-secondary/15 text-accent-secondary">
                     {shiroFileCount} ファイル
                   </span>
-                )
-              )}
+                ))}
               {parentActive ? (
                 <span className="mt-1 text-[10px] text-text-muted/60">自動検出</span>
               ) : (
                 <button
-                  onClick={(e) => { e.stopPropagation(); onRemoveFolder(shiroFolder.path); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveFolder(shiroFolder.path);
+                  }}
                   className="mt-1 text-[10px] text-text-muted hover:text-error transition-colors"
                 >
                   解除
@@ -745,8 +908,16 @@ function BatchTargetCard({
             </>
           ) : (
             <>
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 transition-colors ${isDragOverShiro ? "bg-accent-secondary/20" : "bg-bg-tertiary"}`}>
-                <svg className={`w-4 h-4 transition-colors ${isDragOverShiro ? "text-accent-secondary" : "text-text-muted"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <div
+                className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 transition-colors ${isDragOverShiro ? "bg-accent-secondary/20" : "bg-bg-tertiary"}`}
+              >
+                <svg
+                  className={`w-4 h-4 transition-colors ${isDragOverShiro ? "text-accent-secondary" : "text-text-muted"}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
               </div>
@@ -763,13 +934,14 @@ function BatchTargetCard({
             flex-1 border border-dashed rounded-xl p-4
             flex flex-col items-center justify-center
             transition-all duration-200 min-h-[120px]
-            ${parentActive
-              ? "border-text-muted/10 bg-bg-tertiary/20 opacity-40 cursor-not-allowed"
-              : isDragOverBou
-                ? "border-accent-secondary bg-accent-secondary/15 scale-[1.03]"
-                : bouFolder
-                  ? "border-accent-secondary/30 bg-accent-secondary/5 cursor-pointer"
-                  : "border-text-muted/15 hover:border-accent-secondary/30 hover:bg-bg-tertiary/50 cursor-pointer"
+            ${
+              parentActive
+                ? "border-text-muted/10 bg-bg-tertiary/20 opacity-40 cursor-not-allowed"
+                : isDragOverBou
+                  ? "border-accent-secondary bg-accent-secondary/15 scale-[1.03]"
+                  : bouFolder
+                    ? "border-accent-secondary/30 bg-accent-secondary/5 cursor-pointer"
+                    : "border-text-muted/15 hover:border-accent-secondary/30 hover:bg-bg-tertiary/50 cursor-pointer"
             }
           `}
           onClick={!parentActive && !bouFolder ? onSelectBou : undefined}
@@ -777,19 +949,39 @@ function BatchTargetCard({
           {bouFolder ? (
             <>
               <div className="w-8 h-8 rounded-lg bg-accent-secondary/15 flex items-center justify-center mb-2">
-                <svg className="w-4 h-4 text-accent-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                <svg
+                  className="w-4 h-4 text-accent-secondary"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                  />
                 </svg>
               </div>
               <p className="text-[10px] text-text-muted mb-0.5">棒消し</p>
               <p className="text-xs text-text-primary font-medium truncate max-w-full">
                 {bouFolder.path.split(/[\\/]/).pop()}
               </p>
-              {bouFileCount !== null && (
-                bouFileCount === 0 ? (
+              {bouFileCount !== null &&
+                (bouFileCount === 0 ? (
                   <span className="mt-1 px-2 py-0.5 text-[10px] rounded-full font-medium bg-error/15 text-error flex items-center gap-0.5">
-                    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                    <svg
+                      className="w-2.5 h-2.5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                      />
                     </svg>
                     0 件
                   </span>
@@ -797,13 +989,15 @@ function BatchTargetCard({
                   <span className="mt-1 px-2 py-0.5 text-[10px] rounded-full font-medium bg-accent-secondary/15 text-accent-secondary">
                     {bouFileCount} ファイル
                   </span>
-                )
-              )}
+                ))}
               {parentActive ? (
                 <span className="mt-1 text-[10px] text-text-muted/60">自動検出</span>
               ) : (
                 <button
-                  onClick={(e) => { e.stopPropagation(); onRemoveFolder(bouFolder.path); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemoveFolder(bouFolder.path);
+                  }}
                   className="mt-1 text-[10px] text-text-muted hover:text-error transition-colors"
                 >
                   解除
@@ -812,8 +1006,16 @@ function BatchTargetCard({
             </>
           ) : (
             <>
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 transition-colors ${isDragOverBou ? "bg-accent-secondary/20" : "bg-bg-tertiary"}`}>
-                <svg className={`w-4 h-4 transition-colors ${isDragOverBou ? "text-accent-secondary" : "text-text-muted"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <div
+                className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2 transition-colors ${isDragOverBou ? "bg-accent-secondary/20" : "bg-bg-tertiary"}`}
+              >
+                <svg
+                  className={`w-4 h-4 transition-colors ${isDragOverBou ? "text-accent-secondary" : "text-text-muted"}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
               </div>
@@ -833,16 +1035,36 @@ function BatchTargetCard({
 
 function TextIcon() {
   return (
-    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    <svg
+      className="w-8 h-8"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.5}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+      />
     </svg>
   );
 }
 
 function ImageIcon() {
   return (
-    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    <svg
+      className="w-8 h-8"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.5}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+      />
     </svg>
   );
 }

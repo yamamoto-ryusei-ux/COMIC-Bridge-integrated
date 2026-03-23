@@ -50,20 +50,17 @@ export function ComposeDropZone() {
   }, [folders.targetFolder, folders.targetFiles]);
 
   // ドロップ位置判定
-  const getDragTarget = useCallback(
-    (x: number, y: number): DragTarget => {
-      const hitTest = (ref: React.RefObject<HTMLDivElement | null>) => {
-        if (!ref.current) return false;
-        const r = ref.current.getBoundingClientRect();
-        return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
-      };
+  const getDragTarget = useCallback((x: number, y: number): DragTarget => {
+    const hitTest = (ref: React.RefObject<HTMLDivElement | null>) => {
+      if (!ref.current) return false;
+      const r = ref.current.getBoundingClientRect();
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    };
 
-      if (hitTest(sourceRef)) return "source";
-      if (hitTest(targetRef)) return "target";
-      return null;
-    },
-    []
-  );
+    if (hitTest(sourceRef)) return "source";
+    if (hitTest(targetRef)) return "target";
+    return null;
+  }, []);
 
   // ドロップハンドラ
   const handleDrop = useCallback(
@@ -95,7 +92,7 @@ export function ComposeDropZone() {
           break;
       }
     },
-    [setSourceFolder, setTargetFolder]
+    [setSourceFolder, setTargetFolder],
   );
 
   // Tauri drag-drop event
@@ -186,7 +183,13 @@ export function ComposeDropZone() {
         <div className="flex-shrink-0 flex flex-col items-center justify-center gap-3 px-1">
           {isReady ? (
             <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-accent-tertiary/15">
-              <svg className="w-3 h-3 text-accent-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <svg
+                className="w-3 h-3 text-accent-tertiary"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={3}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
               <span className="text-[10px] font-medium text-accent-tertiary">準備完了</span>
@@ -196,14 +199,17 @@ export function ComposeDropZone() {
           )}
 
           {/* 大きな方向矢印（双方向） */}
-          <div className={`
+          <div
+            className={`
             w-14 h-14 rounded-full flex items-center justify-center
             transition-all duration-500
-            ${isReady
-              ? "bg-accent-tertiary/15 border-2 border-accent-tertiary/30"
-              : "bg-bg-tertiary border border-border/50 opacity-30 scale-90"
+            ${
+              isReady
+                ? "bg-accent-tertiary/15 border-2 border-accent-tertiary/30"
+                : "bg-bg-tertiary border border-border/50 opacity-30 scale-90"
             }
-          `}>
+          `}
+          >
             <svg
               className={`w-7 h-7 ${isReady ? "text-accent-tertiary" : "text-text-muted"}`}
               fill="none"
@@ -211,7 +217,11 @@ export function ComposeDropZone() {
               stroke="currentColor"
               strokeWidth={2.5}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4-4m-4 4l4 4" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 7h12m0 0l-4-4m4 4l-4 4M16 17H4m0 0l4-4m-4 4l4 4"
+              />
             </svg>
           </div>
         </div>
@@ -303,15 +313,30 @@ function DropCard({
         // 選択済み
         <>
           <button
-            onClick={(e) => { e.stopPropagation(); onClear(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClear();
+            }}
             className="absolute top-3 right-3 p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
 
-          <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${styles.icon} flex items-center justify-center mb-4 shadow-lg`}>
+          <div
+            className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${styles.icon} flex items-center justify-center mb-4 shadow-lg`}
+          >
             <div className="text-white">{icon}</div>
           </div>
 
@@ -320,11 +345,21 @@ function DropCard({
             {folderPath.split(/[\\/]/).pop()}
           </p>
 
-          {fileCount !== null && (
-            fileCount === 0 ? (
+          {fileCount !== null &&
+            (fileCount === 0 ? (
               <span className="mt-3 px-3 py-1 text-xs rounded-full font-medium bg-error/15 text-error flex items-center gap-1">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                  />
                 </svg>
                 ファイルが見つかりません
               </span>
@@ -332,11 +367,13 @@ function DropCard({
               <span className={`mt-3 px-3 py-1 text-xs rounded-full font-medium ${styles.badge}`}>
                 {fileCount} ファイル{isFileSelection ? " 選択中" : ""}
               </span>
-            )
-          )}
+            ))}
 
           <button
-            onClick={(e) => { e.stopPropagation(); onSelect(); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelect();
+            }}
             className="mt-3 text-xs text-text-muted hover:text-text-primary transition-colors underline underline-offset-2"
           >
             変更
@@ -345,20 +382,25 @@ function DropCard({
       ) : (
         // 未選択
         <>
-          <div className={`
+          <div
+            className={`
             w-16 h-16 rounded-2xl flex items-center justify-center mb-5
             transition-all duration-300
-            ${isDragOver
-              ? `bg-gradient-to-br ${styles.icon} shadow-lg scale-110`
-              : "bg-bg-tertiary"
+            ${
+              isDragOver ? `bg-gradient-to-br ${styles.icon} shadow-lg scale-110` : "bg-bg-tertiary"
             }
-          `}>
-            <div className={`transition-colors duration-300 ${isDragOver ? "text-white" : "text-text-muted"}`}>
+          `}
+          >
+            <div
+              className={`transition-colors duration-300 ${isDragOver ? "text-white" : "text-text-muted"}`}
+            >
               {icon}
             </div>
           </div>
 
-          <p className={`text-lg font-display font-medium mb-2 transition-colors duration-300 ${isDragOver ? (color === "pink" ? "text-accent" : "text-accent-secondary") : "text-text-primary"}`}>
+          <p
+            className={`text-lg font-display font-medium mb-2 transition-colors duration-300 ${isDragOver ? (color === "pink" ? "text-accent" : "text-accent-secondary") : "text-text-primary"}`}
+          >
             {label}
           </p>
           <p className="text-xs text-text-muted mb-4">{sublabel}</p>
@@ -377,16 +419,36 @@ function DropCard({
 
 function SourceIcon() {
   return (
-    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+    <svg
+      className="w-8 h-8"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.5}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+      />
     </svg>
   );
 }
 
 function TargetIcon() {
   return (
-    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    <svg
+      className="w-8 h-8"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.5}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+      />
     </svg>
   );
 }

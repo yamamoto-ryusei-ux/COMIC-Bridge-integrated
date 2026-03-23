@@ -53,11 +53,14 @@ export function AppLayout() {
       if ((e.target as HTMLElement).closest("button, a, input, select, textarea, label")) return;
       clearSelection();
     },
-    [clearSelection]
+    [clearSelection],
   );
 
   return (
-    <div className="flex flex-col h-screen bg-bg-primary overflow-hidden" onMouseDown={handleMouseDown}>
+    <div
+      className="flex flex-col h-screen bg-bg-primary overflow-hidden"
+      onMouseDown={handleMouseDown}
+    >
       {/* 背景のトーンパターン */}
       <div className="fixed inset-0 bg-tone pointer-events-none" />
 
@@ -71,7 +74,6 @@ export function AppLayout() {
 
       {/* Guide Editor Modal */}
       {isEditorOpen && <GuideEditorModal />}
-
 
       {/* Photoshop変換完了トースト */}
       <ConversionToast />

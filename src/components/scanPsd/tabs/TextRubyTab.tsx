@@ -97,7 +97,10 @@ export function TextRubyTab() {
 
   const getRubyFilePath = () => {
     if (!workInfo.label || !workInfo.title) return null;
-    return `${textLogFolderPath}/${workInfo.label}/${workInfo.title}/ルビ一覧.txt`.replace(/\\/g, "/");
+    return `${textLogFolderPath}/${workInfo.label}/${workInfo.title}/ルビ一覧.txt`.replace(
+      /\\/g,
+      "/",
+    );
   };
 
   const handleSaveRubyTxt = async () => {
@@ -152,7 +155,10 @@ export function TextRubyTab() {
 
   const handleOpenTextLogFolder = async () => {
     if (!workInfo.label || !workInfo.title) return;
-    const folderPath = `${textLogFolderPath}/${workInfo.label}/${workInfo.title}`.replace(/\//g, "\\");
+    const folderPath = `${textLogFolderPath}/${workInfo.label}/${workInfo.title}`.replace(
+      /\//g,
+      "\\",
+    );
     try {
       await invoke("open_folder_in_explorer", { folderPath });
     } catch (e) {
@@ -169,7 +175,7 @@ export function TextRubyTab() {
       allLines.push(`# 出力日時: ${new Date().toLocaleString("ja-JP")}`);
       allLines.push("");
       const sortedPages = Object.entries(pages).sort(([a], [b]) =>
-        a.localeCompare(b, "ja", { numeric: true })
+        a.localeCompare(b, "ja", { numeric: true }),
       );
       for (const [pageName, entries] of sortedPages) {
         allLines.push(`## ${pageName}`);
@@ -200,11 +206,17 @@ export function TextRubyTab() {
         <div className="grid grid-cols-2 gap-2">
           <div
             className="rounded-xl p-3 text-center"
-            style={{ background: "linear-gradient(135deg, rgba(77,184,255,0.08), rgba(124,92,255,0.06))" }}
+            style={{
+              background: "linear-gradient(135deg, rgba(77,184,255,0.08), rgba(124,92,255,0.06))",
+            }}
           >
             <span
               className="text-xl font-black font-display"
-              style={{ background: "linear-gradient(135deg, #4db8ff, #7c5cff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
+              style={{
+                background: "linear-gradient(135deg, #4db8ff, #7c5cff)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
             >
               {textLayerCount}
             </span>
@@ -212,11 +224,17 @@ export function TextRubyTab() {
           </div>
           <div
             className="rounded-xl p-3 text-center"
-            style={{ background: "linear-gradient(135deg, rgba(0,201,167,0.08), rgba(77,184,255,0.06))" }}
+            style={{
+              background: "linear-gradient(135deg, rgba(0,201,167,0.08), rgba(77,184,255,0.06))",
+            }}
           >
             <span
               className="text-xl font-black font-display"
-              style={{ background: "linear-gradient(135deg, #00c9a7, #4db8ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
+              style={{
+                background: "linear-gradient(135deg, #00c9a7, #4db8ff)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
             >
               {docCount}
             </span>
@@ -246,10 +264,20 @@ export function TextRubyTab() {
             </select>
           </div>
           <button
-            onClick={() => { setShowAdd(true); setEditingId(null); setForm({ parentText: "", rubyText: "", volume: 1, page: 1, order: 1 }); }}
+            onClick={() => {
+              setShowAdd(true);
+              setEditingId(null);
+              setForm({ parentText: "", rubyText: "", volume: 1, page: 1, order: 1 });
+            }}
             className="w-6 h-6 rounded-lg bg-accent/10 text-accent hover:bg-accent/20 flex items-center justify-center transition-colors"
           >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg
+              className="w-3 h-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
           </button>
@@ -325,7 +353,10 @@ export function TextRubyTab() {
                 {editingId ? "更新" : "追加"}
               </button>
               <button
-                onClick={() => { setShowAdd(false); setEditingId(null); }}
+                onClick={() => {
+                  setShowAdd(false);
+                  setEditingId(null);
+                }}
                 className="py-1.5 px-3 text-[10px] text-text-muted hover:text-text-primary rounded-lg hover:bg-bg-tertiary transition-colors"
               >
                 取消
@@ -360,15 +391,31 @@ export function TextRubyTab() {
                   onClick={() => startEdit(r)}
                   className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-accent transition-all"
                 >
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                    />
                   </svg>
                 </button>
                 <button
                   onClick={() => removeRuby(r.id)}
                   className="opacity-0 group-hover:opacity-100 text-text-muted hover:text-error transition-all"
                 >
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -407,8 +454,18 @@ export function TextRubyTab() {
             className="w-8 py-2 flex items-center justify-center text-text-muted bg-bg-tertiary/60 rounded-xl border border-border/40
               hover:bg-bg-tertiary hover:border-border hover:text-text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+              />
             </svg>
           </button>
           <button
@@ -418,8 +475,18 @@ export function TextRubyTab() {
             className="w-8 py-2 flex items-center justify-center text-text-muted bg-bg-tertiary/60 rounded-xl border border-border/40
               hover:bg-bg-tertiary hover:border-border hover:text-text-primary disabled:opacity-40 disabled:cursor-not-allowed transition-all"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
             </svg>
           </button>
         </div>

@@ -59,8 +59,7 @@ export function useGlobalDragDrop() {
           // TIFFタブ: includeSubfolders有効 or ルートに画像なし（サブフォルダのみ）→自動サブフォルダ読み込み
           if (activeView === "tiff" && folderPaths.length > 0) {
             const shouldIncludeSubfolders =
-              useTiffStore.getState().settings.includeSubfolders ||
-              imageFiles.length === 0; // ルートに画像がない＝サブフォルダのみ
+              useTiffStore.getState().settings.includeSubfolders || imageFiles.length === 0; // ルートに画像がない＝サブフォルダのみ
 
             if (shouldIncludeSubfolders) {
               // 設定を自動的に有効化（UIチェックボックスも同期）

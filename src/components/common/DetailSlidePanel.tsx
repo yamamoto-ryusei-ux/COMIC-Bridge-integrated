@@ -20,12 +20,7 @@ export function DetailSlidePanel() {
   return (
     <>
       {/* Backdrop */}
-      {isOpen && (
-        <div
-          className="absolute inset-0 z-20"
-          onClick={clearSelection}
-        />
-      )}
+      {isOpen && <div className="absolute inset-0 z-20" onClick={clearSelection} />}
 
       {/* Panel */}
       <div
@@ -44,8 +39,18 @@ export function DetailSlidePanel() {
             <div className="px-3 py-2 border-b border-border flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2 min-w-0">
                 <div className="w-6 h-6 rounded-md bg-accent-secondary/20 flex items-center justify-center flex-shrink-0">
-                  <svg className="w-3.5 h-3.5 text-accent-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="w-3.5 h-3.5 text-accent-secondary"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 </div>
                 <span className="text-xs font-medium text-text-primary truncate">
@@ -72,7 +77,13 @@ export function DetailSlidePanel() {
                   }}
                   className="p-1 rounded-md text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
                 >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>

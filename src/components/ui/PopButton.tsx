@@ -1,13 +1,13 @@
-import { ButtonHTMLAttributes, forwardRef } from 'react';
+import { ButtonHTMLAttributes, forwardRef } from "react";
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
-type ButtonSize = 'sm' | 'md' | 'lg';
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "success";
+type ButtonSize = "sm" | "md" | "lg";
 
 interface PopButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   size?: ButtonSize;
   icon?: React.ReactNode;
-  iconPosition?: 'left' | 'right';
+  iconPosition?: "left" | "right";
   loading?: boolean;
   glow?: boolean;
 }
@@ -44,26 +44,26 @@ const variantStyles: Record<ButtonVariant, string> = {
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: 'px-3 py-1.5 text-xs rounded-lg gap-1.5',
-  md: 'px-4 py-2 text-sm rounded-xl gap-2',
-  lg: 'px-6 py-3 text-base rounded-xl gap-2.5',
+  sm: "px-3 py-1.5 text-xs rounded-lg gap-1.5",
+  md: "px-4 py-2 text-sm rounded-xl gap-2",
+  lg: "px-6 py-3 text-base rounded-xl gap-2.5",
 };
 
 export const PopButton = forwardRef<HTMLButtonElement, PopButtonProps>(
   (
     {
-      variant = 'primary',
-      size = 'md',
+      variant = "primary",
+      size = "md",
       icon,
-      iconPosition = 'left',
+      iconPosition = "left",
       loading = false,
       glow = false,
-      className = '',
+      className = "",
       children,
       disabled,
       ...props
     },
-    ref
+    ref,
   ) => {
     const baseStyles = `
       inline-flex items-center justify-center
@@ -74,7 +74,7 @@ export const PopButton = forwardRef<HTMLButtonElement, PopButtonProps>(
       disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
     `;
 
-    const glowStyles = glow ? 'animate-glow-pulse' : '';
+    const glowStyles = glow ? "animate-glow-pulse" : "";
 
     return (
       <button
@@ -93,40 +93,29 @@ export const PopButton = forwardRef<HTMLButtonElement, PopButtonProps>(
           <LoadingSpinner size={size} />
         ) : (
           <>
-            {icon && iconPosition === 'left' && <span className="flex-shrink-0">{icon}</span>}
+            {icon && iconPosition === "left" && <span className="flex-shrink-0">{icon}</span>}
             {children && <span>{children}</span>}
-            {icon && iconPosition === 'right' && <span className="flex-shrink-0">{icon}</span>}
+            {icon && iconPosition === "right" && <span className="flex-shrink-0">{icon}</span>}
           </>
         )}
       </button>
     );
-  }
+  },
 );
 
-PopButton.displayName = 'PopButton';
+PopButton.displayName = "PopButton";
 
 // かわいいローディングスピナー
 function LoadingSpinner({ size }: { size: ButtonSize }) {
   const spinnerSize = {
-    sm: 'w-3 h-3',
-    md: 'w-4 h-4',
-    lg: 'w-5 h-5',
+    sm: "w-3 h-3",
+    md: "w-4 h-4",
+    lg: "w-5 h-5",
   };
 
   return (
-    <svg
-      className={`animate-spin ${spinnerSize[size]}`}
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="3"
-      />
+    <svg className={`animate-spin ${spinnerSize[size]}`} viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
       <path
         className="opacity-75"
         fill="currentColor"

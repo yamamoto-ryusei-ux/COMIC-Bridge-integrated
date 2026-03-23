@@ -42,37 +42,40 @@ export function TypesettingCheckPanel() {
   }, [localSearch, setSearchQuery]);
 
   // JSONファイル読み込み
-  const handleJsonSelect = useCallback(async (filePath: string) => {
-    setLoadError(null);
-    try {
-      const content = await invoke<string>("read_text_file", { filePath });
-      const raw: ProofreadingCheckData = JSON.parse(content);
+  const handleJsonSelect = useCallback(
+    async (filePath: string) => {
+      setLoadError(null);
+      try {
+        const content = await invoke<string>("read_text_file", { filePath });
+        const raw: ProofreadingCheckData = JSON.parse(content);
 
-      const allItems: ProofreadingCheckItem[] = [];
-      if (raw.checks?.variation?.items) allItems.push(...raw.checks.variation.items);
-      if (raw.checks?.simple?.items) allItems.push(...raw.checks.simple.items);
+        const allItems: ProofreadingCheckItem[] = [];
+        if (raw.checks?.variation?.items) allItems.push(...raw.checks.variation.items);
+        if (raw.checks?.simple?.items) allItems.push(...raw.checks.simple.items);
 
-      const correctnessItems = allItems.filter((i) => i.checkKind === "correctness");
-      const proposalItems = allItems.filter((i) => i.checkKind === "proposal");
+        const correctnessItems = allItems.filter((i) => i.checkKind === "correctness");
+        const proposalItems = allItems.filter((i) => i.checkKind === "proposal");
 
-      const fileName = filePath.replace(/\\/g, "/").split("/").pop()?.replace(".json", "") || "";
-      const title = raw.work ? `${raw.work} ${fileName}` : fileName;
+        const fileName = filePath.replace(/\\/g, "/").split("/").pop()?.replace(".json", "") || "";
+        const title = raw.work ? `${raw.work} ${fileName}` : fileName;
 
-      setCheckData({ title, fileName, filePath, allItems, correctnessItems, proposalItems });
-      setShowJsonBrowser(false);
+        setCheckData({ title, fileName, filePath, allItems, correctnessItems, proposalItems });
+        setShowJsonBrowser(false);
 
-      // タブモード自動選択
-      if (correctnessItems.length > 0 && proposalItems.length > 0) {
-        setCheckTabMode("both");
-      } else if (correctnessItems.length > 0) {
-        setCheckTabMode("correctness");
-      } else if (proposalItems.length > 0) {
-        setCheckTabMode("proposal");
+        // タブモード自動選択
+        if (correctnessItems.length > 0 && proposalItems.length > 0) {
+          setCheckTabMode("both");
+        } else if (correctnessItems.length > 0) {
+          setCheckTabMode("correctness");
+        } else if (proposalItems.length > 0) {
+          setCheckTabMode("proposal");
+        }
+      } catch (e) {
+        setLoadError(String(e));
       }
-    } catch (e) {
-      setLoadError(String(e));
-    }
-  }, [setCheckData, setShowJsonBrowser, setCheckTabMode]);
+    },
+    [setCheckData, setShowJsonBrowser, setCheckTabMode],
+  );
 
   // 検索フィルタ
   const filteredItems = useMemo(() => {
@@ -85,7 +88,7 @@ export function TypesettingCheckPanel() {
               (i.excerpt || "").toLowerCase().includes(q) ||
               (i.content || "").toLowerCase().includes(q) ||
               (i.category || "").toLowerCase().includes(q) ||
-              (i.page || "").toLowerCase().includes(q)
+              (i.page || "").toLowerCase().includes(q),
           )
         : items;
     return {
@@ -119,9 +122,7 @@ export function TypesettingCheckPanel() {
             mode="open"
           />
         </div>
-        {loadError && (
-          <p className="text-[10px] text-error mt-2">{loadError}</p>
-        )}
+        {loadError && <p className="text-[10px] text-error mt-2">{loadError}</p>}
       </div>
     );
   }
@@ -131,8 +132,18 @@ export function TypesettingCheckPanel() {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 px-6">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent/10 to-accent-secondary/10 flex items-center justify-center">
-          <svg className="w-8 h-8 text-accent/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          <svg
+            className="w-8 h-8 text-accent/50"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={1.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            />
           </svg>
         </div>
         <div className="text-center">
@@ -166,8 +177,18 @@ export function TypesettingCheckPanel() {
             className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded transition-all text-text-muted hover:text-text-primary hover:bg-bg-tertiary active:scale-95"
             title="別のJSONを読み込む"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+              />
             </svg>
           </button>
         </div>
@@ -177,11 +198,17 @@ export function TypesettingCheckPanel() {
       {hasCorrectness && hasProposal && (
         <div className="px-3 py-1.5 border-b border-border flex-shrink-0">
           <div className="flex bg-bg-elevated rounded-md p-0.5 border border-white/5">
-            {([
+            {[
               { mode: "both" as CheckTabMode, label: "両方表示" },
-              { mode: "correctness" as CheckTabMode, label: `正誤チェック (${checkData.correctnessItems.length})` },
-              { mode: "proposal" as CheckTabMode, label: `提案チェック (${checkData.proposalItems.length})` },
-            ]).map(({ mode, label }) => (
+              {
+                mode: "correctness" as CheckTabMode,
+                label: `正誤チェック (${checkData.correctnessItems.length})`,
+              },
+              {
+                mode: "proposal" as CheckTabMode,
+                label: `提案チェック (${checkData.proposalItems.length})`,
+              },
+            ].map(({ mode, label }) => (
               <button
                 key={mode}
                 onClick={() => setCheckTabMode(mode)}
@@ -201,8 +228,18 @@ export function TypesettingCheckPanel() {
       {/* Search */}
       <div className="px-3 py-1.5 border-b border-border flex-shrink-0">
         <div className="relative">
-          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          <svg
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text-muted"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
           </svg>
           <input
             type="text"
@@ -213,10 +250,19 @@ export function TypesettingCheckPanel() {
           />
           {localSearch && (
             <button
-              onClick={() => { setLocalSearch(""); setSearchQuery(""); }}
+              onClick={() => {
+                setLocalSearch("");
+                setSearchQuery("");
+              }}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>

@@ -1,7 +1,7 @@
-import { HTMLAttributes, forwardRef } from 'react';
+import { HTMLAttributes, forwardRef } from "react";
 
-type ProgressVariant = 'default' | 'success' | 'warning';
-type ProgressSize = 'sm' | 'md' | 'lg';
+type ProgressVariant = "default" | "success" | "warning";
+type ProgressSize = "sm" | "md" | "lg";
 
 interface ProgressBarProps extends HTMLAttributes<HTMLDivElement> {
   value: number;
@@ -13,15 +13,15 @@ interface ProgressBarProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const variantGradients: Record<ProgressVariant, string> = {
-  default: 'bg-gradient-to-r from-accent to-accent-secondary',
-  success: 'bg-gradient-to-r from-accent-tertiary to-accent-secondary',
-  warning: 'bg-gradient-to-r from-accent-warm to-accent',
+  default: "bg-gradient-to-r from-accent to-accent-secondary",
+  success: "bg-gradient-to-r from-accent-tertiary to-accent-secondary",
+  warning: "bg-gradient-to-r from-accent-warm to-accent",
 };
 
 const sizeStyles: Record<ProgressSize, string> = {
-  sm: 'h-1.5',
-  md: 'h-2.5',
-  lg: 'h-4',
+  sm: "h-1.5",
+  md: "h-2.5",
+  lg: "h-4",
 };
 
 export const ProgressBar = forwardRef<HTMLDivElement, ProgressBarProps>(
@@ -29,14 +29,14 @@ export const ProgressBar = forwardRef<HTMLDivElement, ProgressBarProps>(
     {
       value,
       max = 100,
-      variant = 'default',
-      size = 'md',
+      variant = "default",
+      size = "md",
       showLabel = false,
       animated = true,
-      className = '',
+      className = "",
       ...props
     },
-    ref
+    ref,
   ) => {
     const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
 
@@ -45,9 +45,7 @@ export const ProgressBar = forwardRef<HTMLDivElement, ProgressBarProps>(
         {showLabel && (
           <div className="flex justify-between items-center mb-1.5">
             <span className="text-xs text-text-secondary">Progress</span>
-            <span className="text-xs font-medium text-text-primary">
-              {Math.round(percentage)}%
-            </span>
+            <span className="text-xs font-medium text-text-primary">{Math.round(percentage)}%</span>
           </div>
         )}
         <div className={`bg-bg-tertiary rounded-full overflow-hidden ${sizeStyles[size]}`}>
@@ -56,7 +54,7 @@ export const ProgressBar = forwardRef<HTMLDivElement, ProgressBarProps>(
               h-full rounded-full
               ${variantGradients[variant]}
               transition-all duration-500 ease-out
-              ${animated ? 'relative overflow-hidden' : ''}
+              ${animated ? "relative overflow-hidden" : ""}
             `}
             style={{ width: `${percentage}%` }}
           >
@@ -64,7 +62,7 @@ export const ProgressBar = forwardRef<HTMLDivElement, ProgressBarProps>(
               <div
                 className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
                 style={{
-                  animation: 'shimmer 2s infinite',
+                  animation: "shimmer 2s infinite",
                 }}
               />
             )}
@@ -78,9 +76,9 @@ export const ProgressBar = forwardRef<HTMLDivElement, ProgressBarProps>(
         `}</style>
       </div>
     );
-  }
+  },
 );
 
-ProgressBar.displayName = 'ProgressBar';
+ProgressBar.displayName = "ProgressBar";
 
 export default ProgressBar;

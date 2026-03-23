@@ -3,7 +3,12 @@ import { invoke } from "@tauri-apps/api/core";
 import { useRenameStore } from "../../store/renameStore";
 import { useRenameProcessor } from "../../hooks/useRenameProcessor";
 import { isSupportedFile } from "../../types/index";
-import type { FileRenameMode, FileOutputMode, MatchMode, FileRenameEntry } from "../../types/rename";
+import type {
+  FileRenameMode,
+  FileOutputMode,
+  MatchMode,
+  FileRenameEntry,
+} from "../../types/rename";
 
 export function FileRenamePanel() {
   const fileSettings = useRenameStore((s) => s.fileSettings);
@@ -11,22 +16,16 @@ export function FileRenamePanel() {
   const phase = useRenameStore((s) => s.phase);
   const setFileRenameMode = useRenameStore((s) => s.setFileRenameMode);
   const setSequentialBaseName = useRenameStore((s) => s.setSequentialBaseName);
-  const setSequentialStartNumber = useRenameStore(
-    (s) => s.setSequentialStartNumber
-  );
+  const setSequentialStartNumber = useRenameStore((s) => s.setSequentialStartNumber);
   const setSequentialPadding = useRenameStore((s) => s.setSequentialPadding);
-  const setSequentialSeparator = useRenameStore(
-    (s) => s.setSequentialSeparator
-  );
+  const setSequentialSeparator = useRenameStore((s) => s.setSequentialSeparator);
   const setReplaceSearchText = useRenameStore((s) => s.setReplaceSearchText);
   const setReplaceReplaceText = useRenameStore((s) => s.setReplaceReplaceText);
   const setReplaceMatchMode = useRenameStore((s) => s.setReplaceMatchMode);
   const setPrefix = useRenameStore((s) => s.setPrefix);
   const setSuffix = useRenameStore((s) => s.setSuffix);
   const setFileOutputMode = useRenameStore((s) => s.setFileOutputMode);
-  const setFileOutputDirectory = useRenameStore(
-    (s) => s.setFileOutputDirectory
-  );
+  const setFileOutputDirectory = useRenameStore((s) => s.setFileOutputDirectory);
   const addFileEntries = useRenameStore((s) => s.addFileEntries);
 
   const { executeFileRename } = useRenameProcessor();
@@ -46,9 +45,7 @@ export function FileRenamePanel() {
     const folderPath = selected as string;
     const folderParts = folderPath.replace(/\\/g, "/").split("/");
     const folderName =
-      folderParts[folderParts.length - 1] ||
-      folderParts[folderParts.length - 2] ||
-      folderPath;
+      folderParts[folderParts.length - 1] || folderParts[folderParts.length - 2] || folderPath;
 
     const files = await invoke<string[]>("list_folder_files", {
       folderPath,
@@ -110,9 +107,7 @@ export function FileRenamePanel() {
           </svg>
           ファイルリネーム
         </h3>
-        <p className="text-xs text-text-muted mt-1">
-          画像ファイル名を一括変更（Photoshop不要）
-        </p>
+        <p className="text-xs text-text-muted mt-1">画像ファイル名を一括変更（Photoshop不要）</p>
       </div>
 
       {/* Settings */}
@@ -120,9 +115,7 @@ export function FileRenamePanel() {
         {/* Folder Add */}
         <div className="bg-bg-tertiary rounded-xl p-3">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs font-medium text-text-muted">
-              対象ファイル
-            </h4>
+            <h4 className="text-xs font-medium text-text-muted">対象ファイル</h4>
             <button
               onClick={handleAddFolder}
               className="px-2.5 py-1 text-[10px] bg-accent-secondary/10 text-accent-secondary border border-accent-secondary/30 rounded-lg hover:bg-accent-secondary/20 transition-colors flex items-center gap-1"
@@ -134,11 +127,7 @@ export function FileRenamePanel() {
                 stroke="currentColor"
                 strokeWidth={2}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 4v16m8-8H4"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
               フォルダ追加
             </button>
@@ -152,9 +141,7 @@ export function FileRenamePanel() {
 
         {/* Rename Mode */}
         <div className="bg-bg-tertiary rounded-xl p-3">
-          <h4 className="text-xs font-medium text-text-muted mb-2">
-            リネームモード
-          </h4>
+          <h4 className="text-xs font-medium text-text-muted mb-2">リネームモード</h4>
           <div className="space-y-2">
             <ModeOption
               mode="sequential"
@@ -174,9 +161,7 @@ export function FileRenamePanel() {
                 />
                 <div className="flex gap-1.5">
                   <div className="flex-1">
-                    <label className="text-[10px] text-text-muted">
-                      セパレータ
-                    </label>
+                    <label className="text-[10px] text-text-muted">セパレータ</label>
                     <input
                       type="text"
                       value={fileSettings.sequential.separator}
@@ -185,17 +170,11 @@ export function FileRenamePanel() {
                     />
                   </div>
                   <div className="w-16">
-                    <label className="text-[10px] text-text-muted">
-                      開始番号
-                    </label>
+                    <label className="text-[10px] text-text-muted">開始番号</label>
                     <input
                       type="number"
                       value={fileSettings.sequential.startNumber}
-                      onChange={(e) =>
-                        setSequentialStartNumber(
-                          parseInt(e.target.value) || 1
-                        )
-                      }
+                      onChange={(e) => setSequentialStartNumber(parseInt(e.target.value) || 1)}
                       min={0}
                       className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-1.5 text-xs text-text-primary focus:border-accent-secondary focus:outline-none"
                     />
@@ -205,9 +184,7 @@ export function FileRenamePanel() {
                     <input
                       type="number"
                       value={fileSettings.sequential.padding}
-                      onChange={(e) =>
-                        setSequentialPadding(parseInt(e.target.value) || 1)
-                      }
+                      onChange={(e) => setSequentialPadding(parseInt(e.target.value) || 1)}
                       min={1}
                       max={6}
                       className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-1.5 text-xs text-text-primary focus:border-accent-secondary focus:outline-none"
@@ -257,9 +234,7 @@ export function FileRenamePanel() {
                 </div>
                 <select
                   value={fileSettings.replaceString.matchMode}
-                  onChange={(e) =>
-                    setReplaceMatchMode(e.target.value as MatchMode)
-                  }
+                  onChange={(e) => setReplaceMatchMode(e.target.value as MatchMode)}
                   className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-1.5 text-xs text-text-primary focus:border-accent-secondary focus:outline-none"
                 >
                   <option value="partial">部分一致</option>
@@ -290,9 +265,7 @@ export function FileRenamePanel() {
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] text-text-muted">
-                    サフィックス（末尾に追加）
-                  </label>
+                  <label className="text-[10px] text-text-muted">サフィックス（末尾に追加）</label>
                   <input
                     type="text"
                     value={fileSettings.prefixSuffix.suffix}
@@ -308,9 +281,7 @@ export function FileRenamePanel() {
 
         {/* Output Mode */}
         <div className="bg-bg-tertiary rounded-xl p-3">
-          <h4 className="text-xs font-medium text-text-muted mb-2">
-            出力方式
-          </h4>
+          <h4 className="text-xs font-medium text-text-muted mb-2">出力方式</h4>
           <div className="space-y-2">
             <OutputOption
               mode="copy"
@@ -330,9 +301,7 @@ export function FileRenamePanel() {
 
           {fileSettings.outputMode === "copy" && (
             <div className="mt-2 pt-2 border-t border-white/5">
-              <h4 className="text-[10px] text-text-muted mb-1">
-                出力先フォルダ
-              </h4>
+              <h4 className="text-[10px] text-text-muted mb-1">出力先フォルダ</h4>
               {fileSettings.outputDirectory ? (
                 <div className="flex items-center gap-2">
                   <p
@@ -352,11 +321,7 @@ export function FileRenamePanel() {
                       stroke="currentColor"
                       strokeWidth={2}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M6 18L18 6M6 6l12 12"
-                      />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                   <button
@@ -419,11 +384,7 @@ export function FileRenamePanel() {
                 stroke="currentColor"
                 strokeWidth={2}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M5 13l4 4L19 7"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
               ファイルリネーム実行（{selectedCount} 件）
             </>
@@ -465,9 +426,7 @@ function ModeOption({
     >
       <div className="flex items-center gap-2.5">
         <div className="flex-1 min-w-0">
-          <span className="text-xs font-medium text-text-primary">
-            {label}
-          </span>
+          <span className="text-xs font-medium text-text-primary">{label}</span>
           <p className="text-[10px] text-text-muted">{description}</p>
         </div>
         <div
@@ -475,9 +434,7 @@ function ModeOption({
             ${isSelected ? "border-accent-secondary bg-accent-secondary" : "border-text-muted/30"}
           `}
         >
-          {isSelected && (
-            <div className="w-1.5 h-1.5 rounded-full bg-white" />
-          )}
+          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
         </div>
       </div>
     </div>
@@ -500,18 +457,13 @@ function OutputOption({
   const isSelected = currentMode === mode;
 
   return (
-    <label
-      className="flex items-center gap-2 cursor-pointer"
-      onClick={() => onSelect(mode)}
-    >
+    <label className="flex items-center gap-2 cursor-pointer" onClick={() => onSelect(mode)}>
       <div
         className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center flex-shrink-0
           ${isSelected ? "border-accent-tertiary bg-accent-tertiary" : "border-text-muted/30"}
         `}
       >
-        {isSelected && (
-          <div className="w-1.5 h-1.5 rounded-full bg-white" />
-        )}
+        {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
       </div>
       <div>
         <span className="text-xs text-text-primary">{label}</span>

@@ -2,7 +2,11 @@ import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { usePsdStore } from "../../store/psdStore";
 import { useTypesettingCheckStore } from "../../store/typesettingCheckStore";
-import { useHighResPreview, prefetchPreview, invalidateUrlCache } from "../../hooks/useHighResPreview";
+import {
+  useHighResPreview,
+  prefetchPreview,
+  invalidateUrlCache,
+} from "../../hooks/useHighResPreview";
 import { useOpenFolder } from "../../hooks/useOpenFolder";
 import { useOpenInPhotoshop } from "../../hooks/useOpenInPhotoshop";
 
@@ -148,8 +152,18 @@ export function TypesettingViewerPanel() {
               onClick={() => openFolderForFile(viewerFile.filePath)}
               title="フォルダを開く (F)"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                />
               </svg>
             </button>
           )}
@@ -169,12 +183,8 @@ export function TypesettingViewerPanel() {
             <span className="text-[10px] text-text-muted">
               {viewerFile.metadata.width} x {viewerFile.metadata.height}
             </span>
-            <span className="text-[10px] text-text-muted">
-              {viewerFile.metadata.dpi} dpi
-            </span>
-            <span className="text-[10px] text-text-muted">
-              {viewerFile.metadata.colorMode}
-            </span>
+            <span className="text-[10px] text-text-muted">{viewerFile.metadata.dpi} dpi</span>
+            <span className="text-[10px] text-text-muted">{viewerFile.metadata.colorMode}</span>
           </div>
         )}
       </div>
@@ -210,11 +220,24 @@ export function TypesettingViewerPanel() {
         {/* Error state */}
         {viewerError && !imageUrl && (
           <div className="flex flex-col items-center gap-2 text-center px-6">
-            <svg className="w-8 h-8 text-error/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <svg
+              className="w-8 h-8 text-error/50"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+              />
             </svg>
             <p className="text-[11px] text-text-muted">プレビューの読み込みに失敗</p>
-            <button onClick={viewerReload} className="text-[10px] text-accent hover:text-accent/80 transition-colors">
+            <button
+              onClick={viewerReload}
+              className="text-[10px] text-accent hover:text-accent/80 transition-colors"
+            >
               再試行
             </button>
           </div>
@@ -228,7 +251,13 @@ export function TypesettingViewerPanel() {
                 onClick={() => setViewerFileIndex(viewerFileIndex - 1)}
                 className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white/70 hover:text-white transition-all backdrop-blur-sm"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
@@ -238,7 +267,13 @@ export function TypesettingViewerPanel() {
                 onClick={() => setViewerFileIndex(viewerFileIndex + 1)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white/70 hover:text-white transition-all backdrop-blur-sm"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
               </button>

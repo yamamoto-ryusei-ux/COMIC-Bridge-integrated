@@ -29,9 +29,9 @@ export interface ParseResult {
  */
 export async function parsePsdBufferFast(buffer: ArrayBuffer): Promise<ParseResult> {
   const psd = readPsd(buffer, {
-    skipCompositeImageData: true,  // 合成画像をスキップ（高速化）
+    skipCompositeImageData: true, // 合成画像をスキップ（高速化）
     skipLayerImageData: true,
-    skipThumbnail: false,          // 埋め込みサムネイルは読み込む
+    skipThumbnail: false, // 埋め込みサムネイルは読み込む
     useImageData: false,
   });
 
@@ -170,12 +170,16 @@ function extractLayerTree(children: Psd["children"], parentPath = "", dpi = 72):
       name: child.name || "Unnamed Layer",
       type: getLayerType(child),
       visible: !child.hidden,
-      opacity: Math.round((child.opacity || 255) / 255 * 100),
+      opacity: Math.round(((child.opacity || 255) / 255) * 100),
       blendMode: child.blendMode || "normal",
       hasMask: !!(childAny.mask || childAny.realMask),
       hasVectorMask: !!childAny.vectorMask,
       clipping: !!childAny.clipping,
-      locked: childAny.transparencyProtected || childAny.positionProtected || childAny.compositeProtected || undefined,
+      locked:
+        childAny.transparencyProtected ||
+        childAny.positionProtected ||
+        childAny.compositeProtected ||
+        undefined,
     };
 
     // テキストレイヤーのフォント情報を抽出
@@ -268,7 +272,7 @@ async function generateThumbnail(psd: Psd): Promise<string | undefined> {
     const thumbResource = psd.imageResources?.thumbnail;
     if (thumbResource) {
       // Check if thumbnail has canvas or data
-      const thumbData = (thumbResource as any);
+      const thumbData = thumbResource as any;
       if (thumbData.canvas) {
         return thumbData.canvas.toDataURL("image/jpeg", 0.92);
       }
@@ -289,7 +293,7 @@ async function generateThumbnail(psd: Psd): Promise<string | undefined> {
         const imageData = new ImageData(
           new Uint8ClampedArray(psd.imageData.data),
           psd.imageData.width,
-          psd.imageData.height
+          psd.imageData.height,
         );
         ctx.putImageData(imageData, 0, 0);
 
@@ -321,4 +325,3 @@ function blobToDataUrl(blob: Blob): Promise<string> {
     reader.readAsDataURL(blob);
   });
 }
-

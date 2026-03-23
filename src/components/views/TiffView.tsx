@@ -84,13 +84,19 @@ export function TiffView() {
           </button>
           <div className="flex-1" />
           {selectedFileIds.length > 0 && (
-            <span className="text-[10px] text-accent font-medium">{selectedFileIds.length}件選択中</span>
+            <span className="text-[10px] text-accent font-medium">
+              {selectedFileIds.length}件選択中
+            </span>
           )}
         </div>
 
         <div className="flex-1 overflow-hidden">
-          {centerView === "preview" && <TiffCropEditor onSwitchToQueue={() => setCenterView("queue")} />}
-          {centerView === "queue" && <TiffBatchQueue onSwitchToPreview={() => setCenterView("preview")} />}
+          {centerView === "preview" && (
+            <TiffCropEditor onSwitchToQueue={() => setCenterView("queue")} />
+          )}
+          {centerView === "queue" && (
+            <TiffBatchQueue onSwitchToPreview={() => setCenterView("preview")} />
+          )}
           {centerView === "viewer" && <TiffViewerPanel />}
         </div>
       </div>

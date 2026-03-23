@@ -50,14 +50,22 @@ export function SplitPanel() {
       {/* Header */}
       <div className="px-4 py-3 border-b border-border">
         <h3 className="text-sm font-display font-medium text-text-primary flex items-center gap-2">
-          <svg className="w-4 h-4 text-accent-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+          <svg
+            className="w-4 h-4 text-accent-tertiary"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+            />
           </svg>
           見開き分割
         </h3>
-        <p className="text-xs text-text-muted mt-1">
-          Photoshopで見開きページを左右に分割
-        </p>
+        <p className="text-xs text-text-muted mt-1">Photoshopで見開きページを左右に分割</p>
       </div>
 
       {/* Settings */}
@@ -146,8 +154,18 @@ export function SplitPanel() {
                   </div>
 
                   {/* Arrow */}
-                  <svg className="w-4 h-4 text-text-muted/50 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  <svg
+                    className="w-4 h-4 text-text-muted/50 flex-shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13 7l5 5m0 0l-5 5m5-5H6"
+                    />
                   </svg>
 
                   {/* Output (after) */}
@@ -175,7 +193,9 @@ export function SplitPanel() {
             <h4 className="text-xs font-medium text-text-muted mb-2">ファイル名</h4>
             <div className="space-y-2">
               <div>
-                <label className="text-[10px] text-text-muted block mb-1">ベースネーム（空欄＝元ファイル名を使用）</label>
+                <label className="text-[10px] text-text-muted block mb-1">
+                  ベースネーム（空欄＝元ファイル名を使用）
+                </label>
                 <input
                   type="text"
                   value={settings.customBaseName}
@@ -211,7 +231,9 @@ export function SplitPanel() {
                     />
                     <div>
                       <span className="text-sm text-text-primary">1ファイル目の右側が白紙</span>
-                      <p className="text-[10px] text-text-muted">右ページを破棄し、左ページから_001で開始</p>
+                      <p className="text-[10px] text-text-muted">
+                        右ページを破棄し、左ページから_001で開始
+                      </p>
                     </div>
                   </label>
                   <label className="flex items-center gap-2.5 cursor-pointer p-1.5 rounded-lg hover:bg-bg-elevated/50 transition-colors">
@@ -223,7 +245,9 @@ export function SplitPanel() {
                     />
                     <div>
                       <span className="text-sm text-text-primary">最終ファイルの左側が白紙</span>
-                      <p className="text-[10px] text-text-muted">最終ファイルの左ページを破棄し、右ページで終了</p>
+                      <p className="text-[10px] text-text-muted">
+                        最終ファイルの左ページを破棄し、右ページで終了
+                      </p>
                     </div>
                   </label>
                 </div>
@@ -292,7 +316,9 @@ export function SplitPanel() {
                 />
                 <div>
                   <span className="text-sm text-text-primary">はみ出しテキストを削除</span>
-                  <p className="text-[10px] text-text-muted">反対側にはみ出したテキストレイヤーを除去</p>
+                  <p className="text-[10px] text-text-muted">
+                    反対側にはみ出したテキストレイヤーを除去
+                  </p>
                 </div>
               </label>
             </div>
@@ -306,9 +332,7 @@ export function SplitPanel() {
               <div className="w-4 h-4 rounded-full border-2 border-accent-tertiary/30 border-t-accent-tertiary animate-spin" />
               <span className="text-sm text-accent-tertiary font-medium">Photoshopで処理中...</span>
             </div>
-            {currentFile && (
-              <p className="text-xs text-text-muted truncate">{currentFile}</p>
-            )}
+            {currentFile && <p className="text-xs text-text-muted truncate">{currentFile}</p>}
             <div className="mt-2 bg-bg-elevated rounded-full h-2 overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-accent-tertiary to-accent-secondary transition-all duration-300"
@@ -334,14 +358,30 @@ export function SplitPanel() {
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <svg className="w-4 h-4 text-accent-tertiary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-4 h-4 text-accent-tertiary"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
                 <span className="text-sm font-medium text-text-primary">
                   処理完了 — {results.filter((r) => r.success).length}/{results.length} 成功
                 </span>
               </div>
-              <svg className="w-4 h-4 text-text-muted group-hover:text-accent-tertiary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg
+                className="w-4 h-4 text-text-muted group-hover:text-accent-tertiary transition-colors"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
               </svg>
             </div>
@@ -384,8 +424,18 @@ export function SplitPanel() {
                 flex items-center justify-center gap-1.5
               "
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"
+                />
               </svg>
               <span>選択のみ ({selectedFileIds.length})</span>
             </button>
@@ -405,8 +455,18 @@ export function SplitPanel() {
                 flex items-center justify-center gap-1.5
               "
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                />
               </svg>
               <span>全て実行 ({files.length})</span>
             </button>
@@ -428,27 +488,37 @@ export function SplitPanel() {
 // --- Sub-components ---
 
 function ModeOption({
-  mode, label, description, currentMode, onChange,
+  mode,
+  label,
+  description,
+  currentMode,
+  onChange,
 }: {
-  mode: SplitMode; label: string; description: string;
-  currentMode: SplitMode; onChange: (mode: SplitMode) => void;
+  mode: SplitMode;
+  label: string;
+  description: string;
+  currentMode: SplitMode;
+  onChange: (mode: SplitMode) => void;
 }) {
   const isSelected = currentMode === mode;
   return (
     <div
       className={`
         flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all duration-200
-        ${isSelected
-          ? "bg-accent-tertiary/15 border border-accent-tertiary/50"
-          : "bg-bg-elevated border border-white/5 hover:border-white/10"
+        ${
+          isSelected
+            ? "bg-accent-tertiary/15 border border-accent-tertiary/50"
+            : "bg-bg-elevated border border-white/5 hover:border-white/10"
         }
       `}
       onClick={() => onChange(mode)}
     >
-      <div className={`
+      <div
+        className={`
         w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200
         ${isSelected ? "border-accent-tertiary bg-accent-tertiary" : "border-text-muted/50"}
-      `}>
+      `}
+      >
         {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
       </div>
       <div className="flex-1">
@@ -460,19 +530,25 @@ function ModeOption({
 }
 
 function FormatButton({
-  format, label, currentFormat, onChange,
+  format,
+  label,
+  currentFormat,
+  onChange,
 }: {
-  format: OutputFormat; label: string;
-  currentFormat: OutputFormat; onChange: (format: OutputFormat) => void;
+  format: OutputFormat;
+  label: string;
+  currentFormat: OutputFormat;
+  onChange: (format: OutputFormat) => void;
 }) {
   const isSelected = currentFormat === format;
   return (
     <button
       className={`
         flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200
-        ${isSelected
-          ? "bg-accent-tertiary text-white"
-          : "bg-bg-elevated text-text-secondary hover:text-text-primary border border-white/10"
+        ${
+          isSelected
+            ? "bg-accent-tertiary text-white"
+            : "bg-bg-elevated text-text-secondary hover:text-text-primary border border-white/10"
         }
       `}
       onClick={() => onChange(format)}
@@ -483,18 +559,27 @@ function FormatButton({
 }
 
 function PageNumberingOption({
-  value, label, description, current, onChange,
+  value,
+  label,
+  description,
+  current,
+  onChange,
 }: {
-  value: PageNumbering; label: string; description: string;
-  current: PageNumbering; onChange: (v: PageNumbering) => void;
+  value: PageNumbering;
+  label: string;
+  description: string;
+  current: PageNumbering;
+  onChange: (v: PageNumbering) => void;
 }) {
   const isSelected = current === value;
   return (
     <label className="flex items-center gap-2.5 cursor-pointer p-1.5 rounded-lg hover:bg-bg-elevated/50 transition-colors">
-      <div className={`
+      <div
+        className={`
         w-4 h-4 rounded-full border-2 flex items-center justify-center transition-all
         ${isSelected ? "border-accent-tertiary bg-accent-tertiary" : "border-text-muted/40"}
-      `}>
+      `}
+      >
         {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
       </div>
       <div className="flex-1" onClick={() => onChange(value)}>
@@ -505,17 +590,31 @@ function PageNumberingOption({
   );
 }
 
-function MarginRow({ label, value, highlight, accent }: {
-  label: string; value: string; highlight?: boolean; accent?: boolean;
+function MarginRow({
+  label,
+  value,
+  highlight,
+  accent,
+}: {
+  label: string;
+  value: string;
+  highlight?: boolean;
+  accent?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between text-sm">
       <span className="text-text-muted">{label}</span>
-      <span className={
-        accent ? "text-accent-tertiary font-medium"
-        : highlight ? "text-text-primary font-medium"
-        : "text-text-secondary"
-      }>{value}</span>
+      <span
+        className={
+          accent
+            ? "text-accent-tertiary font-medium"
+            : highlight
+              ? "text-text-primary font-medium"
+              : "text-text-secondary"
+        }
+      >
+        {value}
+      </span>
     </div>
   );
 }

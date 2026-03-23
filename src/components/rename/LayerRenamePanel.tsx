@@ -12,30 +12,16 @@ export function LayerRenamePanel() {
   const addRule = useRenameStore((s) => s.addRule);
   const updateRule = useRenameStore((s) => s.updateRule);
   const removeRule = useRenameStore((s) => s.removeRule);
-  const setLayerFileOutputEnabled = useRenameStore(
-    (s) => s.setLayerFileOutputEnabled
-  );
-  const setLayerFileOutputBaseName = useRenameStore(
-    (s) => s.setLayerFileOutputBaseName
-  );
-  const setLayerFileOutputStartNumber = useRenameStore(
-    (s) => s.setLayerFileOutputStartNumber
-  );
-  const setLayerFileOutputPadding = useRenameStore(
-    (s) => s.setLayerFileOutputPadding
-  );
-  const setLayerFileOutputSeparator = useRenameStore(
-    (s) => s.setLayerFileOutputSeparator
-  );
-  const setLayerOutputDirectory = useRenameStore(
-    (s) => s.setLayerOutputDirectory
-  );
+  const setLayerFileOutputEnabled = useRenameStore((s) => s.setLayerFileOutputEnabled);
+  const setLayerFileOutputBaseName = useRenameStore((s) => s.setLayerFileOutputBaseName);
+  const setLayerFileOutputStartNumber = useRenameStore((s) => s.setLayerFileOutputStartNumber);
+  const setLayerFileOutputPadding = useRenameStore((s) => s.setLayerFileOutputPadding);
+  const setLayerFileOutputSeparator = useRenameStore((s) => s.setLayerFileOutputSeparator);
+  const setLayerOutputDirectory = useRenameStore((s) => s.setLayerOutputDirectory);
 
   const files = usePsdStore((s) => s.files);
   const psdFiles = files.filter(
-    (f) =>
-      f.filePath.toLowerCase().endsWith(".psd") ||
-      f.filePath.toLowerCase().endsWith(".psb")
+    (f) => f.filePath.toLowerCase().endsWith(".psd") || f.filePath.toLowerCase().endsWith(".psb"),
   );
 
   const { executeLayerRename } = useRenameProcessor();
@@ -84,10 +70,7 @@ export function LayerRenamePanel() {
         {/* Bottom Layer */}
         <div className="bg-bg-tertiary rounded-xl p-3">
           <div className="flex items-center gap-2 mb-2">
-            <CheckBox
-              checked={layerSettings.bottomLayer.enabled}
-              onChange={setBottomLayerEnabled}
-            >
+            <CheckBox checked={layerSettings.bottomLayer.enabled} onChange={setBottomLayerEnabled}>
               <span className="text-xs font-medium text-text-primary">
                 最下位レイヤーをリネーム
               </span>
@@ -107,9 +90,7 @@ export function LayerRenamePanel() {
         {/* Rename Rules */}
         <div className="bg-bg-tertiary rounded-xl p-3">
           <div className="flex items-center justify-between mb-2">
-            <h4 className="text-xs font-medium text-text-muted">
-              リネームルール
-            </h4>
+            <h4 className="text-xs font-medium text-text-muted">リネームルール</h4>
             <div className="flex gap-1">
               <button
                 onClick={() => addRule("layer")}
@@ -144,9 +125,7 @@ export function LayerRenamePanel() {
                   <div className="flex items-center justify-between mb-1.5">
                     <span
                       className={`text-[10px] font-medium ${
-                        rule.target === "layer"
-                          ? "text-accent"
-                          : "text-accent-secondary"
+                        rule.target === "layer" ? "text-accent" : "text-accent-secondary"
                       }`}
                     >
                       {rule.target === "layer" ? "レイヤー" : "グループ"}
@@ -174,9 +153,7 @@ export function LayerRenamePanel() {
                     <input
                       type="text"
                       value={rule.oldName}
-                      onChange={(e) =>
-                        updateRule(rule.id, { oldName: e.target.value })
-                      }
+                      onChange={(e) => updateRule(rule.id, { oldName: e.target.value })}
                       placeholder="変更前の名前"
                       className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-1.5 text-xs text-text-primary focus:border-accent focus:outline-none"
                     />
@@ -197,9 +174,7 @@ export function LayerRenamePanel() {
                       <input
                         type="text"
                         value={rule.newName}
-                        onChange={(e) =>
-                          updateRule(rule.id, { newName: e.target.value })
-                        }
+                        onChange={(e) => updateRule(rule.id, { newName: e.target.value })}
                         placeholder="変更後の名前"
                         className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-1.5 text-xs text-text-primary focus:border-accent focus:outline-none"
                       />
@@ -247,15 +222,11 @@ export function LayerRenamePanel() {
               />
               <div className="flex gap-1.5">
                 <div className="flex-1">
-                  <label className="text-[10px] text-text-muted">
-                    セパレータ
-                  </label>
+                  <label className="text-[10px] text-text-muted">セパレータ</label>
                   <input
                     type="text"
                     value={layerSettings.fileOutput.separator}
-                    onChange={(e) =>
-                      setLayerFileOutputSeparator(e.target.value)
-                    }
+                    onChange={(e) => setLayerFileOutputSeparator(e.target.value)}
                     className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-1.5 text-xs text-text-primary focus:border-accent focus:outline-none"
                   />
                 </div>
@@ -264,11 +235,7 @@ export function LayerRenamePanel() {
                   <input
                     type="number"
                     value={layerSettings.fileOutput.startNumber}
-                    onChange={(e) =>
-                      setLayerFileOutputStartNumber(
-                        parseInt(e.target.value) || 1
-                      )
-                    }
+                    onChange={(e) => setLayerFileOutputStartNumber(parseInt(e.target.value) || 1)}
                     min={0}
                     className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-1.5 text-xs text-text-primary focus:border-accent focus:outline-none"
                   />
@@ -278,9 +245,7 @@ export function LayerRenamePanel() {
                   <input
                     type="number"
                     value={layerSettings.fileOutput.padding}
-                    onChange={(e) =>
-                      setLayerFileOutputPadding(parseInt(e.target.value) || 1)
-                    }
+                    onChange={(e) => setLayerFileOutputPadding(parseInt(e.target.value) || 1)}
                     min={1}
                     max={6}
                     className="w-full bg-bg-elevated border border-white/10 rounded-lg px-3 py-1.5 text-xs text-text-primary focus:border-accent focus:outline-none"
@@ -293,9 +258,7 @@ export function LayerRenamePanel() {
 
         {/* Output Directory */}
         <div className="bg-bg-tertiary rounded-xl p-3">
-          <h4 className="text-xs font-medium text-text-muted mb-2">
-            出力先フォルダ
-          </h4>
+          <h4 className="text-xs font-medium text-text-muted mb-2">出力先フォルダ</h4>
           {layerSettings.outputDirectory ? (
             <div className="flex items-center gap-2">
               <div className="flex-1 min-w-0">
@@ -317,11 +280,7 @@ export function LayerRenamePanel() {
                   stroke="currentColor"
                   strokeWidth={2}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
               <button
@@ -382,11 +341,7 @@ export function LayerRenamePanel() {
                 stroke="currentColor"
                 strokeWidth={2}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M5 13l4 4L19 7"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
               レイヤーリネーム実行
             </>
@@ -418,11 +373,7 @@ function CheckBox({
       <div
         className={`
           w-4 h-4 rounded border flex items-center justify-center transition-all flex-shrink-0
-          ${
-            checked
-              ? "bg-accent border-accent"
-              : "border-text-muted/30 hover:border-text-muted/50"
-          }
+          ${checked ? "bg-accent border-accent" : "border-text-muted/30 hover:border-text-muted/50"}
         `}
       >
         {checked && (
@@ -433,11 +384,7 @@ function CheckBox({
             stroke="currentColor"
             strokeWidth={3}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M5 13l4 4L19 7"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         )}
       </div>

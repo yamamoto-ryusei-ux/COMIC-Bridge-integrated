@@ -76,25 +76,48 @@ export function TiffResultDialog() {
   return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      onClick={(e) => { if (e.target === e.currentTarget) { handleClose(); } }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          handleClose();
+        }
+      }}
     >
       <div className="bg-bg-secondary border border-border rounded-2xl shadow-xl max-w-lg w-full mx-4 max-h-[80vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="px-6 py-4 border-b border-border flex items-center gap-3">
-          <div className={`
+          <div
+            className={`
             w-10 h-10 rounded-xl flex items-center justify-center
-            ${allSuccess
-              ? "bg-success/10 text-success"
-              : "bg-warning/10 text-warning"
-            }
-          `}>
+            ${allSuccess ? "bg-success/10 text-success" : "bg-warning/10 text-warning"}
+          `}
+          >
             {allSuccess ? (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             ) : (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                />
               </svg>
             )}
           </div>
@@ -108,10 +131,18 @@ export function TiffResultDialog() {
           </div>
           <div className="flex-1" />
           <button
-            onClick={() => { handleClose(); }}
+            onClick={() => {
+              handleClose();
+            }}
             className="p-1.5 text-text-muted hover:text-text-primary rounded-lg hover:bg-bg-tertiary transition-colors"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -123,11 +154,23 @@ export function TiffResultDialog() {
             {results.map((result, i) => (
               <div key={i} className="flex items-center gap-2.5 px-6 py-2.5">
                 {result.success ? (
-                  <svg className="w-4 h-4 text-success flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg
+                    className="w-4 h-4 text-success flex-shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 ) : (
-                  <svg className="w-4 h-4 text-error flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg
+                    className="w-4 h-4 text-error flex-shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 )}
@@ -136,11 +179,13 @@ export function TiffResultDialog() {
                     <p className="text-sm text-text-primary truncate">{result.fileName}</p>
                     {result.success && result.colorMode && (
                       <div className="flex items-center gap-1.5 flex-shrink-0">
-                        <span className={`px-1.5 py-0.5 text-[9px] font-medium rounded ${
-                          result.colorMode === "mono"
-                            ? "bg-text-muted/15 text-text-secondary"
-                            : "bg-accent/15 text-accent"
-                        }`}>
+                        <span
+                          className={`px-1.5 py-0.5 text-[9px] font-medium rounded ${
+                            result.colorMode === "mono"
+                              ? "bg-text-muted/15 text-text-secondary"
+                              : "bg-accent/15 text-accent"
+                          }`}
+                        >
                           {result.colorMode === "mono" ? "モノクロ" : "カラー"}
                         </span>
                         {result.finalWidth != null && result.finalHeight != null && (
@@ -149,9 +194,7 @@ export function TiffResultDialog() {
                           </span>
                         )}
                         {result.dpi != null && (
-                          <span className="text-[10px] text-text-muted">
-                            {result.dpi}dpi
-                          </span>
+                          <span className="text-[10px] text-text-muted">{result.dpi}dpi</span>
                         )}
                       </div>
                     )}
@@ -173,12 +216,32 @@ export function TiffResultDialog() {
           <div className="px-6 py-3 border-t border-border/50 bg-bg-tertiary/30">
             <div className="flex items-center gap-2">
               {autoScanJsonResult.success ? (
-                <svg className="w-4 h-4 text-accent-secondary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <svg
+                  className="w-4 h-4 text-accent-secondary flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
               ) : (
-                <svg className="w-4 h-4 text-warning flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <svg
+                  className="w-4 h-4 text-warning flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
                 </svg>
               )}
               <div className="flex-1 min-w-0">
@@ -193,11 +256,16 @@ export function TiffResultDialog() {
                 {autoScanJsonResult.error && (
                   <p className="text-[10px] text-warning">{autoScanJsonResult.error}</p>
                 )}
-                {(autoScanJsonResult.fontCount != null || autoScanJsonResult.guideSetCount != null) && (
+                {(autoScanJsonResult.fontCount != null ||
+                  autoScanJsonResult.guideSetCount != null) && (
                   <p className="text-[10px] text-text-muted">
-                    {autoScanJsonResult.fontCount != null && `フォント ${autoScanJsonResult.fontCount}種`}
-                    {autoScanJsonResult.fontCount != null && autoScanJsonResult.guideSetCount != null && " · "}
-                    {autoScanJsonResult.guideSetCount != null && `ガイドセット ${autoScanJsonResult.guideSetCount}件`}
+                    {autoScanJsonResult.fontCount != null &&
+                      `フォント ${autoScanJsonResult.fontCount}種`}
+                    {autoScanJsonResult.fontCount != null &&
+                      autoScanJsonResult.guideSetCount != null &&
+                      " · "}
+                    {autoScanJsonResult.guideSetCount != null &&
+                      `ガイドセット ${autoScanJsonResult.guideSetCount}件`}
                     {autoScanJsonResult.textLogSaved && " · テキストログ保存済"}
                   </p>
                 )}
@@ -264,7 +332,9 @@ export function TiffResultDialog() {
               onClick={async () => {
                 try {
                   await invoke("open_folder_in_explorer", { folderPath: lastOutputDir });
-                } catch { /* ignore */ }
+                } catch {
+                  /* ignore */
+                }
               }}
               className="px-4 py-2 text-sm font-medium text-accent-warm bg-accent-warm/10 border border-accent-warm/30 rounded-xl hover:bg-accent-warm/20 transition-colors"
             >
@@ -276,7 +346,9 @@ export function TiffResultDialog() {
               onClick={async () => {
                 try {
                   await invoke("open_folder_in_explorer", { folderPath: lastJpgOutputDir });
-                } catch { /* ignore */ }
+                } catch {
+                  /* ignore */
+                }
               }}
               className="px-4 py-2 text-sm font-medium text-accent-warm bg-accent-warm/10 border border-accent-warm/30 rounded-xl hover:bg-accent-warm/20 transition-colors"
             >
@@ -284,7 +356,9 @@ export function TiffResultDialog() {
             </button>
           )}
           <button
-            onClick={() => { handleClose(); }}
+            onClick={() => {
+              handleClose();
+            }}
             className="px-4 py-2 text-sm font-medium text-text-primary bg-bg-tertiary rounded-xl hover:bg-bg-tertiary/80 transition-colors"
           >
             閉じる
@@ -292,6 +366,6 @@ export function TiffResultDialog() {
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

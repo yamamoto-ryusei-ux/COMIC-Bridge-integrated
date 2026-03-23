@@ -55,22 +55,29 @@ export function LayerSeparationPanel({ onOpenInPhotoshop }: LayerSeparationPanel
   const [splashPhase, setSplashPhase] = useState<"hidden" | "in" | "hold" | "out">("hidden");
   const transitionLock = useRef(false);
 
-  const toggleFullscreen = useCallback(async (force?: boolean) => {
-    const next = force !== undefined ? force : !isFullscreen;
-    if (next === isFullscreen || transitionLock.current) return;
-    transitionLock.current = true;
-    setSplashPhase("in");
-    await new Promise((r) => setTimeout(r, 200));
-    setSplashPhase("hold");
-    try { await getCurrentWindow().setFullscreen(next); } catch { /* ignore */ }
-    setIsFullscreen(next);
-    await new Promise((r) => setTimeout(r, 200));
-    setSplashPhase("out");
-    await new Promise((r) => setTimeout(r, 350));
-    setSplashPhase("hidden");
-    transitionLock.current = false;
-    if (next) setShowEscHint(true);
-  }, [isFullscreen]);
+  const toggleFullscreen = useCallback(
+    async (force?: boolean) => {
+      const next = force !== undefined ? force : !isFullscreen;
+      if (next === isFullscreen || transitionLock.current) return;
+      transitionLock.current = true;
+      setSplashPhase("in");
+      await new Promise((r) => setTimeout(r, 200));
+      setSplashPhase("hold");
+      try {
+        await getCurrentWindow().setFullscreen(next);
+      } catch {
+        /* ignore */
+      }
+      setIsFullscreen(next);
+      await new Promise((r) => setTimeout(r, 200));
+      setSplashPhase("out");
+      await new Promise((r) => setTimeout(r, 350));
+      setSplashPhase("hidden");
+      transitionLock.current = false;
+      if (next) setShowEscHint(true);
+    },
+    [isFullscreen],
+  );
 
   useEffect(() => {
     if (!showEscHint) return;
@@ -82,7 +89,9 @@ export function LayerSeparationPanel({ onOpenInPhotoshop }: LayerSeparationPanel
   useEffect(() => {
     return () => {
       if (isFullscreen) {
-        getCurrentWindow().setFullscreen(false).catch(() => {});
+        getCurrentWindow()
+          .setFullscreen(false)
+          .catch(() => {});
       }
     };
   }, [isFullscreen]);
@@ -198,10 +207,7 @@ export function LayerSeparationPanel({ onOpenInPhotoshop }: LayerSeparationPanel
   const psdHeight = viewerFile?.metadata?.height ?? 0;
 
   // Flat map for highlight rendering
-  const allLayersWithBounds = useMemo(
-    () => collectLayersWithBounds(layerTree),
-    [layerTree],
-  );
+  const allLayersWithBounds = useMemo(() => collectLayersWithBounds(layerTree), [layerTree]);
 
   const highlightLayers = useMemo(
     () => allLayersWithBounds.filter((l) => selectedLayerIds.has(l.id)),
@@ -313,11 +319,24 @@ export function LayerSeparationPanel({ onOpenInPhotoshop }: LayerSeparationPanel
         {/* Error state */}
         {viewerError && !imageUrl && (
           <div className="flex flex-col items-center gap-2 text-center px-6">
-            <svg className="w-8 h-8 text-error/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            <svg
+              className="w-8 h-8 text-error/50"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.5}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+              />
             </svg>
             <p className="text-[11px] text-text-muted">プレビューの読み込みに失敗</p>
-            <button onClick={viewerReload} className="text-[10px] text-accent hover:text-accent/80 transition-colors">
+            <button
+              onClick={viewerReload}
+              className="text-[10px] text-accent hover:text-accent/80 transition-colors"
+            >
               再試行
             </button>
           </div>
@@ -330,14 +349,26 @@ export function LayerSeparationPanel({ onOpenInPhotoshop }: LayerSeparationPanel
           title={isFullscreen ? "全画面を解除 (Esc)" : "全画面表示"}
         >
           {isFullscreen ? (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 4l4 4M4 4v3m0-3h3" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M20 4l-4 4M20 4v3m0-3h-3" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 20l4-4M4 20v-3m0 3h3" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M20 20l-4-4M20 20v-3m0 3h-3" />
             </svg>
           ) : (
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 3h6m0 0v6m0-6l-7 7" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 21H3m0 0v-6m0 6l7-7" />
             </svg>
@@ -359,7 +390,13 @@ export function LayerSeparationPanel({ onOpenInPhotoshop }: LayerSeparationPanel
                 onClick={() => setViewerFileIndex((i) => i - 1)}
                 className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white/70 hover:text-white transition-all backdrop-blur-sm"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
@@ -369,7 +406,13 @@ export function LayerSeparationPanel({ onOpenInPhotoshop }: LayerSeparationPanel
                 onClick={() => setViewerFileIndex((i) => i + 1)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white/70 hover:text-white transition-all backdrop-blur-sm"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
@@ -397,8 +440,18 @@ export function LayerSeparationPanel({ onOpenInPhotoshop }: LayerSeparationPanel
                 onClick={() => openFolderForFile(viewerFile.filePath)}
                 title="フォルダを開く (F)"
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                  />
                 </svg>
               </button>
             )}
@@ -417,12 +470,8 @@ export function LayerSeparationPanel({ onOpenInPhotoshop }: LayerSeparationPanel
               <span className="text-[10px] text-text-muted">
                 {viewerFile.metadata.width} x {viewerFile.metadata.height}
               </span>
-              <span className="text-[10px] text-text-muted">
-                {viewerFile.metadata.dpi} dpi
-              </span>
-              <span className="text-[10px] text-text-muted">
-                {viewerFile.metadata.colorMode}
-              </span>
+              <span className="text-[10px] text-text-muted">{viewerFile.metadata.dpi} dpi</span>
+              <span className="text-[10px] text-text-muted">{viewerFile.metadata.colorMode}</span>
             </div>
           )}
         </div>
@@ -439,13 +488,31 @@ export function LayerSeparationPanel({ onOpenInPhotoshop }: LayerSeparationPanel
             title={showHighlights ? "ハイライト非表示" : "ハイライト表示"}
           >
             {showHighlights ? (
-              <svg className="w-4 h-4" style={{ color: "rgb(248,113,113)" }} fill="currentColor" viewBox="0 0 20 20">
+              <svg
+                className="w-4 h-4"
+                style={{ color: "rgb(248,113,113)" }}
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
                 <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                  clipRule="evenodd"
+                />
               </svg>
             ) : (
-              <svg className="w-4 h-4" style={{ color: "rgb(115,115,130)" }} fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+              <svg
+                className="w-4 h-4"
+                style={{ color: "rgb(115,115,130)" }}
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
+                  clipRule="evenodd"
+                />
                 <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
               </svg>
             )}
@@ -455,9 +522,7 @@ export function LayerSeparationPanel({ onOpenInPhotoshop }: LayerSeparationPanel
 
           {/* Selection count */}
           {selectedLayerIds.size > 0 && (
-            <span className="text-[10px] text-text-muted">
-              {selectedLayerIds.size} 選択中
-            </span>
+            <span className="text-[10px] text-text-muted">{selectedLayerIds.size} 選択中</span>
           )}
 
           {/* Select all / deselect all */}
@@ -494,17 +559,20 @@ export function LayerSeparationPanel({ onOpenInPhotoshop }: LayerSeparationPanel
       </div>
 
       {/* Fullscreen splash overlay */}
-      {splashPhase !== "hidden" && createPortal(
-        <div
-          className={`fixed inset-0 z-[99999] bg-[#0e0e10] transition-opacity ${
-            splashPhase === "in" ? "opacity-0 animate-[fadeIn_200ms_forwards]" :
-            splashPhase === "hold" ? "opacity-100" :
-            "opacity-100 animate-[fadeOut_350ms_forwards]"
-          }`}
-          style={{ pointerEvents: "none" }}
-        />,
-        document.body,
-      )}
+      {splashPhase !== "hidden" &&
+        createPortal(
+          <div
+            className={`fixed inset-0 z-[99999] bg-[#0e0e10] transition-opacity ${
+              splashPhase === "in"
+                ? "opacity-0 animate-[fadeIn_200ms_forwards]"
+                : splashPhase === "hold"
+                  ? "opacity-100"
+                  : "opacity-100 animate-[fadeOut_350ms_forwards]"
+            }`}
+            style={{ pointerEvents: "none" }}
+          />,
+          document.body,
+        )}
     </div>
   );
 
@@ -589,7 +657,11 @@ function SelectableLayerItem({
     switch (layer.type) {
       case "group":
         return (
-          <svg className={`${iconClass} text-manga-lavender`} fill="currentColor" viewBox="0 0 20 20">
+          <svg
+            className={`${iconClass} text-manga-lavender`}
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
             <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
           </svg>
         );
@@ -607,7 +679,11 @@ function SelectableLayerItem({
         );
       case "smartObject":
         return (
-          <svg className={`${iconClass} text-accent-tertiary`} viewBox="0 0 20 20" fill="currentColor">
+          <svg
+            className={`${iconClass} text-accent-tertiary`}
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
             <path d="M10 2L3 6v8l7 4 7-4V6l-7-4zm0 2.24L14.5 7 10 9.76 5.5 7 10 4.24z" />
           </svg>
         );
@@ -632,11 +708,12 @@ function SelectableLayerItem({
         className={`
           flex items-center gap-1.5 py-1 px-1.5 rounded-lg transition-all duration-150
           cursor-pointer
-          ${highlighted
-            ? "bg-[rgba(194,90,90,0.15)] hover:bg-[rgba(194,90,90,0.25)]"
-            : isGroupPartiallySelected
-              ? "bg-[rgba(194,90,90,0.07)] hover:bg-[rgba(194,90,90,0.12)]"
-              : "hover:bg-white/5"
+          ${
+            highlighted
+              ? "bg-[rgba(194,90,90,0.15)] hover:bg-[rgba(194,90,90,0.25)]"
+              : isGroupPartiallySelected
+                ? "bg-[rgba(194,90,90,0.07)] hover:bg-[rgba(194,90,90,0.12)]"
+                : "hover:bg-white/5"
           }
         `}
         style={{ paddingLeft: `${depth * 14 + 4}px` }}
@@ -676,11 +753,19 @@ function SelectableLayerItem({
           {layer.visible ? (
             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
               <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+              <path
+                fillRule="evenodd"
+                d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                clipRule="evenodd"
+              />
             </svg>
           ) : (
             <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+              <path
+                fillRule="evenodd"
+                d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
+                clipRule="evenodd"
+              />
               <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
             </svg>
           )}

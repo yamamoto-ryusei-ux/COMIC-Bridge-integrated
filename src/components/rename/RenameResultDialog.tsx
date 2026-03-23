@@ -37,17 +37,12 @@ export function RenameResultDialog() {
 
   // 最初の成功結果から出力フォルダを取得
   const firstSuccess = results.find((r) => r.success && r.outputFile);
-  const outputDir = firstSuccess
-    ? firstSuccess.outputFile.replace(/[\\/][^\\/]+$/, "")
-    : null;
+  const outputDir = firstSuccess ? firstSuccess.outputFile.replace(/[\\/][^\\/]+$/, "") : null;
 
   const modeLabel = subMode === "layer" ? "レイヤーリネーム" : "ファイルリネーム";
 
   const dialog = (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      onClick={close}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={close}>
       {/* Overlay */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
 
@@ -108,11 +103,7 @@ export function RenameResultDialog() {
                     stroke="currentColor"
                     strokeWidth={2}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M5 13l4 4L19 7"
-                    />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                   <span className="text-sm font-medium text-success">
                     {successCount} ファイル成功
@@ -136,9 +127,7 @@ export function RenameResultDialog() {
                       d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
                     />
                   </svg>
-                  <span className="text-sm font-medium text-error">
-                    {errorCount} 失敗
-                  </span>
+                  <span className="text-sm font-medium text-error">{errorCount} 失敗</span>
                 </div>
               </div>
             )}
@@ -182,13 +171,8 @@ export function RenameResultDialog() {
               </thead>
               <tbody>
                 {results.map((r, idx) => (
-                  <tr
-                    key={idx}
-                    className="border-t border-border/50 hover:bg-bg-tertiary/50"
-                  >
-                    <td className="px-3 py-2 text-xs text-text-muted">
-                      {idx + 1}
-                    </td>
+                  <tr key={idx} className="border-t border-border/50 hover:bg-bg-tertiary/50">
+                    <td className="px-3 py-2 text-xs text-text-muted">{idx + 1}</td>
                     <td
                       className="px-3 py-2 text-xs text-text-primary max-w-[200px]"
                       title={r.fileName}
@@ -224,18 +208,13 @@ export function RenameResultDialog() {
           {/* Error Details */}
           {errorCount > 0 && (
             <div className="bg-error/5 rounded-xl p-3 border border-error/20">
-              <h4 className="text-xs font-medium text-error mb-2">
-                エラー詳細
-              </h4>
+              <h4 className="text-xs font-medium text-error mb-2">エラー詳細</h4>
               <div className="space-y-1">
                 {results
                   .filter((r) => !r.success)
                   .slice(0, 5)
                   .map((r, idx) => (
-                    <p
-                      key={idx}
-                      className="text-[10px] text-error/80 truncate"
-                    >
+                    <p key={idx} className="text-[10px] text-error/80 truncate">
                       {r.fileName}: {r.error}
                     </p>
                   ))}

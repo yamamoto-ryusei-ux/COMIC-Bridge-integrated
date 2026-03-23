@@ -81,10 +81,12 @@ export function usePreparePsd() {
       const targetFiles = files.filter((file) => {
         if (fileIds && !fileIds.includes(file.id)) return false;
 
-        const needsSpec = fixSpec && (() => {
-          const result = checkResults.get(file.id);
-          return result && !result.passed;
-        })();
+        const needsSpec =
+          fixSpec &&
+          (() => {
+            const result = checkResults.get(file.id);
+            return result && !result.passed;
+          })();
 
         const needsGuide = applyGuides && guides.length > 0;
 
@@ -101,20 +103,25 @@ export function usePreparePsd() {
       clearConversionResults();
 
       // Initialize task tracking
-      setTasks(targetFiles.map((f) => ({
-        fileId: f.id,
-        fileName: f.fileName,
-        status: "processing" as const,
-      })));
+      setTasks(
+        targetFiles.map((f) => ({
+          fileId: f.id,
+          fileName: f.fileName,
+          status: "processing" as const,
+        })),
+      );
       setProgress({ current: 0, total: targetFiles.length });
 
       try {
         // Check if we need both operations for any file → use unified command
-        const anyNeedsBoth = fixSpec && applyGuides && targetFiles.some((file) => {
-          const result = checkResults.get(file.id);
-          const hasSpecIssue = result && !result.passed;
-          return hasSpecIssue && guides.length > 0;
-        });
+        const anyNeedsBoth =
+          fixSpec &&
+          applyGuides &&
+          targetFiles.some((file) => {
+            const result = checkResults.get(file.id);
+            const hasSpecIssue = result && !result.passed;
+            return hasSpecIssue && guides.length > 0;
+          });
 
         let results: PhotoshopResult[];
 
@@ -135,7 +142,7 @@ export function usePreparePsd() {
         for (const result of results) {
           const normalizedPath = result.filePath.replace(/\//g, "\\");
           const file = targetFiles.find(
-            (f) => f.filePath === result.filePath || f.filePath === normalizedPath
+            (f) => f.filePath === result.filePath || f.filePath === normalizedPath,
           );
           if (!file) continue;
 
@@ -149,14 +156,25 @@ export function usePreparePsd() {
           addConversionResult(conversionResult);
 
           // Update task tracking
-          setTasks((prev) => prev.map((t) =>
-            t.fileId === file.id
-              ? { ...t, status: result.success ? "success" as const : "error" as const, error: result.error ?? undefined, changes: result.changes }
-              : t
-          ));
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.fileId === file.id
+                ? {
+                    ...t,
+                    status: result.success ? ("success" as const) : ("error" as const),
+                    error: result.error ?? undefined,
+                    changes: result.changes,
+                  }
+                : t,
+            ),
+          );
           setProgress((p) => ({ ...p, current: p.current + 1 }));
 
-          if (result.success && result.changes.length > 0 && !result.changes.includes("No changes needed")) {
+          if (
+            result.success &&
+            result.changes.length > 0 &&
+            !result.changes.includes("No changes needed")
+          ) {
             successfulFiles.push({ id: file.id, filePath: file.filePath });
           }
         }
@@ -166,10 +184,15 @@ export function usePreparePsd() {
           console.log(`Reloading ${successfulFiles.length} processed files...`);
 
           try {
-            const parseResults = await invoke<{ filePath: string; metadata: PsdMetadata | null; thumbnailData: string | null; fileSize: number; error: string | null }[]>(
-              "parse_psd_metadata_batch",
-              { filePaths: successfulFiles.map((f) => f.filePath) }
-            );
+            const parseResults = await invoke<
+              {
+                filePath: string;
+                metadata: PsdMetadata | null;
+                thumbnailData: string | null;
+                fileSize: number;
+                error: string | null;
+              }[]
+            >("parse_psd_metadata_batch", { filePaths: successfulFiles.map((f) => f.filePath) });
 
             for (const result of parseResults) {
               const file = successfulFiles.find((f) => f.filePath === result.filePath);
@@ -222,7 +245,7 @@ export function usePreparePsd() {
       setStoreIsConverting,
       updateFile,
       checkAllFiles,
-    ]
+    ],
   );
 
   // Unified: spec fix + guide apply in one Photoshop pass
@@ -230,7 +253,7 @@ export function usePreparePsd() {
     targetFiles: typeof files,
     fixSpec: boolean,
     applyGuides: boolean,
-    guideList: Guide[]
+    guideList: Guide[],
   ): Promise<PhotoshopResult[]> => {
     const fileSettings: PrepareFileSettings[] = targetFiles.map((file) => {
       const result = checkResults.get(file.id);
@@ -241,8 +264,10 @@ export function usePreparePsd() {
         path: file.filePath,
         needs_dpi_change: fixSpec && failedChecks.some((r) => r.rule.type === "dpi"),
         needs_color_mode_change: fixSpec && failedChecks.some((r) => r.rule.type === "colorMode"),
-        needs_bit_depth_change: fixSpec && failedChecks.some((r) => r.rule.type === "bitsPerChannel"),
-        needs_alpha_removal: fixSpec && failedChecks.some((r) => r.rule.type === "hasAlphaChannels"),
+        needs_bit_depth_change:
+          fixSpec && failedChecks.some((r) => r.rule.type === "bitsPerChannel"),
+        needs_alpha_removal:
+          fixSpec && failedChecks.some((r) => r.rule.type === "hasAlphaChannels"),
         needs_guide_apply: !!needsGuide,
       };
     });
@@ -267,9 +292,7 @@ export function usePreparePsd() {
   };
 
   // Spec-only: use existing conversion command
-  const runSpecOnly = async (
-    targetFiles: typeof files
-  ): Promise<PhotoshopResult[]> => {
+  const runSpecOnly = async (targetFiles: typeof files): Promise<PhotoshopResult[]> => {
     const ngFiles = targetFiles.filter((f) => {
       const r = checkResults.get(f.id);
       return r && !r.passed;
@@ -305,7 +328,7 @@ export function usePreparePsd() {
   // Guide-only: use existing guide apply command
   const runGuideOnly = async (
     targetFiles: typeof files,
-    guideList: Guide[]
+    guideList: Guide[],
   ): Promise<PhotoshopResult[]> => {
     return await invoke<PhotoshopResult[]>("run_photoshop_guide_apply", {
       filePaths: targetFiles.map((f) => f.filePath),

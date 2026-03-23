@@ -26,7 +26,7 @@ function clientToDoc(
   clientY: number,
   svgEl: SVGSVGElement,
   docW: number,
-  docH: number
+  docH: number,
 ): Point {
   const rect = svgEl.getBoundingClientRect();
   const x = ((clientX - rect.left) / rect.width) * docW;
@@ -59,8 +59,16 @@ function rectToPoints(start: Point, end: Point): Point[] {
 
 // --- 色パレット（領域ごとに色分け） ---
 const REGION_COLORS = [
-  "#ff5a8a", "#7c5cff", "#00c9a7", "#f59e0b", "#ef4444",
-  "#3b82f6", "#8b5cf6", "#10b981", "#f97316", "#ec4899",
+  "#ff5a8a",
+  "#7c5cff",
+  "#00c9a7",
+  "#f59e0b",
+  "#ef4444",
+  "#3b82f6",
+  "#8b5cf6",
+  "#10b981",
+  "#f97316",
+  "#ec4899",
 ];
 function regionColor(index: number): string {
   return REGION_COLORS[index % REGION_COLORS.length];
@@ -120,7 +128,7 @@ export function TiffPartialBlurModal({
       enabled: !!previewFile,
       pdfPageIndex: previewFile?.pdfPageIndex,
       pdfSourcePath: previewFile?.pdfSourcePath,
-    }
+    },
   );
 
   const docW = originalSize?.width ?? 0;
@@ -135,13 +143,11 @@ export function TiffPartialBlurModal({
     (region: BlurRegion) => {
       setEntries((prev) =>
         prev.map((e, i) =>
-          i === activeEntryIndex
-            ? { ...e, regions: [...(e.regions ?? []), region] }
-            : e
-        )
+          i === activeEntryIndex ? { ...e, regions: [...(e.regions ?? []), region] } : e,
+        ),
       );
     },
-    [activeEntryIndex]
+    [activeEntryIndex],
   );
 
   const removeRegion = (regionId: string) => {
@@ -149,8 +155,8 @@ export function TiffPartialBlurModal({
       prev.map((e, i) =>
         i === activeEntryIndex
           ? { ...e, regions: (e.regions ?? []).filter((r) => r.id !== regionId) }
-          : e
-      )
+          : e,
+      ),
     );
     if (selectedRegionId === regionId) setSelectedRegionId(null);
   };
@@ -161,12 +167,10 @@ export function TiffPartialBlurModal({
         i === activeEntryIndex
           ? {
               ...e,
-              regions: (e.regions ?? []).map((r) =>
-                r.id === regionId ? { ...r, blurRadius } : r
-              ),
+              regions: (e.regions ?? []).map((r) => (r.id === regionId ? { ...r, blurRadius } : r)),
             }
-          : e
-      )
+          : e,
+      ),
     );
   };
 
@@ -307,7 +311,9 @@ export function TiffPartialBlurModal({
   return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         className="bg-bg-secondary border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col"
@@ -332,8 +338,8 @@ export function TiffPartialBlurModal({
                   i === activeEntryIndex
                     ? "bg-accent/20 text-accent font-medium border border-accent/30"
                     : entry.pageNumber > 0
-                    ? "bg-bg-tertiary text-text-secondary hover:bg-bg-tertiary/80"
-                    : "bg-bg-tertiary/50 text-text-muted hover:bg-bg-tertiary/80"
+                      ? "bg-bg-tertiary text-text-secondary hover:bg-bg-tertiary/80"
+                      : "bg-bg-tertiary/50 text-text-muted hover:bg-bg-tertiary/80"
                 }`}
               >
                 {entry.pageNumber > 0 ? `P${entry.pageNumber}` : `${i + 1}`}
@@ -351,7 +357,10 @@ export function TiffPartialBlurModal({
           {/* ツール切替 */}
           <div className="flex items-center gap-1 bg-bg-tertiary rounded-lg p-0.5">
             <button
-              onClick={() => { setTool("rect"); setPolygonPoints([]); }}
+              onClick={() => {
+                setTool("rect");
+                setPolygonPoints([]);
+              }}
               className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
                 tool === "rect"
                   ? "bg-accent-secondary text-white shadow-sm"
@@ -361,7 +370,10 @@ export function TiffPartialBlurModal({
               矩形
             </button>
             <button
-              onClick={() => { setTool("polygon"); setIsDrawing(false); }}
+              onClick={() => {
+                setTool("polygon");
+                setIsDrawing(false);
+              }}
               className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
                 tool === "polygon"
                   ? "bg-accent-secondary text-white shadow-sm"
@@ -628,9 +640,7 @@ export function TiffPartialBlurModal({
                     <span className="text-xs text-text-primary font-medium flex-1">
                       領域 {ri + 1}
                     </span>
-                    <span className="text-[10px] text-text-muted">
-                      {region.points.length}点
-                    </span>
+                    <span className="text-[10px] text-text-muted">{region.points.length}点</span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -664,9 +674,7 @@ export function TiffPartialBlurModal({
 
             {/* ファイル参照リスト */}
             <div className="border-t border-border p-3">
-              <h4 className="text-[10px] font-medium text-text-muted mb-1">
-                ファイル一覧
-              </h4>
+              <h4 className="text-[10px] font-medium text-text-muted mb-1">ファイル一覧</h4>
               <div className="bg-bg-tertiary rounded-lg p-1.5 max-h-24 overflow-auto space-y-0.5">
                 {files.map((file, i) => (
                   <div
@@ -682,9 +690,7 @@ export function TiffPartialBlurModal({
                   </div>
                 ))}
                 {files.length === 0 && (
-                  <p className="text-[10px] text-text-muted text-center py-1">
-                    ファイルなし
-                  </p>
+                  <p className="text-[10px] text-text-muted text-center py-1">ファイルなし</p>
                 )}
               </div>
             </div>
@@ -708,6 +714,6 @@ export function TiffPartialBlurModal({
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

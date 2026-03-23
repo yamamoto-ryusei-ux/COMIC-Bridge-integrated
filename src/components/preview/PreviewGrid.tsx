@@ -17,7 +17,8 @@ export function PreviewGrid() {
 
   // トンボ混在判定
   const hasTomboMix = useMemo(() => {
-    let has = 0, no = 0;
+    let has = 0,
+      no = 0;
     for (const file of files) {
       if (!file.metadata) continue;
       if (file.metadata.hasTombo) has++;
@@ -28,7 +29,7 @@ export function PreviewGrid() {
   }, [files]);
 
   // 注意判定: NGでない + (サイズ外れ値 OR トンボ混在でトンボなし)
-  const getCautionInfo = (fileId: string, file: typeof files[0]) => {
+  const getCautionInfo = (fileId: string, file: (typeof files)[0]) => {
     const result = checkResults.get(fileId);
     const isNG = result && !result.passed;
     if (isNG) return { isCaution: false, reasons: [] as string[] };

@@ -42,9 +42,8 @@ export function ThumbnailCard({
   const isPassed = checkResult?.passed;
 
   // NG項目のルールタイプを取得
-  const failedRuleTypes = checkResult?.results
-    .filter((r) => !r.passed)
-    .map((r) => r.rule.type) || [];
+  const failedRuleTypes =
+    checkResult?.results.filter((r) => !r.passed).map((r) => r.rule.type) || [];
 
   return (
     <div
@@ -52,11 +51,12 @@ export function ThumbnailCard({
         group relative bg-bg-tertiary rounded-2xl overflow-hidden cursor-pointer select-none
         transition-all duration-200 shadow-card border border-border
         hover:-translate-y-1 hover:shadow-elevated
-        ${isActive
-          ? "ring-2 ring-accent shadow-glow-pink"
-          : isSelected
-          ? "ring-2 ring-accent/50 shadow-md"
-          : "hover:ring-1 hover:ring-accent/30"
+        ${
+          isActive
+            ? "ring-2 ring-accent shadow-glow-pink"
+            : isSelected
+              ? "ring-2 ring-accent/50 shadow-md"
+              : "hover:ring-1 hover:ring-accent/30"
         }
         ${hasError ? "ring-2 ring-error shadow-glow-error" : ""}
         ${!hasError && isCaution ? "ring-2 ring-warning/60" : ""}
@@ -79,7 +79,11 @@ export function ThumbnailCard({
           <div className="text-error text-xs text-center p-4">
             <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-error/20 flex items-center justify-center">
               <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                <path
+                  fillRule="evenodd"
+                  d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                  clipRule="evenodd"
+                />
               </svg>
             </div>
             読込エラー
@@ -96,8 +100,18 @@ export function ThumbnailCard({
         {file.thumbnailStatus === "pending" && (
           <div className="text-text-muted text-xs flex flex-col items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-bg-tertiary flex items-center justify-center">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
             待機中
@@ -117,10 +131,10 @@ export function ThumbnailCard({
                 failedRuleTypes.includes("colorMode")
                   ? "bg-error/30 text-error"
                   : file.metadata.colorMode === "RGB"
-                  ? "bg-accent-tertiary/30 text-accent-tertiary"
-                  : file.metadata.colorMode === "Grayscale"
-                  ? "bg-white/20 text-white/80"
-                  : "bg-manga-sky/30 text-manga-sky"
+                    ? "bg-accent-tertiary/30 text-accent-tertiary"
+                    : file.metadata.colorMode === "Grayscale"
+                      ? "bg-white/20 text-white/80"
+                      : "bg-manga-sky/30 text-manga-sky"
               }`}
             >
               {file.metadata.colorMode}
@@ -164,15 +178,20 @@ export function ThumbnailCard({
         className={`
           absolute top-3 left-3 w-6 h-6 rounded-lg transition-all duration-200
           flex items-center justify-center
-          ${isSelected
-            ? "bg-gradient-to-br from-accent to-accent-secondary shadow-glow-pink"
-            : "border-2 border-white/40 bg-black/40 opacity-0 group-hover:opacity-100"
+          ${
+            isSelected
+              ? "bg-gradient-to-br from-accent to-accent-secondary shadow-glow-pink"
+              : "border-2 border-white/40 bg-black/40 opacity-0 group-hover:opacity-100"
           }
         `}
       >
         {isSelected && (
           <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            <path
+              fillRule="evenodd"
+              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+              clipRule="evenodd"
+            />
           </svg>
         )}
       </div>
@@ -201,13 +220,21 @@ export function ThumbnailCard({
       ) : isCaution ? (
         <div className="absolute top-3 right-3 w-6 h-6 bg-warning rounded-lg flex items-center justify-center shadow-lg">
           <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            <path
+              fillRule="evenodd"
+              d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+              clipRule="evenodd"
+            />
           </svg>
         </div>
       ) : isChecked && isPassed ? (
         <div className="absolute top-3 right-3 w-6 h-6 bg-success rounded-lg flex items-center justify-center shadow-lg">
           <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            <path
+              fillRule="evenodd"
+              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+              clipRule="evenodd"
+            />
           </svg>
         </div>
       ) : file.fileChanged ? (
@@ -215,8 +242,18 @@ export function ThumbnailCard({
           className="absolute top-3 right-3 w-6 h-6 bg-accent-secondary rounded-lg flex items-center justify-center shadow-lg animate-pulse"
           title="ファイルが更新されました"
         >
-          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182M2.985 19.644l3.182-3.182" />
+          <svg
+            className="w-3.5 h-3.5 text-white"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2.5}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182M2.985 19.644l3.182-3.182"
+            />
           </svg>
         </div>
       ) : null}
@@ -230,17 +267,11 @@ export function ThumbnailCard({
               .filter((r) => !r.passed)
               .map((r, i) => (
                 <div key={i} className="text-xs">
-                  <div className="text-white/80">
-                    {ruleTypeLabels[r.rule.type] || r.rule.type}
-                  </div>
+                  <div className="text-white/80">{ruleTypeLabels[r.rule.type] || r.rule.type}</div>
                   <div>
-                    <span className="text-error font-medium">
-                      {String(r.actualValue)}
-                    </span>
+                    <span className="text-error font-medium">{String(r.actualValue)}</span>
                     <span className="text-white/50 mx-1">→</span>
-                    <span className="text-success font-medium">
-                      {String(r.rule.value)}
-                    </span>
+                    <span className="text-success font-medium">{String(r.rule.value)}</span>
                   </div>
                 </div>
               ))}
@@ -274,7 +305,9 @@ export function ThumbnailCard({
               <div>
                 <div className="text-sm whitespace-nowrap">
                   <span className="text-white/80">サイズ:</span>
-                  <span className="text-warning font-medium ml-1">{file.metadata.width}×{file.metadata.height}</span>
+                  <span className="text-warning font-medium ml-1">
+                    {file.metadata.width}×{file.metadata.height}
+                  </span>
                 </div>
                 <div className="text-xs text-white/50 mt-1">
                   多数派: <span className="text-white/70">{majoritySize}</span>

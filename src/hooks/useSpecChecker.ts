@@ -21,7 +21,11 @@ export function useSpecChecker() {
   const checkFile = useCallback(
     (fileId: string, metadata: PsdMetadata, specs: Specification[]): SpecCheckResult => {
       // 各仕様ごとにチェックし、いずれか1つに合格すればOK
-      let bestMatch: { spec: Specification; results: SpecCheckResult["results"]; allPassed: boolean } | null = null;
+      let bestMatch: {
+        spec: Specification;
+        results: SpecCheckResult["results"];
+        allPassed: boolean;
+      } | null = null;
 
       for (const spec of specs) {
         if (!spec.enabled) continue;
@@ -68,7 +72,7 @@ export function useSpecChecker() {
         results: [],
       };
     },
-    []
+    [],
   );
 
   const checkAllFiles = useCallback(
@@ -87,7 +91,7 @@ export function useSpecChecker() {
 
       setIsChecking(false);
     },
-    [checkFile, setCheckResult, clearCheckResults]
+    [checkFile, setCheckResult, clearCheckResults],
   );
 
   // 自動チェック: 仕様変更時またはメタデータ追加時
@@ -118,7 +122,7 @@ export function useSpecChecker() {
 
 function checkRule(
   metadata: PsdMetadata,
-  rule: SpecRule
+  rule: SpecRule,
 ): { rule: SpecRule; passed: boolean; actualValue: string | number | boolean } {
   let actualValue: string | number | boolean;
   let passed: boolean;
@@ -166,7 +170,7 @@ function checkRule(
 function evaluateCondition(
   actual: string | number | boolean,
   operator: string,
-  expected: string | number | boolean | number[]
+  expected: string | number | boolean | number[],
 ): boolean {
   switch (operator) {
     case "equals":

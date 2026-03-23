@@ -97,8 +97,18 @@ export function ScanPsdPanel() {
       <div className="px-3 py-2.5 border-b border-border flex-shrink-0">
         <div className="flex items-center gap-2">
           <div className="w-6 h-6 rounded-lg bg-accent/10 flex items-center justify-center">
-            <svg className="w-3.5 h-3.5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            <svg
+              className="w-3.5 h-3.5 text-accent"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
             </svg>
           </div>
           <div className="flex-1 min-w-0">
@@ -109,7 +119,10 @@ export function ScanPsdPanel() {
             </p>
           </div>
           <button
-            onClick={() => { reset(); setMode(null); }}
+            onClick={() => {
+              reset();
+              setMode(null);
+            }}
             className="text-[10px] text-text-muted hover:text-text-primary px-2 py-1 rounded-lg hover:bg-bg-tertiary transition-colors"
           >
             戻る
@@ -134,10 +147,7 @@ export function ScanPsdPanel() {
             onClick={() => setActiveTab(i as ScanPsdTab)}
             className={`
               flex-1 py-2 text-[10px] font-medium transition-colors relative
-              ${activeTab === i
-                ? "text-accent"
-                : "text-text-muted hover:text-text-secondary"
-              }
+              ${activeTab === i ? "text-accent" : "text-text-muted hover:text-text-secondary"}
             `}
           >
             {label}
@@ -165,15 +175,13 @@ export function ScanPsdPanel() {
             disabled={phase !== "idle"}
             className={`flex-1 px-3 py-2 text-xs font-medium text-white rounded-xl
               disabled:opacity-40 disabled:cursor-not-allowed hover:-translate-y-0.5 transition-all shadow-sm
-              ${pendingTitleLabel && workInfo.title && workInfo.label
-                ? "bg-gradient-to-r from-success to-emerald-500 animate-pulse"
-                : "bg-gradient-to-r from-accent to-accent-secondary"
+              ${
+                pendingTitleLabel && workInfo.title && workInfo.label
+                  ? "bg-gradient-to-r from-success to-emerald-500 animate-pulse"
+                  : "bg-gradient-to-r from-accent to-accent-secondary"
               }`}
           >
-            {pendingTitleLabel && workInfo.title && workInfo.label
-              ? "正式保存する"
-              : "保存"
-            }
+            {pendingTitleLabel && workInfo.title && workInfo.label ? "正式保存する" : "保存"}
           </button>
           <button
             onClick={handleTabExport}

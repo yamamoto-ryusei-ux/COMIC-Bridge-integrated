@@ -42,7 +42,7 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
   const setFileOverride = useTiffStore((state) => state.setFileOverride);
   const fileOverrides = useTiffStore((state) => state.fileOverrides);
   const perFileTargetName = perFileEditTarget
-    ? files.find((f) => f.id === perFileEditTarget)?.fileName ?? perFileEditTarget
+    ? (files.find((f) => f.id === perFileEditTarget)?.fileName ?? perFileEditTarget)
     : null;
   const [showJsonLoadDialog, setShowJsonLoadDialog] = useState(false);
   const [jsonBtnVisible, setJsonBtnVisible] = useState(true);
@@ -77,15 +77,12 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
   const setReferenceImageSize = useTiffStore((state) => state.setReferenceImageSize);
 
   // 高解像度プレビュー
-  const { imageUrl, originalSize, isLoading } = useHighResPreview(
-    referenceFile?.filePath ?? null,
-    {
-      maxSize: 2000,
-      enabled: !!referenceFile,
-      pdfPageIndex: referenceFile?.pdfPageIndex,
-      pdfSourcePath: referenceFile?.pdfSourcePath,
-    }
-  );
+  const { imageUrl, originalSize, isLoading } = useHighResPreview(referenceFile?.filePath ?? null, {
+    maxSize: 2000,
+    enabled: !!referenceFile,
+    pdfPageIndex: referenceFile?.pdfPageIndex,
+    pdfSourcePath: referenceFile?.pdfSourcePath,
+  });
 
   // 基準画像サイズをstoreに同期
   useEffect(() => {
@@ -180,18 +177,24 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
         y: imageLayout.offsetY + docY * imageLayout.scale,
       };
     },
-    [imageLayout]
+    [imageLayout],
   );
 
   const screenToDoc = useCallback(
     (screenX: number, screenY: number) => {
       if (!imageLayout || !originalSize) return { x: 0, y: 0 };
       return {
-        x: Math.max(0, Math.min(originalSize.width, (screenX - imageLayout.offsetX) / imageLayout.scale)),
-        y: Math.max(0, Math.min(originalSize.height, (screenY - imageLayout.offsetY) / imageLayout.scale)),
+        x: Math.max(
+          0,
+          Math.min(originalSize.width, (screenX - imageLayout.offsetX) / imageLayout.scale),
+        ),
+        y: Math.max(
+          0,
+          Math.min(originalSize.height, (screenY - imageLayout.offsetY) / imageLayout.scale),
+        ),
       };
     },
-    [imageLayout, originalSize]
+    [imageLayout, originalSize],
   );
 
   // --- クロップ作成 (アスペクト比ロック) ---
@@ -215,7 +218,7 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
         bottom: Math.round(top + height),
       };
     },
-    [originalSize]
+    [originalSize],
   );
 
   const handleCanvasClick = useCallback(
@@ -230,7 +233,10 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
       const el = previewContainerRef.current || containerRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
-      const doc = screenToDoc(e.clientX - rect.left + (el.scrollLeft || 0), e.clientY - rect.top + (el.scrollTop || 0));
+      const doc = screenToDoc(
+        e.clientX - rect.left + (el.scrollLeft || 0),
+        e.clientY - rect.top + (el.scrollTop || 0),
+      );
       const newBounds = createCropFromCenter(doc.x, doc.y);
       if (newBounds) {
         pushCropHistory();
@@ -238,7 +244,18 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
         setCropBounds(newBounds);
       }
     },
-    [localBounds, screenToDoc, createCropFromCenter, setCropBounds, pushCropHistory, cropMethod, isPanning, isSpacePressed, setSelectedCropGuideIndex, cropEnabled]
+    [
+      localBounds,
+      screenToDoc,
+      createCropFromCenter,
+      setCropBounds,
+      pushCropHistory,
+      cropMethod,
+      isPanning,
+      isSpacePressed,
+      setSelectedCropGuideIndex,
+      cropEnabled,
+    ],
   );
 
   // --- ドラッグ (クロップ移動/リサイズ) ---
@@ -257,7 +274,7 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
       dragInitBounds.current = localBounds ? { ...localBounds } : null;
       historyPushed.current = false;
     },
-    [localBounds, isPanning, isSpacePressed]
+    [localBounds, isPanning, isSpacePressed],
   );
 
   useEffect(() => {
@@ -375,11 +392,22 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [imageLayout, originalSize, localBounds, setCropBounds, isPanning, isSpacePressed, pushCropHistory]);
+  }, [
+    imageLayout,
+    originalSize,
+    localBounds,
+    setCropBounds,
+    isPanning,
+    isSpacePressed,
+    pushCropHistory,
+  ]);
 
   // --- ガイドドラッグ ---
   const guideDragRef = useRef<number | null>(null);
-  const [rulerDragging, setRulerDragging] = useState<{ direction: "horizontal" | "vertical"; startPos: number } | null>(null);
+  const [rulerDragging, setRulerDragging] = useState<{
+    direction: "horizontal" | "vertical";
+    startPos: number;
+  } | null>(null);
   const [previewGuidePos, setPreviewGuidePos] = useState<number | null>(null);
 
   const handleRulerDragStart = useCallback(
@@ -387,7 +415,7 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
       if (!cropEnabled) return;
       setRulerDragging({ direction, startPos: direction === "horizontal" ? e.clientY : e.clientX });
     },
-    [cropEnabled]
+    [cropEnabled],
   );
 
   // ルーラードラッグ→ガイド作成
@@ -478,7 +506,7 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
           const rect = el.getBoundingClientRect();
           const doc = screenToDoc(
             e.clientX - rect.left + (el.scrollLeft || 0),
-            e.clientY - rect.top + (el.scrollTop || 0)
+            e.clientY - rect.top + (el.scrollTop || 0),
           );
           const newBounds = createCropFromCenter(doc.x, doc.y);
           if (newBounds) {
@@ -526,7 +554,20 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
       window.addEventListener("mousemove", handleMove);
       window.addEventListener("mouseup", handleUp);
     },
-    [cropGuides, imageLayout, originalSize, setSelectedCropGuideIndex, updateCropGuide, localBounds, isPanning, isSpacePressed, screenToDoc, createCropFromCenter, pushCropHistory, setCropBounds]
+    [
+      cropGuides,
+      imageLayout,
+      originalSize,
+      setSelectedCropGuideIndex,
+      updateCropGuide,
+      localBounds,
+      isPanning,
+      isSpacePressed,
+      screenToDoc,
+      createCropFromCenter,
+      pushCropHistory,
+      setCropBounds,
+    ],
   );
 
   // --- ズーム (Ctrl+wheel) ---
@@ -560,7 +601,7 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
         scrollY: el.scrollTop,
       };
     },
-    [isSpacePressed, zoom]
+    [isSpacePressed, zoom],
   );
 
   // --- キーボードショートカット (Tachimi互換) ---
@@ -634,22 +675,54 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
     return { x: tl.x, y: tl.y, w: br.x - tl.x, h: br.y - tl.y };
   }, [localBounds, imageLayout, docToScreen]);
 
+  // 個別クロップがある場合は表示用にそちらを優先
+  const isIndividualBoundsActive =
+    refFilePerFileBounds !== undefined && refFilePerFileBounds !== null;
+
+  const displayScreenRect = useMemo(() => {
+    if (!imageLayout) return cropScreenRect;
+    if (refFilePerFileBounds !== undefined && refFilePerFileBounds !== null) {
+      const tl = docToScreen(refFilePerFileBounds.left, refFilePerFileBounds.top);
+      const br = docToScreen(refFilePerFileBounds.right, refFilePerFileBounds.bottom);
+      return { x: tl.x, y: tl.y, w: br.x - tl.x, h: br.y - tl.y };
+    }
+    return cropScreenRect;
+  }, [refFilePerFileBounds, cropScreenRect, imageLayout, docToScreen]);
+
   // カーソルスタイル
   const cursorClass = isSpacePressed
-    ? isPanning ? "cursor-grabbing" : "cursor-grab"
-    : cropEnabled ? "cursor-crosshair" : "cursor-default";
+    ? isPanning
+      ? "cursor-grabbing"
+      : "cursor-grab"
+    : cropEnabled
+      ? "cursor-crosshair"
+      : "cursor-default";
 
   // preview area dimensions for scrollable container
-  const previewAreaW = imageLayout ? Math.max(imageLayout.displayW + 80, containerSize.width - (showRulers ? RULER_SIZE : 0)) : 0;
-  const previewAreaH = imageLayout ? Math.max(imageLayout.displayH + 80, containerSize.height - (showRulers ? RULER_SIZE : 0)) : 0;
+  const previewAreaW = imageLayout
+    ? Math.max(imageLayout.displayW + 80, containerSize.width - (showRulers ? RULER_SIZE : 0))
+    : 0;
+  const previewAreaH = imageLayout
+    ? Math.max(imageLayout.displayH + 80, containerSize.height - (showRulers ? RULER_SIZE : 0))
+    : 0;
 
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
       <div className="px-4 py-2 border-b border-border flex items-center gap-3">
         <h4 className="text-xs font-medium text-text-primary flex items-center gap-1.5">
-          <svg className="w-3.5 h-3.5 text-accent-warm" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+          <svg
+            className="w-3.5 h-3.5 text-accent-warm"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+            />
           </svg>
           {cropEnabled ? "クロップエディタ" : "プレビュー"}
         </h4>
@@ -672,16 +745,29 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
 
       {/* 参照ファイルの個別クロップ設定バナー（閲覧中・編集モード外） */}
       {!perFileEditTarget && refFilePerFileBounds !== undefined && (
-        <div className={`px-4 py-1.5 border-b flex items-center gap-2 flex-shrink-0 ${
-          refFilePerFileBounds === null
-            ? "bg-error/8 border-error/20"
-            : "bg-warning/8 border-warning/20"
-        }`}>
-          <svg className={`w-3 h-3 flex-shrink-0 ${refFilePerFileBounds === null ? "text-error/70" : "text-warning/70"}`}
-            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+        <div
+          className={`px-4 py-1.5 border-b flex items-center gap-2 flex-shrink-0 ${
+            refFilePerFileBounds === null
+              ? "bg-error/8 border-error/20"
+              : "bg-warning/8 border-warning/20"
+          }`}
+        >
+          <svg
+            className={`w-3 h-3 flex-shrink-0 ${refFilePerFileBounds === null ? "text-error/70" : "text-warning/70"}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+            />
           </svg>
-          <span className={`text-[10px] flex-1 ${refFilePerFileBounds === null ? "text-error/70" : "text-warning/70"}`}>
+          <span
+            className={`text-[10px] flex-1 ${refFilePerFileBounds === null ? "text-error/70" : "text-warning/70"}`}
+          >
             {refFilePerFileBounds === null
               ? `${referenceFile?.fileName}: クロップをスキップ`
               : `${referenceFile?.fileName}: 個別クロップ範囲 (点線表示)`}
@@ -692,8 +778,18 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
       {/* ファイル別クロップ編集モード バナー */}
       {perFileEditTarget && (
         <div className="px-4 py-2 bg-warning/10 border-b border-warning/20 flex items-center gap-3 flex-shrink-0">
-          <svg className="w-4 h-4 text-warning flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+          <svg
+            className="w-4 h-4 text-warning flex-shrink-0"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"
+            />
           </svg>
           <span className="text-xs text-warning font-medium flex-1 truncate">
             個別クロップ設定中: <span className="font-bold">{perFileTargetName}</span>
@@ -736,54 +832,54 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
 
       {/* Canvas Area with optional rulers */}
       <div ref={containerRef} className="flex-1 overflow-hidden relative">
+        <div
+          className="w-full h-full grid"
+          style={{
+            gridTemplateColumns: `${RULER_SIZE}px 1fr`,
+            gridTemplateRows: `${RULER_SIZE}px 1fr`,
+          }}
+        >
+          {/* Corner */}
+          <div className="bg-[#f8f6f3] border-r border-b border-[#ddd8d3]" />
+
+          {/* Horizontal Ruler */}
+          {imageLayout && originalSize && (
+            <CanvasRuler
+              direction="horizontal"
+              length={containerSize.width - RULER_SIZE}
+              imageSize={originalSize}
+              scaledImageSize={imageLayout.displayW}
+              offset={imageLayout.offsetX}
+              zoom={zoom}
+              onDragStart={handleRulerDragStart}
+            />
+          )}
+
+          {/* Vertical Ruler */}
+          {imageLayout && originalSize && (
+            <CanvasRuler
+              direction="vertical"
+              length={containerSize.height - RULER_SIZE}
+              imageSize={originalSize}
+              scaledImageSize={imageLayout.displayH}
+              offset={imageLayout.offsetY}
+              zoom={zoom}
+              onDragStart={handleRulerDragStart}
+            />
+          )}
+
+          {/* Preview Container */}
           <div
-            className="w-full h-full grid"
-            style={{
-              gridTemplateColumns: `${RULER_SIZE}px 1fr`,
-              gridTemplateRows: `${RULER_SIZE}px 1fr`,
-            }}
+            ref={previewContainerRef}
+            className={`relative bg-[#e8e6e3] ${cursorClass} ${zoom > 1 ? "overflow-auto" : "overflow-hidden"}`}
+            onClick={handleCanvasClick}
+            onMouseDown={handlePanMouseDown}
           >
-            {/* Corner */}
-            <div className="bg-[#f8f6f3] border-r border-b border-[#ddd8d3]" />
-
-            {/* Horizontal Ruler */}
-            {imageLayout && originalSize && (
-              <CanvasRuler
-                direction="horizontal"
-                length={containerSize.width - RULER_SIZE}
-                imageSize={originalSize}
-                scaledImageSize={imageLayout.displayW}
-                offset={imageLayout.offsetX}
-                zoom={zoom}
-                onDragStart={handleRulerDragStart}
-              />
-            )}
-
-            {/* Vertical Ruler */}
-            {imageLayout && originalSize && (
-              <CanvasRuler
-                direction="vertical"
-                length={containerSize.height - RULER_SIZE}
-                imageSize={originalSize}
-                scaledImageSize={imageLayout.displayH}
-                offset={imageLayout.offsetY}
-                zoom={zoom}
-                onDragStart={handleRulerDragStart}
-              />
-            )}
-
-            {/* Preview Container */}
-            <div
-              ref={previewContainerRef}
-              className={`relative bg-[#e8e6e3] ${cursorClass} ${zoom > 1 ? "overflow-auto" : "overflow-hidden"}`}
-              onClick={handleCanvasClick}
-              onMouseDown={handlePanMouseDown}
-            >
-              <div style={{ width: previewAreaW, height: previewAreaH, position: "relative" }}>
-                {renderPreviewContent()}
-              </div>
+            <div style={{ width: previewAreaW, height: previewAreaH, position: "relative" }}>
+              {renderPreviewContent()}
             </div>
           </div>
+        </div>
 
         {/* Floating JSON Load Button */}
         {cropEnabled && (
@@ -799,8 +895,18 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
                   onMouseDown={(e) => e.stopPropagation()}
                   className="flex items-center gap-2.5 px-5 py-3 text-base font-medium rounded-xl bg-bg-secondary/80 text-text-secondary backdrop-blur-md border border-border/40 shadow-[0_2px_12px_rgba(0,0,0,0.08)] hover:bg-bg-secondary/95 hover:text-text-primary hover:shadow-[0_4px_16px_rgba(0,0,0,0.12)] hover:-translate-y-0.5 transition-all duration-200"
                 >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                    />
                   </svg>
                   JSON読み込み
                 </button>
@@ -815,9 +921,23 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
                   }`}
                   title="ボタンを非表示"
                 >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  <svg
+                    className="w-3.5 h-3.5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
                   </svg>
                 </button>
               </div>
@@ -833,8 +953,18 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
                 }`}
                 title="JSON読み込みボタンを表示"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                  />
                 </svg>
               </button>
             )}
@@ -852,7 +982,9 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
       {/* Info Bar */}
       <div className="px-4 py-1.5 border-t border-border flex items-center gap-4 text-[10px] text-text-muted">
         {originalSize && (
-          <span>キャンバス: {originalSize.width} x {originalSize.height}</span>
+          <span>
+            キャンバス: {originalSize.width} x {originalSize.height}
+          </span>
         )}
         {cropEnabled && localBounds && (
           <span className="font-mono">
@@ -860,7 +992,11 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
           </span>
         )}
         <div className="flex-1" />
-        {cropEnabled && <span className="text-text-muted/60">比率 {ASPECT_W}:{ASPECT_H}</span>}
+        {cropEnabled && (
+          <span className="text-text-muted/60">
+            比率 {ASPECT_W}:{ASPECT_H}
+          </span>
+        )}
       </div>
 
       {/* JSON Load Dialog */}
@@ -907,37 +1043,40 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
         )}
 
         {/* PSD Original Guides (read-only reference overlay) */}
-        {imageLayout && originalSize && psdGuides.length > 0 && psdGuides.map((guide, i) => (
-          guide.direction === "horizontal" ? (
-            <div
-              key={`psd-g-${i}`}
-              className="absolute z-[5] pointer-events-none"
-              style={{
-                left: imageLayout.offsetX,
-                top: imageLayout.offsetY + guide.position * imageLayout.scale,
-                width: imageLayout.displayW,
-                height: 1,
-                background: "#00e5ff",
-                opacity: 0.55,
-                boxShadow: "0 0 3px rgba(0,229,255,0.4)",
-              }}
-            />
-          ) : (
-            <div
-              key={`psd-g-${i}`}
-              className="absolute z-[5] pointer-events-none"
-              style={{
-                left: imageLayout.offsetX + guide.position * imageLayout.scale,
-                top: imageLayout.offsetY,
-                width: 1,
-                height: imageLayout.displayH,
-                background: "#00e5ff",
-                opacity: 0.55,
-                boxShadow: "0 0 3px rgba(0,229,255,0.4)",
-              }}
-            />
-          )
-        ))}
+        {imageLayout &&
+          originalSize &&
+          psdGuides.length > 0 &&
+          psdGuides.map((guide, i) =>
+            guide.direction === "horizontal" ? (
+              <div
+                key={`psd-g-${i}`}
+                className="absolute z-[5] pointer-events-none"
+                style={{
+                  left: imageLayout.offsetX,
+                  top: imageLayout.offsetY + guide.position * imageLayout.scale,
+                  width: imageLayout.displayW,
+                  height: 1,
+                  background: "#00e5ff",
+                  opacity: 0.55,
+                  boxShadow: "0 0 3px rgba(0,229,255,0.4)",
+                }}
+              />
+            ) : (
+              <div
+                key={`psd-g-${i}`}
+                className="absolute z-[5] pointer-events-none"
+                style={{
+                  left: imageLayout.offsetX + guide.position * imageLayout.scale,
+                  top: imageLayout.offsetY,
+                  width: 1,
+                  height: imageLayout.displayH,
+                  background: "#00e5ff",
+                  opacity: 0.55,
+                  boxShadow: "0 0 3px rgba(0,229,255,0.4)",
+                }}
+              />
+            ),
+          )}
 
         {/* Guide Lines (only when crop is enabled) */}
         {cropEnabled && showRulers && imageLayout && originalSize && (
@@ -1021,8 +1160,9 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
             })}
 
             {/* Preview guide line (while dragging from ruler) */}
-            {rulerDragging && previewGuidePos !== null && (
-              rulerDragging.direction === "horizontal" ? (
+            {rulerDragging &&
+              previewGuidePos !== null &&
+              (rulerDragging.direction === "horizontal" ? (
                 <div
                   className="absolute z-30 pointer-events-none"
                   style={{
@@ -1030,7 +1170,8 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
                     top: previewGuidePos - 1,
                     width: imageLayout.displayW,
                     height: 2,
-                    background: "linear-gradient(90deg, rgba(255,177,66,0.8), rgba(255,90,138,0.8), rgba(255,177,66,0.8))",
+                    background:
+                      "linear-gradient(90deg, rgba(255,177,66,0.8), rgba(255,90,138,0.8), rgba(255,177,66,0.8))",
                     boxShadow: "0 0 8px rgba(255,177,66,0.5)",
                   }}
                 />
@@ -1042,101 +1183,204 @@ export function TiffCropEditor({ onSwitchToQueue }: TiffCropEditorProps) {
                     top: imageLayout.offsetY,
                     width: 2,
                     height: imageLayout.displayH,
-                    background: "linear-gradient(180deg, rgba(255,177,66,0.8), rgba(255,90,138,0.8), rgba(255,177,66,0.8))",
+                    background:
+                      "linear-gradient(180deg, rgba(255,177,66,0.8), rgba(255,90,138,0.8), rgba(255,177,66,0.8))",
                     boxShadow: "0 0 8px rgba(255,177,66,0.5)",
                   }}
                 />
-              )
-            )}
+              ))}
           </>
         )}
 
-        {/* Crop Overlay (only when crop is enabled) */}
-        {cropEnabled && cropScreenRect && imageLayout && (
-          <>
-            {/* Dark overlay outside crop */}
-            <div className="absolute inset-0 pointer-events-none z-10">
-              <div className="absolute bg-black/40" style={{ left: imageLayout.offsetX, top: imageLayout.offsetY, width: imageLayout.displayW, height: cropScreenRect.y - imageLayout.offsetY }} />
-              <div className="absolute bg-black/40" style={{ left: imageLayout.offsetX, top: cropScreenRect.y + cropScreenRect.h, width: imageLayout.displayW, height: (imageLayout.offsetY + imageLayout.displayH) - (cropScreenRect.y + cropScreenRect.h) }} />
-              <div className="absolute bg-black/40" style={{ left: imageLayout.offsetX, top: cropScreenRect.y, width: cropScreenRect.x - imageLayout.offsetX, height: cropScreenRect.h }} />
-              <div className="absolute bg-black/40" style={{ left: cropScreenRect.x + cropScreenRect.w, top: cropScreenRect.y, width: (imageLayout.offsetX + imageLayout.displayW) - (cropScreenRect.x + cropScreenRect.w), height: cropScreenRect.h }} />
-            </div>
-
-            {/* Crop border */}
-            <div
-              className="absolute border-2 border-accent-warm cursor-move z-10"
-              style={{ left: cropScreenRect.x, top: cropScreenRect.y, width: cropScreenRect.w, height: cropScreenRect.h }}
-              onMouseDown={(e) => handleCropMouseDown(e, "move")}
-            >
-              <div className="absolute inset-0 pointer-events-none">
-                <div className="absolute left-1/3 top-0 bottom-0 w-px bg-accent-warm/30" />
-                <div className="absolute left-2/3 top-0 bottom-0 w-px bg-accent-warm/30" />
-                <div className="absolute top-1/3 left-0 right-0 h-px bg-accent-warm/30" />
-                <div className="absolute top-2/3 left-0 right-0 h-px bg-accent-warm/30" />
-              </div>
-              {localBounds && (
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-accent-warm text-white text-[10px] font-mono rounded whitespace-nowrap">
-                  {localBounds.right - localBounds.left} x {localBounds.bottom - localBounds.top}
+        {/* Crop Overlay (only when crop is enabled, or individual bounds active) */}
+        {imageLayout &&
+          (isIndividualBoundsActive ? displayScreenRect : cropEnabled && cropScreenRect) && (
+            <>
+              {/* Dark overlay outside crop – uses effective (individual or global) rect */}
+              {displayScreenRect && (
+                <div className="absolute inset-0 pointer-events-none z-10">
+                  <div
+                    className="absolute bg-black/40"
+                    style={{
+                      left: imageLayout.offsetX,
+                      top: imageLayout.offsetY,
+                      width: imageLayout.displayW,
+                      height: displayScreenRect.y - imageLayout.offsetY,
+                    }}
+                  />
+                  <div
+                    className="absolute bg-black/40"
+                    style={{
+                      left: imageLayout.offsetX,
+                      top: displayScreenRect.y + displayScreenRect.h,
+                      width: imageLayout.displayW,
+                      height:
+                        imageLayout.offsetY +
+                        imageLayout.displayH -
+                        (displayScreenRect.y + displayScreenRect.h),
+                    }}
+                  />
+                  <div
+                    className="absolute bg-black/40"
+                    style={{
+                      left: imageLayout.offsetX,
+                      top: displayScreenRect.y,
+                      width: displayScreenRect.x - imageLayout.offsetX,
+                      height: displayScreenRect.h,
+                    }}
+                  />
+                  <div
+                    className="absolute bg-black/40"
+                    style={{
+                      left: displayScreenRect.x + displayScreenRect.w,
+                      top: displayScreenRect.y,
+                      width:
+                        imageLayout.offsetX +
+                        imageLayout.displayW -
+                        (displayScreenRect.x + displayScreenRect.w),
+                      height: displayScreenRect.h,
+                    }}
+                  />
                 </div>
               )}
-            </div>
 
-            {/* Resize handles */}
-            {(["nw", "ne", "sw", "se", "n", "s", "w", "e"] as DragMode[]).map((handle) => {
-              if (!handle) return null;
-              const size = 8;
-              const half = size / 2;
-              let left = 0, top = 0;
-
-              if (handle.includes("w")) left = cropScreenRect.x - half;
-              else if (handle.includes("e")) left = cropScreenRect.x + cropScreenRect.w - half;
-              else left = cropScreenRect.x + cropScreenRect.w / 2 - half;
-
-              if (handle.includes("n")) top = cropScreenRect.y - half;
-              else if (handle.includes("s")) top = cropScreenRect.y + cropScreenRect.h - half;
-              else top = cropScreenRect.y + cropScreenRect.h / 2 - half;
-
-              const cursorMap: Record<string, string> = {
-                nw: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize", se: "nwse-resize",
-                n: "ns-resize", s: "ns-resize", w: "ew-resize", e: "ew-resize",
-              };
-
-              return (
+              {/* Individual crop border (solid amber, read-only) – shown when individual bounds active */}
+              {isIndividualBoundsActive && displayScreenRect && refFilePerFileBounds && (
                 <div
-                  key={handle}
-                  className="absolute w-2 h-2 bg-white border-2 border-accent-warm rounded-sm z-10"
-                  style={{ left, top, width: size, height: size, cursor: cursorMap[handle] }}
-                  onMouseDown={(e) => handleCropMouseDown(e, handle)}
-                />
-              );
-            })}
-          </>
-        )}
-
-        {/* 参照ファイルの個別クロップ範囲プレビュー（2次オーバーレイ・読み取り専用） */}
-        {refFilePerFileBounds !== undefined && imageLayout && (
-          refFilePerFileBounds === null ? (
-            /* クロップスキップ表示 */
-            <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
-              <div className="px-3 py-1.5 bg-error/75 text-white text-xs rounded-lg font-medium backdrop-blur-sm">
-                このファイルはクロップをスキップ
-              </div>
-            </div>
-          ) : (() => {
-            const tl = docToScreen(refFilePerFileBounds.left, refFilePerFileBounds.top);
-            const br = docToScreen(refFilePerFileBounds.right, refFilePerFileBounds.bottom);
-            const rx = tl.x, ry = tl.y, rw = br.x - tl.x, rh = br.y - tl.y;
-            return (
-              <div className="absolute pointer-events-none z-[9]"
-                style={{ left: rx, top: ry, width: rw, height: rh,
-                  border: "2px dashed rgba(245,158,11,0.75)",
-                  boxShadow: "0 0 8px rgba(245,158,11,0.25)" }}>
-                <div className="absolute -top-5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-warning text-white text-[9px] font-mono rounded whitespace-nowrap">
-                  個別: {refFilePerFileBounds.right - refFilePerFileBounds.left}×{refFilePerFileBounds.bottom - refFilePerFileBounds.top}
+                  className="absolute border-2 pointer-events-none z-10"
+                  style={{
+                    left: displayScreenRect.x,
+                    top: displayScreenRect.y,
+                    width: displayScreenRect.w,
+                    height: displayScreenRect.h,
+                    borderColor: "rgba(245,158,11,0.9)",
+                  }}
+                >
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div
+                      className="absolute left-1/3 top-0 bottom-0 w-px"
+                      style={{ background: "rgba(245,158,11,0.3)" }}
+                    />
+                    <div
+                      className="absolute left-2/3 top-0 bottom-0 w-px"
+                      style={{ background: "rgba(245,158,11,0.3)" }}
+                    />
+                    <div
+                      className="absolute top-1/3 left-0 right-0 h-px"
+                      style={{ background: "rgba(245,158,11,0.3)" }}
+                    />
+                    <div
+                      className="absolute top-2/3 left-0 right-0 h-px"
+                      style={{ background: "rgba(245,158,11,0.3)" }}
+                    />
+                  </div>
+                  <div
+                    className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 text-white text-[10px] font-mono rounded whitespace-nowrap"
+                    style={{ background: "rgba(245,158,11,0.9)" }}
+                  >
+                    個別: {refFilePerFileBounds.right - refFilePerFileBounds.left} x{" "}
+                    {refFilePerFileBounds.bottom - refFilePerFileBounds.top}
+                  </div>
                 </div>
-              </div>
-            );
-          })()
+              )}
+
+              {/* Global crop border (solid pink, editable) – shown when individual NOT active */}
+              {!isIndividualBoundsActive && cropScreenRect && (
+                <div
+                  className="absolute border-2 border-accent-warm cursor-move z-10"
+                  style={{
+                    left: cropScreenRect.x,
+                    top: cropScreenRect.y,
+                    width: cropScreenRect.w,
+                    height: cropScreenRect.h,
+                  }}
+                  onMouseDown={(e) => handleCropMouseDown(e, "move")}
+                >
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute left-1/3 top-0 bottom-0 w-px bg-accent-warm/30" />
+                    <div className="absolute left-2/3 top-0 bottom-0 w-px bg-accent-warm/30" />
+                    <div className="absolute top-1/3 left-0 right-0 h-px bg-accent-warm/30" />
+                    <div className="absolute top-2/3 left-0 right-0 h-px bg-accent-warm/30" />
+                  </div>
+                  {localBounds && (
+                    <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-accent-warm text-white text-[10px] font-mono rounded whitespace-nowrap">
+                      {localBounds.right - localBounds.left} x{" "}
+                      {localBounds.bottom - localBounds.top}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Global crop dashed overlay (editable) – shown when individual is active */}
+              {isIndividualBoundsActive && cropEnabled && cropScreenRect && (
+                <div
+                  className="absolute cursor-move z-[8]"
+                  style={{
+                    left: cropScreenRect.x,
+                    top: cropScreenRect.y,
+                    width: cropScreenRect.w,
+                    height: cropScreenRect.h,
+                    border: "2px dashed rgba(255,90,138,0.6)",
+                  }}
+                  onMouseDown={(e) => handleCropMouseDown(e, "move")}
+                >
+                  {localBounds && (
+                    <div className="absolute -bottom-5 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-accent-warm/80 text-white text-[9px] font-mono rounded whitespace-nowrap">
+                      グローバル: {localBounds.right - localBounds.left}×
+                      {localBounds.bottom - localBounds.top}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Resize handles – always at global cropScreenRect */}
+              {cropEnabled &&
+                cropScreenRect &&
+                (["nw", "ne", "sw", "se", "n", "s", "w", "e"] as DragMode[]).map((handle) => {
+                  if (!handle) return null;
+                  const size = 8;
+                  const half = size / 2;
+                  let left = 0,
+                    top = 0;
+
+                  if (handle.includes("w")) left = cropScreenRect.x - half;
+                  else if (handle.includes("e")) left = cropScreenRect.x + cropScreenRect.w - half;
+                  else left = cropScreenRect.x + cropScreenRect.w / 2 - half;
+
+                  if (handle.includes("n")) top = cropScreenRect.y - half;
+                  else if (handle.includes("s")) top = cropScreenRect.y + cropScreenRect.h - half;
+                  else top = cropScreenRect.y + cropScreenRect.h / 2 - half;
+
+                  const cursorMap: Record<string, string> = {
+                    nw: "nwse-resize",
+                    ne: "nesw-resize",
+                    sw: "nesw-resize",
+                    se: "nwse-resize",
+                    n: "ns-resize",
+                    s: "ns-resize",
+                    w: "ew-resize",
+                    e: "ew-resize",
+                  };
+
+                  return (
+                    <div
+                      key={handle}
+                      className="absolute w-2 h-2 bg-white border-2 border-accent-warm rounded-sm z-10"
+                      style={{ left, top, width: size, height: size, cursor: cursorMap[handle] }}
+                      onMouseDown={(e) => handleCropMouseDown(e, handle)}
+                    />
+                  );
+                })}
+            </>
+          )}
+
+        {/* 参照ファイルのクロップスキップ表示 */}
+        {refFilePerFileBounds === null && imageLayout && (
+          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+            <div className="px-3 py-1.5 bg-error/75 text-white text-xs rounded-lg font-medium backdrop-blur-sm">
+              このファイルはクロップをスキップ
+            </div>
+          </div>
         )}
 
         {/* Empty state (only when crop is enabled) */}

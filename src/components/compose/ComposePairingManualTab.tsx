@@ -30,11 +30,11 @@ export function ComposePairingManualTab({ isReversed }: Props) {
 
   const allSourceFiles = useMemo(
     () => scannedFileGroups.flatMap((g) => g.sourceFiles),
-    [scannedFileGroups]
+    [scannedFileGroups],
   );
   const allTargetFiles = useMemo(
     () => scannedFileGroups.flatMap((g) => g.targetFiles),
-    [scannedFileGroups]
+    [scannedFileGroups],
   );
 
   const leftFiles = isReversed ? allTargetFiles : allSourceFiles;
@@ -75,16 +75,14 @@ export function ComposePairingManualTab({ isReversed }: Props) {
         pairIndex: nextPairIndex,
       });
     },
-    [isReversed, addManualPair, nextPairIndex]
+    [isReversed, addManualPair, nextPairIndex],
   );
 
   const isPairedFile = useCallback(
     (side: "left" | "right", path: string) => {
-      return side === "left"
-        ? pairedLeftFiles.has(path)
-        : pairedRightFiles.has(path);
+      return side === "left" ? pairedLeftFiles.has(path) : pairedRightFiles.has(path);
     },
-    [pairedLeftFiles, pairedRightFiles]
+    [pairedLeftFiles, pairedRightFiles],
   );
 
   const handleClick = useCallback(
@@ -111,7 +109,7 @@ export function ComposePairingManualTab({ isReversed }: Props) {
       createPair(leftPath, rightPath);
       setSelectedFile(null);
     },
-    [selectedFile, isPairedFile, createPair]
+    [selectedFile, isPairedFile, createPair],
   );
 
   const handleMouseDown = useCallback(
@@ -122,7 +120,7 @@ export function ComposePairingManualTab({ isReversed }: Props) {
       setDragSource({ side, path });
       isDraggingRef.current = false;
     },
-    [isPairedFile]
+    [isPairedFile],
   );
 
   useEffect(() => {
@@ -137,14 +135,10 @@ export function ComposePairingManualTab({ isReversed }: Props) {
 
     const handleMouseUp = () => {
       if (isDraggingRef.current && dragSource && dragOverPath) {
-        const dropSide: "left" | "right" = leftFiles.includes(dragOverPath)
-          ? "left"
-          : "right";
+        const dropSide: "left" | "right" = leftFiles.includes(dragOverPath) ? "left" : "right";
         if (dropSide !== dragSource.side) {
-          const leftPath =
-            dragSource.side === "left" ? dragSource.path : dragOverPath;
-          const rightPath =
-            dragSource.side === "right" ? dragSource.path : dragOverPath;
+          const leftPath = dragSource.side === "left" ? dragSource.path : dragOverPath;
+          const rightPath = dragSource.side === "right" ? dragSource.path : dragOverPath;
           createPair(leftPath, rightPath);
         }
       }
@@ -176,7 +170,7 @@ export function ComposePairingManualTab({ isReversed }: Props) {
       if (isPairedFile(side, path)) return;
       setDragOverPath(path);
     },
-    [dragSource, isPairedFile]
+    [dragSource, isPairedFile],
   );
 
   const handleMouseLeave = useCallback(() => {
@@ -185,17 +179,10 @@ export function ComposePairingManualTab({ isReversed }: Props) {
     }
   }, []);
 
-  const renderFileItem = (
-    path: string,
-    side: "left" | "right",
-    isPaired: boolean
-  ) => {
-    const isSelected =
-      selectedFile?.side === side && selectedFile?.path === path;
+  const renderFileItem = (path: string, side: "left" | "right", isPaired: boolean) => {
+    const isSelected = selectedFile?.side === side && selectedFile?.path === path;
     const isDragging =
-      isDraggingRef.current &&
-      dragSource?.side === side &&
-      dragSource?.path === path;
+      isDraggingRef.current && dragSource?.side === side && dragSource?.path === path;
     const isDropCandidate = isDraggingRef.current && dragOverPath === path;
 
     return (
@@ -207,11 +194,12 @@ export function ComposePairingManualTab({ isReversed }: Props) {
         onMouseLeave={handleMouseLeave}
         className={`
           px-2.5 py-1.5 text-xs rounded-lg transition-all select-none
-          ${isPaired
-            ? "opacity-40 cursor-default"
-            : isDragging
-              ? "opacity-50 bg-accent/10"
-              : "cursor-pointer hover:bg-bg-tertiary"
+          ${
+            isPaired
+              ? "opacity-40 cursor-default"
+              : isDragging
+                ? "opacity-50 bg-accent/10"
+                : "cursor-pointer hover:bg-bg-tertiary"
           }
           ${isSelected ? "ring-2 ring-accent bg-accent/10" : ""}
           ${isDropCandidate ? "ring-2 ring-accent/50 bg-accent/5" : ""}
@@ -226,11 +214,7 @@ export function ComposePairingManualTab({ isReversed }: Props) {
               stroke="currentColor"
               strokeWidth={3}
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M5 13l4 4L19 7"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           )}
           <span
@@ -261,11 +245,7 @@ export function ComposePairingManualTab({ isReversed }: Props) {
             stroke="currentColor"
             strokeWidth={2}
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M13 7l5 5m0 0l-5 5m5-5H6"
-            />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
           </svg>
           <span className="text-[10px] text-accent">{selectionHint}</span>
         </div>
@@ -278,9 +258,7 @@ export function ComposePairingManualTab({ isReversed }: Props) {
           </div>
           <div className="border border-border rounded-xl overflow-hidden">
             <div className="max-h-[250px] overflow-y-auto p-1.5 space-y-0.5">
-              {leftFiles.map((path) =>
-                renderFileItem(path, "left", pairedLeftFiles.has(path))
-              )}
+              {leftFiles.map((path) => renderFileItem(path, "left", pairedLeftFiles.has(path)))}
               {leftFiles.length === 0 && (
                 <div className="text-[10px] text-text-muted text-center py-4">
                   ファイルがありません
@@ -296,9 +274,7 @@ export function ComposePairingManualTab({ isReversed }: Props) {
           </div>
           <div className="border border-border rounded-xl overflow-hidden">
             <div className="max-h-[250px] overflow-y-auto p-1.5 space-y-0.5">
-              {rightFiles.map((path) =>
-                renderFileItem(path, "right", pairedRightFiles.has(path))
-              )}
+              {rightFiles.map((path) => renderFileItem(path, "right", pairedRightFiles.has(path)))}
               {rightFiles.length === 0 && (
                 <div className="text-[10px] text-text-muted text-center py-4">
                   ファイルがありません
@@ -321,20 +297,14 @@ export function ComposePairingManualTab({ isReversed }: Props) {
           ) : (
             <div className="max-h-[160px] overflow-y-auto divide-y divide-border/50">
               {manualPairs.map((pair, idx) => {
-                const leftName = isReversed
-                  ? pair.targetName
-                  : pair.sourceName;
-                const rightName = isReversed
-                  ? pair.sourceName
-                  : pair.targetName;
+                const leftName = isReversed ? pair.targetName : pair.sourceName;
+                const rightName = isReversed ? pair.sourceName : pair.targetName;
                 return (
                   <div
                     key={pair.pairIndex}
                     className="flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-bg-tertiary/50"
                   >
-                    <span className="text-text-muted w-5 text-right flex-shrink-0">
-                      {idx + 1}
-                    </span>
+                    <span className="text-text-muted w-5 text-right flex-shrink-0">{idx + 1}</span>
                     <span className="text-text-primary truncate flex-1" title={leftName}>
                       {leftName}
                     </span>

@@ -49,28 +49,23 @@ export function useFileWatcher() {
     let mounted = true;
 
     const setup = async () => {
-      const unlisten = await listen<FileChangedPayload>(
-        "file-changed",
-        (event) => {
-          if (!mounted) return;
-          const { filePath, modifiedSecs } = event.payload;
-          const normalizedPath = normalizePath(filePath);
+      const unlisten = await listen<FileChangedPayload>("file-changed", (event) => {
+        if (!mounted) return;
+        const { filePath, modifiedSecs } = event.payload;
+        const normalizedPath = normalizePath(filePath);
 
-          const currentFiles = usePsdStore.getState().files;
-          const target = currentFiles.find(
-            (f) => normalizePath(f.filePath) === normalizedPath
-          );
-          if (!target) return;
+        const currentFiles = usePsdStore.getState().files;
+        const target = currentFiles.find((f) => normalizePath(f.filePath) === normalizedPath);
+        if (!target) return;
 
-          // fileChanged フラグを立てる
-          const updates = new Map<string, Partial<(typeof currentFiles)[0]>>();
-          updates.set(target.id, {
-            fileChanged: true,
-            modifiedTime: modifiedSecs * 1000,
-          });
-          usePsdStore.getState().batchUpdateFiles(updates);
-        }
-      );
+        // fileChanged フラグを立てる
+        const updates = new Map<string, Partial<(typeof currentFiles)[0]>>();
+        updates.set(target.id, {
+          fileChanged: true,
+          modifiedTime: modifiedSecs * 1000,
+        });
+        usePsdStore.getState().batchUpdateFiles(updates);
+      });
 
       if (mounted) {
         unlistenRef.current = unlisten;

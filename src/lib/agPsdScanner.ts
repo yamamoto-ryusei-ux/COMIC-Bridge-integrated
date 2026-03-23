@@ -24,7 +24,7 @@ import type { FontResolveInfo } from "../hooks/useFontResolver";
 /** テキストレイヤーを再帰的に収集（可視のみ） */
 function collectVisibleTextLayers(
   layers: LayerNode[],
-  parentVisible = true
+  parentVisible = true,
 ): { textInfo: TextInfo; layerName: string }[] {
   const result: { textInfo: TextInfo; layerName: string }[] = [];
   for (const layer of layers) {
@@ -44,10 +44,16 @@ function guideSetKey(
   horizontal: number[],
   vertical: number[],
   width: number,
-  height: number
+  height: number,
 ): string {
-  const h = [...horizontal].sort((a, b) => a - b).map((v) => Math.round(v)).join(",");
-  const v = [...vertical].sort((a, b) => a - b).map((v) => Math.round(v)).join(",");
+  const h = [...horizontal]
+    .sort((a, b) => a - b)
+    .map((v) => Math.round(v))
+    .join(",");
+  const v = [...vertical]
+    .sort((a, b) => a - b)
+    .map((v) => Math.round(v))
+    .join(",");
   return `${width}x${height}|h:${h}|v:${v}`;
 }
 
@@ -65,10 +71,7 @@ export interface AgPsdScanOptions {
 /**
  * psdStore の files からスキャンデータを構築する
  */
-export function buildScanDataFromFiles(
-  files: PsdFile[],
-  options: AgPsdScanOptions
-): ScanData {
+export function buildScanDataFromFiles(files: PsdFile[], options: AgPsdScanOptions): ScanData {
   const { fontResolveMap, volume, existingWorkInfo } = options;
 
   // --- フォント集計 ---
@@ -86,7 +89,14 @@ export function buildScanDataFromFiles(
   // --- ガイドセット集計 ---
   const guideSetMap = new Map<
     string,
-    { horizontal: number[]; vertical: number[]; count: number; docNames: string[]; docWidth: number; docHeight: number }
+    {
+      horizontal: number[];
+      vertical: number[];
+      count: number;
+      docNames: string[];
+      docWidth: number;
+      docHeight: number;
+    }
   >();
   // --- テキストレイヤー by doc ---
   const textLayersByDoc: Record<string, ScanTextLayer[]> = {};
@@ -100,9 +110,10 @@ export function buildScanDataFromFiles(
   const now = new Date().toISOString();
 
   // フォルダ名を導出
-  const folderName = psdFiles.length > 0
-    ? psdFiles[0].filePath.replace(/[\\/][^\\/]+$/, "").replace(/^.*[\\/]/, "")
-    : "unknown";
+  const folderName =
+    psdFiles.length > 0
+      ? psdFiles[0].filePath.replace(/[\\/][^\\/]+$/, "").replace(/^.*[\\/]/, "")
+      : "unknown";
 
   for (const file of psdFiles) {
     const meta = file.metadata!;
@@ -121,9 +132,7 @@ export function buildScanDataFromFiles(
         if (!fontMap.has(fontName)) {
           const resolved = fontResolveMap[fontName];
           fontMap.set(fontName, {
-            displayName: resolved
-              ? `${resolved.display_name} ${resolved.style_name}`
-              : fontName,
+            displayName: resolved ? `${resolved.display_name} ${resolved.style_name}` : fontName,
             count: 0,
             sizeMap: new Map(),
           });
@@ -183,10 +192,10 @@ export function buildScanDataFromFiles(
       }
       textLogByFolder[folderName][docName] = docTextLayers.map((tl, idx) => ({
         content: tl.content,
-        yPos: idx,  // ag-psdではY座標不明のためレイヤー順序で代替
+        yPos: idx, // ag-psdではY座標不明のためレイヤー順序で代替
         layerName: tl.layerName,
         fontSize: tl.fontSize,
-        isLinked: false,  // ag-psdではリンク情報不明
+        isLinked: false, // ag-psdではリンク情報不明
         linkGroupId: null,
       }));
     }
@@ -196,9 +205,7 @@ export function buildScanDataFromFiles(
       const horizontal = meta.guides
         .filter((g) => g.direction === "horizontal")
         .map((g) => g.position);
-      const vertical = meta.guides
-        .filter((g) => g.direction === "vertical")
-        .map((g) => g.position);
+      const vertical = meta.guides.filter((g) => g.direction === "vertical").map((g) => g.position);
 
       if (horizontal.length > 0 || vertical.length > 0) {
         const key = guideSetKey(horizontal, vertical, meta.width, meta.height);
@@ -270,8 +277,7 @@ export function buildScanDataFromFiles(
     .sort((a, b) => b.count - a.count);
 
   // guideSets
-  const guideSets: ScanGuideSet[] = [...guideSetMap.values()]
-    .sort((a, b) => b.count - a.count);
+  const guideSets: ScanGuideSet[] = [...guideSetMap.values()].sort((a, b) => b.count - a.count);
 
   // workInfo
   const workInfo: ScanWorkInfo = existingWorkInfo
@@ -348,9 +354,16 @@ export function mergeScanData(existing: ScanData, incoming: ScanData): ScanData 
   };
 
   // --- strokeStats マージ ---
-  const strokeMap = new Map<number, { count: number; fontSizes: Set<number>; maxFontSize: number | null }>();
+  const strokeMap = new Map<
+    number,
+    { count: number; fontSizes: Set<number>; maxFontSize: number | null }
+  >();
   for (const s of existing.strokeStats?.sizes || []) {
-    strokeMap.set(s.size, { count: s.count, fontSizes: new Set(s.fontSizes), maxFontSize: s.maxFontSize });
+    strokeMap.set(s.size, {
+      count: s.count,
+      fontSizes: new Set(s.fontSizes),
+      maxFontSize: s.maxFontSize,
+    });
   }
   for (const s of incoming.strokeStats?.sizes || []) {
     const ex = strokeMap.get(s.size);
@@ -361,7 +374,11 @@ export function mergeScanData(existing: ScanData, incoming: ScanData): ScanData 
         ex.maxFontSize = s.maxFontSize;
       }
     } else {
-      strokeMap.set(s.size, { count: s.count, fontSizes: new Set(s.fontSizes), maxFontSize: s.maxFontSize });
+      strokeMap.set(s.size, {
+        count: s.count,
+        fontSizes: new Set(s.fontSizes),
+        maxFontSize: s.maxFontSize,
+      });
     }
   }
   const strokeSizes: ScanStrokeEntry[] = [...strokeMap.entries()]
@@ -401,8 +418,9 @@ export function mergeScanData(existing: ScanData, incoming: ScanData): ScanData 
       guideSets.push(gs);
     } else {
       // 同じガイドセットの count を加算
-      const existing = guideSets.find((g) =>
-        `${g.horizontal.join(",")}_${g.vertical.join(",")}_${g.docWidth}x${g.docHeight}` === key
+      const existing = guideSets.find(
+        (g) =>
+          `${g.horizontal.join(",")}_${g.vertical.join(",")}_${g.docWidth}x${g.docHeight}` === key,
       );
       if (existing) {
         existing.count += gs.count;

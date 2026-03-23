@@ -173,9 +173,7 @@ export const useSpecStore = create<SpecStore>((set, get) => ({
 
   updateSpecification: (id, updates) =>
     set((state) => ({
-      specifications: state.specifications.map((s) =>
-        s.id === id ? { ...s, ...updates } : s
-      ),
+      specifications: state.specifications.map((s) => (s.id === id ? { ...s, ...updates } : s)),
     })),
 
   removeSpecification: (id) =>
@@ -187,7 +185,7 @@ export const useSpecStore = create<SpecStore>((set, get) => ({
   toggleSpecification: (id) =>
     set((state) => ({
       specifications: state.specifications.map((s) =>
-        s.id === id ? { ...s, enabled: !s.enabled } : s
+        s.id === id ? { ...s, enabled: !s.enabled } : s,
       ),
     })),
 
@@ -215,8 +213,7 @@ export const useSpecStore = create<SpecStore>((set, get) => ({
   openSpecSelectionModal: (pendingFilesCount) =>
     set({ showSpecSelectionModal: true, pendingFilesCount }),
 
-  closeSpecSelectionModal: () =>
-    set({ showSpecSelectionModal: false, pendingFilesCount: 0 }),
+  closeSpecSelectionModal: () => set({ showSpecSelectionModal: false, pendingFilesCount: 0 }),
 
   selectSpecAndCheck: (specId) => {
     const { specifications, setLastSelectedSpecId } = get();

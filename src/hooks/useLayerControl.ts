@@ -4,7 +4,11 @@ import { desktopDir } from "@tauri-apps/api/path";
 import { usePsdStore } from "../store/psdStore";
 import { useLayerStore, type HideCondition, type LayerControlResult } from "../store/layerStore";
 import { matchesCondition, isTextFolder } from "../lib/layerMatcher";
-import { applyVirtualMoves, applyCustomVisibilityToTree, buildIdToPathInfo } from "../lib/layerTreeOps";
+import {
+  applyVirtualMoves,
+  applyCustomVisibilityToTree,
+  buildIdToPathInfo,
+} from "../lib/layerTreeOps";
 import type { LayerNode } from "../types";
 
 interface PhotoshopResult {
@@ -41,7 +45,7 @@ export function useLayerControl() {
         caseSensitive: c.caseSensitive ?? false,
       }));
     },
-    []
+    [],
   );
 
   // Photoshop JSX スクリプト経由でレイヤー可視性を変更
@@ -51,18 +55,15 @@ export function useLayerControl() {
     const isHideMode = actionMode === "hide";
     if (conditions.length === 0 && !(isHideMode && deleteHiddenText)) return;
 
-    const targetFiles = selectedFileIds.length > 0
-      ? files.filter((f) => selectedFileIds.includes(f.id))
-      : files;
+    const targetFiles =
+      selectedFileIds.length > 0 ? files.filter((f) => selectedFileIds.includes(f.id)) : files;
 
     if (targetFiles.length === 0) return;
 
     setIsProcessing(true);
 
     try {
-      const filePaths = targetFiles
-        .filter((f) => f.metadata?.layerTree)
-        .map((f) => f.filePath);
+      const filePaths = targetFiles.filter((f) => f.metadata?.layerTree).map((f) => f.filePath);
 
       if (filePaths.length === 0) {
         setIsProcessing(false);
@@ -72,23 +73,20 @@ export function useLayerControl() {
       const layerConditions = conditionsToLayerConditions(conditions);
 
       // Tauriコマンドを実行（Photoshop JSX経由）
-      const psResults = await invoke<PhotoshopResult[]>(
-        "run_photoshop_layer_visibility",
-        {
-          filePaths,
-          conditions: layerConditions,
-          mode: actionMode,
-          saveMode,
-          deleteHiddenText: isHideMode && deleteHiddenText ? true : undefined,
-        }
-      );
+      const psResults = await invoke<PhotoshopResult[]>("run_photoshop_layer_visibility", {
+        filePaths,
+        conditions: layerConditions,
+        mode: actionMode,
+        saveMode,
+        deleteHiddenText: isHideMode && deleteHiddenText ? true : undefined,
+      });
       const results: LayerControlResult[] = [];
 
       // 結果を処理してUIのレイヤーツリーを更新
       for (const psResult of psResults) {
         const normalizedPath = psResult.filePath.replace(/\//g, "\\");
         const file = targetFiles.find(
-          (f) => f.filePath === psResult.filePath || f.filePath === normalizedPath
+          (f) => f.filePath === psResult.filePath || f.filePath === normalizedPath,
         );
 
         if (!file) continue;
@@ -114,7 +112,7 @@ export function useLayerControl() {
             updatedLayerTree = updateLayerTreeByConditions(
               updatedLayerTree,
               conditions,
-              !isHideMode // showの場合はvisible=true
+              !isHideMode, // showの場合はvisible=true
             );
           }
 
@@ -163,9 +161,8 @@ export function useLayerControl() {
 
     if (!organizeTargetName.trim()) return;
 
-    const targetFiles = selectedFileIds.length > 0
-      ? files.filter((f) => selectedFileIds.includes(f.id))
-      : files;
+    const targetFiles =
+      selectedFileIds.length > 0 ? files.filter((f) => selectedFileIds.includes(f.id)) : files;
 
     if (targetFiles.length === 0) return;
 
@@ -174,22 +171,19 @@ export function useLayerControl() {
     try {
       const filePaths = targetFiles.map((f) => f.filePath);
 
-      const psResults = await invoke<PhotoshopResult[]>(
-        "run_photoshop_layer_organize",
-        {
-          filePaths,
-          targetGroupName: organizeTargetName,
-          includeSpecial: organizeIncludeSpecial,
-          saveMode,
-        }
-      );
+      const psResults = await invoke<PhotoshopResult[]>("run_photoshop_layer_organize", {
+        filePaths,
+        targetGroupName: organizeTargetName,
+        includeSpecial: organizeIncludeSpecial,
+        saveMode,
+      });
 
       const results: LayerControlResult[] = [];
 
       for (const psResult of psResults) {
         const normalizedPath = psResult.filePath.replace(/\//g, "\\");
         const file = targetFiles.find(
-          (f) => f.filePath === psResult.filePath || f.filePath === normalizedPath
+          (f) => f.filePath === psResult.filePath || f.filePath === normalizedPath,
         );
 
         if (!file) continue;
@@ -216,13 +210,7 @@ export function useLayerControl() {
     } finally {
       setIsProcessing(false);
     }
-  }, [
-    files,
-    selectedFileIds,
-    saveMode,
-    setIsProcessing,
-    setLastResults,
-  ]);
+  }, [files, selectedFileIds, saveMode, setIsProcessing, setLastResults]);
 
   // 条件ベースでレイヤーをグループに移動
   const moveLayersByConditions = useCallback(async () => {
@@ -242,12 +230,15 @@ export function useLayerControl() {
 
     if (!layerMoveTargetName.trim()) return;
 
-    const hasAnyCondition = layerMoveCondTextLayer || layerMoveCondSubgroupTop || layerMoveCondSubgroupBottom || layerMoveCondNameEnabled;
+    const hasAnyCondition =
+      layerMoveCondTextLayer ||
+      layerMoveCondSubgroupTop ||
+      layerMoveCondSubgroupBottom ||
+      layerMoveCondNameEnabled;
     if (!hasAnyCondition) return;
 
-    const targetFiles = selectedFileIds.length > 0
-      ? files.filter((f) => selectedFileIds.includes(f.id))
-      : files;
+    const targetFiles =
+      selectedFileIds.length > 0 ? files.filter((f) => selectedFileIds.includes(f.id)) : files;
 
     if (targetFiles.length === 0) return;
 
@@ -256,32 +247,29 @@ export function useLayerControl() {
     try {
       const filePaths = targetFiles.map((f) => f.filePath);
 
-      const psResults = await invoke<PhotoshopResult[]>(
-        "run_photoshop_layer_move",
-        {
-          filePaths,
-          targetGroupName: layerMoveTargetName,
-          createIfMissing: layerMoveCreateIfMissing,
-          searchScope: layerMoveSearchScope,
-          searchGroupName: layerMoveSearchGroupName,
-          conditions: {
-            textLayer: layerMoveCondTextLayer,
-            subgroupTop: layerMoveCondSubgroupTop,
-            subgroupBottom: layerMoveCondSubgroupBottom,
-            nameEnabled: layerMoveCondNameEnabled,
-            namePattern: layerMoveCondName,
-            namePartial: layerMoveCondNamePartial,
-          },
-          saveMode,
-        }
-      );
+      const psResults = await invoke<PhotoshopResult[]>("run_photoshop_layer_move", {
+        filePaths,
+        targetGroupName: layerMoveTargetName,
+        createIfMissing: layerMoveCreateIfMissing,
+        searchScope: layerMoveSearchScope,
+        searchGroupName: layerMoveSearchGroupName,
+        conditions: {
+          textLayer: layerMoveCondTextLayer,
+          subgroupTop: layerMoveCondSubgroupTop,
+          subgroupBottom: layerMoveCondSubgroupBottom,
+          nameEnabled: layerMoveCondNameEnabled,
+          namePattern: layerMoveCondName,
+          namePartial: layerMoveCondNamePartial,
+        },
+        saveMode,
+      });
 
       const results: LayerControlResult[] = [];
 
       for (const psResult of psResults) {
         const normalizedPath = psResult.filePath.replace(/\//g, "\\");
         const file = targetFiles.find(
-          (f) => f.filePath === psResult.filePath || f.filePath === normalizedPath
+          (f) => f.filePath === psResult.filePath || f.filePath === normalizedPath,
         );
 
         if (!file) continue;
@@ -308,21 +296,15 @@ export function useLayerControl() {
     } finally {
       setIsProcessing(false);
     }
-  }, [
-    files,
-    selectedFileIds,
-    saveMode,
-    setIsProcessing,
-    setLastResults,
-  ]);
+  }, [files, selectedFileIds, saveMode, setIsProcessing, setLastResults]);
 
   // カスタムモード: 個別レイヤー操作を適用
   const applyCustomOperations = useCallback(async () => {
-    const { customVisibilityOps, customMoveOps, clearCustomOps, deleteHiddenText } = useLayerStore.getState();
+    const { customVisibilityOps, customMoveOps, clearCustomOps, deleteHiddenText } =
+      useLayerStore.getState();
 
-    const targetFiles = selectedFileIds.length > 0
-      ? files.filter((f) => selectedFileIds.includes(f.id))
-      : files;
+    const targetFiles =
+      selectedFileIds.length > 0 ? files.filter((f) => selectedFileIds.includes(f.id)) : files;
 
     if (targetFiles.length === 0) return;
 
@@ -383,22 +365,19 @@ export function useLayerControl() {
         };
       });
 
-      const psResults = await invoke<PhotoshopResult[]>(
-        "run_photoshop_custom_operations",
-        {
-          filePaths,
-          fileOps,
-          saveMode,
-          deleteHiddenText: deleteHiddenText ? true : undefined,
-        }
-      );
+      const psResults = await invoke<PhotoshopResult[]>("run_photoshop_custom_operations", {
+        filePaths,
+        fileOps,
+        saveMode,
+        deleteHiddenText: deleteHiddenText ? true : undefined,
+      });
 
       const results: LayerControlResult[] = [];
 
       for (const psResult of psResults) {
         const normalizedPath = psResult.filePath.replace(/\//g, "\\");
         const file = filesWithOps.find(
-          (f) => f.filePath === psResult.filePath || f.filePath === normalizedPath
+          (f) => f.filePath === psResult.filePath || f.filePath === normalizedPath,
         );
 
         if (!file) continue;
@@ -428,7 +407,9 @@ export function useLayerControl() {
           }
 
           // Then apply visibility changes (use resolved paths from fileOps)
-          const matchingFileOps = fileOps.find((fo) => fo.filePath === file.filePath.replace(/\\/g, "/"));
+          const matchingFileOps = fileOps.find(
+            (fo) => fo.filePath === file.filePath.replace(/\\/g, "/"),
+          );
           const resolvedVisForTree = matchingFileOps?.visibilityOps ?? [];
           if (resolvedVisForTree.length > 0) {
             updatedTree = applyCustomVisibilityToTree(updatedTree, resolvedVisForTree);
@@ -460,14 +441,7 @@ export function useLayerControl() {
     } finally {
       setIsProcessing(false);
     }
-  }, [
-    files,
-    selectedFileIds,
-    saveMode,
-    setIsProcessing,
-    setLastResults,
-    updateFile,
-  ]);
+  }, [files, selectedFileIds, saveMode, setIsProcessing, setLastResults, updateFile]);
 
   // レイヤーロック適用
   const applyLayerLock = useCallback(async () => {
@@ -475,9 +449,8 @@ export function useLayerControl() {
 
     if (!lockBottomLayer && !unlockAllLayers) return;
 
-    const targetFiles = selectedFileIds.length > 0
-      ? files.filter((f) => selectedFileIds.includes(f.id))
-      : files;
+    const targetFiles =
+      selectedFileIds.length > 0 ? files.filter((f) => selectedFileIds.includes(f.id)) : files;
 
     if (targetFiles.length === 0) return;
 
@@ -486,22 +459,19 @@ export function useLayerControl() {
     try {
       const filePaths = targetFiles.map((f) => f.filePath);
 
-      const psResults = await invoke<PhotoshopResult[]>(
-        "run_photoshop_layer_lock",
-        {
-          filePaths,
-          lockBottom: lockBottomLayer,
-          unlockAll: unlockAllLayers,
-          saveMode,
-        }
-      );
+      const psResults = await invoke<PhotoshopResult[]>("run_photoshop_layer_lock", {
+        filePaths,
+        lockBottom: lockBottomLayer,
+        unlockAll: unlockAllLayers,
+        saveMode,
+      });
 
       const results: LayerControlResult[] = [];
 
       for (const psResult of psResults) {
         const normalizedPath = psResult.filePath.replace(/\//g, "\\");
         const file = targetFiles.find(
-          (f) => f.filePath === psResult.filePath || f.filePath === normalizedPath
+          (f) => f.filePath === psResult.filePath || f.filePath === normalizedPath,
         );
 
         if (!file) continue;
@@ -549,22 +519,14 @@ export function useLayerControl() {
     } finally {
       setIsProcessing(false);
     }
-  }, [
-    files,
-    selectedFileIds,
-    saveMode,
-    setIsProcessing,
-    setLastResults,
-    updateFile,
-  ]);
+  }, [files, selectedFileIds, saveMode, setIsProcessing, setLastResults, updateFile]);
 
   // レイヤー統合（背景+テキスト）— 常に別フォルダに保存
   const applyMergeLayers = useCallback(async () => {
     const { mergeReorganizeText, mergeOutputFolderName } = useLayerStore.getState();
 
-    const targetFiles = selectedFileIds.length > 0
-      ? files.filter((f) => selectedFileIds.includes(f.id))
-      : files;
+    const targetFiles =
+      selectedFileIds.length > 0 ? files.filter((f) => selectedFileIds.includes(f.id)) : files;
 
     if (targetFiles.length === 0) return;
 
@@ -578,22 +540,19 @@ export function useLayerControl() {
         ? filePaths[0].replace(/\\/g, "/").split("/").slice(0, -1).join("/")
         : "";
 
-      const psResults = await invoke<PhotoshopResult[]>(
-        "run_photoshop_merge_layers",
-        {
-          filePaths,
-          reorganizeText: mergeReorganizeText,
-          saveMode: "copyToFolder", // 常に別フォルダ保存
-          outputFolderName: mergeOutputFolderName || null,
-        }
-      );
+      const psResults = await invoke<PhotoshopResult[]>("run_photoshop_merge_layers", {
+        filePaths,
+        reorganizeText: mergeReorganizeText,
+        saveMode: "copyToFolder", // 常に別フォルダ保存
+        outputFolderName: mergeOutputFolderName || null,
+      });
 
       const results: LayerControlResult[] = [];
 
       for (const psResult of psResults) {
         const normalizedPath = psResult.filePath.replace(/\//g, "\\");
         const file = targetFiles.find(
-          (f) => f.filePath === psResult.filePath || f.filePath === normalizedPath
+          (f) => f.filePath === psResult.filePath || f.filePath === normalizedPath,
         );
 
         if (!file) continue;
@@ -612,9 +571,11 @@ export function useLayerControl() {
       }
 
       // 出力フォルダパスを算出（Rust側と同じロジック）
-      const folderName = mergeOutputFolderName?.trim() || (filePaths[0]
-        ? `${filePaths[0].replace(/\\/g, "/").split("/").slice(-2, -1)[0] || "output"}_統合`
-        : "output");
+      const folderName =
+        mergeOutputFolderName?.trim() ||
+        (filePaths[0]
+          ? `${filePaths[0].replace(/\\/g, "/").split("/").slice(-2, -1)[0] || "output"}_統合`
+          : "output");
       const desktop = await desktopDir().catch(() => "");
       const desktopNorm = desktop ? desktop.replace(/\\/g, "/").replace(/\/?$/, "/") : "";
       const outputFolder = desktopNorm
@@ -630,12 +591,7 @@ export function useLayerControl() {
     } finally {
       setIsProcessing(false);
     }
-  }, [
-    files,
-    selectedFileIds,
-    setIsProcessing,
-    setLastResults,
-  ]);
+  }, [files, selectedFileIds, setIsProcessing, setLastResults]);
 
   return {
     applyLayerVisibility,
@@ -662,14 +618,12 @@ function updateLayerTreeByConditions(
   layers: LayerNode[],
   conditions: HideCondition[],
   setVisible: boolean,
-  parentIsTextFolder = false
+  parentIsTextFolder = false,
 ): LayerNode[] {
   return layers.map((layer) => {
     const textFolder = isTextFolder(layer);
 
-    const matches = conditions.some((cond) =>
-      matchesCondition(layer, cond, parentIsTextFolder)
-    );
+    const matches = conditions.some((cond) => matchesCondition(layer, cond, parentIsTextFolder));
 
     const updatedLayer: LayerNode = {
       ...layer,
@@ -681,7 +635,7 @@ function updateLayerTreeByConditions(
         layer.children,
         conditions,
         setVisible,
-        parentIsTextFolder || textFolder
+        parentIsTextFolder || textFolder,
       );
     }
 

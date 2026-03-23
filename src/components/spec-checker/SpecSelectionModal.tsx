@@ -29,21 +29,14 @@ export function SpecSelectionModal() {
     : null;
 
   return (
-    <Modal
-      isOpen={showModal}
-      onClose={closeModal}
-      size="lg"
-      showCloseButton={false}
-    >
+    <Modal isOpen={showModal} onClose={closeModal} size="lg" showCloseButton={false}>
       <div className="text-center">
         {/* タイトル */}
         <div className="mb-6">
           <h2 className="text-2xl font-display font-bold text-text-primary mb-2">
             どの仕様でチェックしますか?
           </h2>
-          <p className="text-text-secondary">
-            {pendingFilesCount}件のファイルを読み込みました
-          </p>
+          <p className="text-text-secondary">{pendingFilesCount}件のファイルを読み込みました</p>
         </div>
 
         {/* 仕様選択ボタン */}
@@ -77,9 +70,7 @@ export function SpecSelectionModal() {
                 />
               </svg>
             </div>
-            <h3 className="text-xl font-display font-bold text-text-primary mb-2">
-              モノクロ原稿
-            </h3>
+            <h3 className="text-xl font-display font-bold text-text-primary mb-2">モノクロ原稿</h3>
             <div className="space-y-1 text-sm text-text-muted">
               <p>Grayscale</p>
               <p>600 dpi</p>
@@ -118,9 +109,7 @@ export function SpecSelectionModal() {
                 />
               </svg>
             </div>
-            <h3 className="text-xl font-display font-bold text-text-primary mb-2">
-              カラー原稿
-            </h3>
+            <h3 className="text-xl font-display font-bold text-text-primary mb-2">カラー原稿</h3>
             <div className="space-y-1 text-sm text-text-muted">
               <p>RGB</p>
               <p>350 dpi</p>
@@ -148,11 +137,7 @@ export function SpecSelectionModal() {
           />
           <span className="text-sm">
             次回から自動で選択
-            {lastSpecName && (
-              <span className="text-text-muted ml-1">
-                (前回: {lastSpecName})
-              </span>
-            )}
+            {lastSpecName && <span className="text-text-muted ml-1">(前回: {lastSpecName})</span>}
           </span>
         </label>
 

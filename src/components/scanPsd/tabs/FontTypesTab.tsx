@@ -83,7 +83,8 @@ function filteredAndSortedPresets(
         if (aMissing !== bMissing) return aMissing ? 1 : -1;
         const aHas = a.preset.subName && a.preset.subName in SUB_NAME_ORDER;
         const bHas = b.preset.subName && b.preset.subName in SUB_NAME_ORDER;
-        if (aHas && bHas) return SUB_NAME_ORDER[a.preset.subName] - SUB_NAME_ORDER[b.preset.subName];
+        if (aHas && bHas)
+          return SUB_NAME_ORDER[a.preset.subName] - SUB_NAME_ORDER[b.preset.subName];
         if (aHas) return -1;
         if (bHas) return 1;
         return 0;
@@ -96,7 +97,8 @@ function filteredAndSortedPresets(
       items.sort((a, b) => {
         const aHas = a.preset.subName && a.preset.subName in SUB_NAME_ORDER;
         const bHas = b.preset.subName && b.preset.subName in SUB_NAME_ORDER;
-        if (aHas && bHas) return SUB_NAME_ORDER[a.preset.subName] - SUB_NAME_ORDER[b.preset.subName];
+        if (aHas && bHas)
+          return SUB_NAME_ORDER[a.preset.subName] - SUB_NAME_ORDER[b.preset.subName];
         if (aHas) return -1;
         if (bHas) return 1;
         return 0;
@@ -168,7 +170,9 @@ export function FontTypesTab() {
   const [manualFont, setManualFont] = useState({ psName: "", displayName: "", subName: "" });
   const [manualFontResolving, setManualFontResolving] = useState(false);
   const [fontSearchQuery, setFontSearchQuery] = useState("");
-  const [fontSearchResults, setFontSearchResults] = useState<{ postscript_name: string; display_name: string; style_name: string }[]>([]);
+  const [fontSearchResults, setFontSearchResults] = useState<
+    { postscript_name: string; display_name: string; style_name: string }[]
+  >([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [fontSearchNotFound, setFontSearchNotFound] = useState(false);
 
@@ -181,9 +185,7 @@ export function FontTypesTab() {
   const currentPresets = presetSets[currentSetName] || [];
   const setNames = Object.keys(presetSets);
 
-  const registeredFonts = new Set(
-    Object.values(presetSets).flatMap((ps) => ps.map((p) => p.font))
-  );
+  const registeredFonts = new Set(Object.values(presetSets).flatMap((ps) => ps.map((p) => p.font)));
   const unregisteredFonts = scanData?.fonts
     ? scanData.fonts.filter((f) => !registeredFonts.has(f.name))
     : [];
@@ -233,8 +235,8 @@ export function FontTypesTab() {
 
   const isFontMissing = (psName: string) => fontChecked && !(psName in fontResolveMap);
   const missingFontNames = useMemo(
-    () => fontChecked ? allPresetFontNames.filter((n) => !(n in fontResolveMap)) : [],
-    [fontChecked, allPresetFontNames, fontResolveMap]
+    () => (fontChecked ? allPresetFontNames.filter((n) => !(n in fontResolveMap)) : []),
+    [fontChecked, allPresetFontNames, fontResolveMap],
   );
 
   // --- 自動纏めプレビュー初期化 ---
@@ -267,21 +269,23 @@ export function FontTypesTab() {
 
   // --- 纏めプレビュー操作 ---
   const toggleGroupSkip = (gIdx: number) => {
-    setEditableGroups((prev) => prev.map((g, i) => i === gIdx ? { ...g, skip: !g.skip } : g));
+    setEditableGroups((prev) => prev.map((g, i) => (i === gIdx ? { ...g, skip: !g.skip } : g)));
   };
 
   const setGroupMain = (gIdx: number, entryIdx: number) => {
-    setEditableGroups((prev) => prev.map((g, i) => i === gIdx ? { ...g, mainIdx: entryIdx } : g));
+    setEditableGroups((prev) => prev.map((g, i) => (i === gIdx ? { ...g, mainIdx: entryIdx } : g)));
   };
 
   const toggleKeep = (gIdx: number, entryIdx: number) => {
-    setEditableGroups((prev) => prev.map((g, i) => {
-      if (i !== gIdx) return g;
-      const next = new Set(g.keepIndices);
-      if (next.has(entryIdx)) next.delete(entryIdx);
-      else next.add(entryIdx);
-      return { ...g, keepIndices: next };
-    }));
+    setEditableGroups((prev) =>
+      prev.map((g, i) => {
+        if (i !== gIdx) return g;
+        const next = new Set(g.keepIndices);
+        if (next.has(entryIdx)) next.delete(entryIdx);
+        else next.add(entryIdx);
+        return { ...g, keepIndices: next };
+      }),
+    );
   };
 
   const handleExecuteGroup = () => {
@@ -294,7 +298,10 @@ export function FontTypesTab() {
         indicesToRemove.add(g.entries[i].presetIndex);
       }
     }
-    if (indicesToRemove.size === 0) { setShowGroupPreview(false); return; }
+    if (indicesToRemove.size === 0) {
+      setShowGroupPreview(false);
+      return;
+    }
     const sorted = [...indicesToRemove].sort((a, b) => b - a);
     for (const idx of sorted) {
       removeFontFromPreset(currentSetName, idx);
@@ -316,11 +323,13 @@ export function FontTypesTab() {
 
   const handleManualGroup = () => {
     if (manualSelected.size < 2) return;
-    const entries: GroupEntry[] = [...manualSelected].map((idx) => ({
-      preset: currentPresets[idx],
-      presetIndex: idx,
-      count: fontCountMap.get(currentPresets[idx].font) ?? 0,
-    })).sort((a, b) => b.count - a.count);
+    const entries: GroupEntry[] = [...manualSelected]
+      .map((idx) => ({
+        preset: currentPresets[idx],
+        presetIndex: idx,
+        count: fontCountMap.get(currentPresets[idx].font) ?? 0,
+      }))
+      .sort((a, b) => b.count - a.count);
     const newGroup: EditableGroup = {
       family: "(手動グループ)",
       entries,
@@ -399,7 +408,9 @@ export function FontTypesTab() {
     setManualFontResolving(true);
     setFontSearchNotFound(false);
     try {
-      const results = await invoke<{ postscript_name: string; display_name: string; style_name: string }[]>("search_font_names", {
+      const results = await invoke<
+        { postscript_name: string; display_name: string; style_name: string }[]
+      >("search_font_names", {
         query,
         maxResults: 30,
       });
@@ -408,7 +419,8 @@ export function FontTypesTab() {
         setManualFont((prev) => ({
           ...prev,
           psName: results[0].postscript_name,
-          displayName: results[0].display_name + (results[0].style_name ? ` ${results[0].style_name}` : ""),
+          displayName:
+            results[0].display_name + (results[0].style_name ? ` ${results[0].style_name}` : ""),
         }));
         setShowSearchResults(false);
         setFontSearchResults([]);
@@ -429,7 +441,11 @@ export function FontTypesTab() {
   };
 
   // 検索結果からフォントを選択
-  const selectSearchResult = (result: { postscript_name: string; display_name: string; style_name: string }) => {
+  const selectSearchResult = (result: {
+    postscript_name: string;
+    display_name: string;
+    style_name: string;
+  }) => {
     setManualFont((prev) => ({
       ...prev,
       psName: result.postscript_name,
@@ -504,11 +520,25 @@ export function FontTypesTab() {
 
   // フィルタ・ソート適用
   const displayPresets = useMemo(
-    () => filteredAndSortedPresets(
-      currentPresets, filterCategory, filterInstall, sortMode,
-      isFontMissing, fontChecked, fontCountMap,
-    ),
-    [currentPresets, filterCategory, filterInstall, sortMode, fontChecked, fontCountMap, fontResolveMap]
+    () =>
+      filteredAndSortedPresets(
+        currentPresets,
+        filterCategory,
+        filterInstall,
+        sortMode,
+        isFontMissing,
+        fontChecked,
+        fontCountMap,
+      ),
+    [
+      currentPresets,
+      filterCategory,
+      filterInstall,
+      sortMode,
+      fontChecked,
+      fontCountMap,
+      fontResolveMap,
+    ],
   );
 
   // 纏め対象数の計算
@@ -529,7 +559,11 @@ export function FontTypesTab() {
 
   // ピッカー用データ
   const pickerSections = useMemo(() => {
-    const sections: { name: string; keys: string[]; items: { key: string; label: string; subName: string; font: string; count?: number }[] }[] = [];
+    const sections: {
+      name: string;
+      keys: string[];
+      items: { key: string; label: string; subName: string; font: string; count?: number }[];
+    }[] = [];
 
     for (const setName of setNames) {
       const presets = presetSets[setName];
@@ -570,7 +604,9 @@ export function FontTypesTab() {
               focus:border-accent focus:outline-none"
           >
             {setNames.map((name) => (
-              <option key={name} value={name}>{name}</option>
+              <option key={name} value={name}>
+                {name}
+              </option>
             ))}
           </select>
           <button
@@ -578,12 +614,21 @@ export function FontTypesTab() {
             className="w-7 h-7 rounded-lg bg-accent/10 text-accent hover:bg-accent/20 flex items-center justify-center transition-colors"
             title="セット追加"
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2.5}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
           </button>
           <button
-            onClick={() => { setEditMode("rename"); setInputValue(currentSetName); }}
+            onClick={() => {
+              setEditMode("rename");
+              setInputValue(currentSetName);
+            }}
             className="text-[10px] text-text-muted hover:text-accent px-1.5 py-1 rounded-lg hover:bg-accent/5 transition-colors"
             title="名前変更"
           >
@@ -665,7 +710,10 @@ export function FontTypesTab() {
               const allSelected = selectedCount === section.keys.length;
 
               return (
-                <div key={section.name} className="border border-border/40 rounded-lg overflow-hidden">
+                <div
+                  key={section.name}
+                  className="border border-border/40 rounded-lg overflow-hidden"
+                >
                   {/* セクションヘッダー */}
                   <div
                     className="flex items-center gap-2 px-2.5 py-1.5 bg-bg-tertiary/50 cursor-pointer select-none"
@@ -673,13 +721,18 @@ export function FontTypesTab() {
                   >
                     <svg
                       className={`w-3 h-3 text-text-muted transition-transform ${isCollapsed ? "" : "rotate-90"}`}
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                     </svg>
                     <span className="text-[10px] font-bold text-text-primary flex-1">
                       {section.name}
-                      <span className="text-text-muted font-normal ml-1">({section.items.length}件)</span>
+                      <span className="text-text-muted font-normal ml-1">
+                        ({section.items.length}件)
+                      </span>
                     </span>
                     {selectedCount > 0 && (
                       <span className="text-[9px] font-bold text-accent bg-accent/10 px-1.5 py-0.5 rounded-full">
@@ -687,7 +740,10 @@ export function FontTypesTab() {
                       </span>
                     )}
                     <button
-                      onClick={(e) => { e.stopPropagation(); togglePickerSection(section.keys, !allSelected); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        togglePickerSection(section.keys, !allSelected);
+                      }}
                       className="text-[9px] text-accent hover:text-accent-secondary px-1.5 py-0.5 rounded hover:bg-accent/10 transition-colors"
                     >
                       {allSelected ? "全解除" : "全選択"}
@@ -727,10 +783,16 @@ export function FontTypesTab() {
                                 {item.subName}
                               </span>
                             )}
-                            <span className="text-[10px] text-text-primary truncate flex-1">{item.label}</span>
-                            <span className="text-[8px] text-text-muted font-mono flex-shrink-0">{item.font}</span>
+                            <span className="text-[10px] text-text-primary truncate flex-1">
+                              {item.label}
+                            </span>
+                            <span className="text-[8px] text-text-muted font-mono flex-shrink-0">
+                              {item.font}
+                            </span>
                             {item.count != null && (
-                              <span className="text-[8px] text-text-muted flex-shrink-0">({item.count}回)</span>
+                              <span className="text-[8px] text-text-muted flex-shrink-0">
+                                ({item.count}回)
+                              </span>
                             )}
                           </label>
                         );
@@ -771,15 +833,19 @@ export function FontTypesTab() {
       {/* フォントプリセットリスト */}
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <h4 className="text-[10px] font-bold text-text-secondary">
-            プリセット
-          </h4>
+          <h4 className="text-[10px] font-bold text-text-secondary">プリセット</h4>
           <span className="text-[9px] font-bold text-accent-secondary bg-accent-secondary/10 px-2 py-0.5 rounded-full">
             {currentPresets.length}
           </span>
           {fontChecked && missingFontNames.length === 0 && currentPresets.length > 0 && (
             <span className="text-[9px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-full flex items-center gap-1">
-              <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+              <svg
+                className="w-2.5 h-2.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={3}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
               全フォントOK
@@ -792,15 +858,30 @@ export function FontTypesTab() {
           <div className="bg-bg-tertiary/40 rounded-xl px-2.5 py-2 mb-2 border border-border/20 space-y-1.5">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="text-[9px] text-text-muted font-medium mr-0.5">フィルタ:</span>
-              <FilterChip label="カテゴリあり" active={filterCategory === "has"}
-                onClick={() => setFilterCategory(filterCategory === "has" ? "all" : "has")} />
-              <FilterChip label="カテゴリなし" active={filterCategory === "none"}
-                onClick={() => setFilterCategory(filterCategory === "none" ? "all" : "none")} />
+              <FilterChip
+                label="カテゴリあり"
+                active={filterCategory === "has"}
+                onClick={() => setFilterCategory(filterCategory === "has" ? "all" : "has")}
+              />
+              <FilterChip
+                label="カテゴリなし"
+                active={filterCategory === "none"}
+                onClick={() => setFilterCategory(filterCategory === "none" ? "all" : "none")}
+              />
               <span className="w-px h-3 bg-border/40 mx-0.5" />
-              <FilterChip label="インストール済み" active={filterInstall === "installed"}
-                onClick={() => setFilterInstall(filterInstall === "installed" ? "all" : "installed")} />
-              <FilterChip label="未インストール" active={filterInstall === "missing"}
-                onClick={() => setFilterInstall(filterInstall === "missing" ? "all" : "missing")} color="error" />
+              <FilterChip
+                label="インストール済み"
+                active={filterInstall === "installed"}
+                onClick={() =>
+                  setFilterInstall(filterInstall === "installed" ? "all" : "installed")
+                }
+              />
+              <FilterChip
+                label="未インストール"
+                active={filterInstall === "missing"}
+                onClick={() => setFilterInstall(filterInstall === "missing" ? "all" : "missing")}
+                color="error"
+              />
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[9px] text-text-muted font-medium">ソート:</span>
@@ -860,7 +941,10 @@ export function FontTypesTab() {
               </button>
             )}
             <button
-              onClick={() => { setManualSelectMode(false); setManualSelected(new Set()); }}
+              onClick={() => {
+                setManualSelectMode(false);
+                setManualSelected(new Set());
+              }}
               className="text-[9px] text-text-muted px-2 py-1 hover:text-text-primary"
             >
               取消
@@ -880,9 +964,12 @@ export function FontTypesTab() {
               </p>
             </div>
             {editableGroups.map((g, gIdx) => (
-              <div key={`${g.family}-${gIdx}`}
+              <div
+                key={`${g.family}-${gIdx}`}
                 className={`rounded-lg px-2.5 py-1.5 border transition-all ${
-                  g.skip ? "bg-bg-tertiary/50 border-border/20 opacity-60" : "bg-white border-border/30"
+                  g.skip
+                    ? "bg-bg-tertiary/50 border-border/20 opacity-60"
+                    : "bg-white border-border/30"
                 }`}
               >
                 <div className="flex items-center gap-2 mb-1">
@@ -905,7 +992,8 @@ export function FontTypesTab() {
                       const isKept = g.keepIndices.has(eIdx);
                       const willRemove = !isMain && !isKept;
                       return (
-                        <div key={e.presetIndex}
+                        <div
+                          key={e.presetIndex}
                           className={`flex items-center gap-1.5 text-[9px] py-0.5 px-1 rounded ${
                             isMain ? "bg-accent/5" : ""
                           }`}
@@ -923,10 +1011,14 @@ export function FontTypesTab() {
                               残す
                             </span>
                           )}
-                          <span className={`flex-1 truncate ${willRemove && !isMain ? "text-text-muted line-through" : "text-text-primary"}`}>
+                          <span
+                            className={`flex-1 truncate ${willRemove && !isMain ? "text-text-muted line-through" : "text-text-primary"}`}
+                          >
                             {e.preset.name}
                           </span>
-                          <span className="text-text-muted/70 font-mono flex-shrink-0">{e.preset.font}</span>
+                          <span className="text-text-muted/70 font-mono flex-shrink-0">
+                            {e.preset.font}
+                          </span>
                           <span className="text-text-muted/70 flex-shrink-0">{e.count}回</span>
                           {!isMain && (
                             <div className="flex gap-0.5 flex-shrink-0">
@@ -981,10 +1073,23 @@ export function FontTypesTab() {
         {fontChecked && missingFontNames.length > 0 && (
           <div
             className="flex items-start gap-2 px-3 py-2 rounded-xl mb-2 border"
-            style={{ backgroundColor: `${MISSING_FONT_COLOR}08`, borderColor: `${MISSING_FONT_COLOR}25` }}
+            style={{
+              backgroundColor: `${MISSING_FONT_COLOR}08`,
+              borderColor: `${MISSING_FONT_COLOR}25`,
+            }}
           >
-            <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke={MISSING_FONT_COLOR} strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            <svg
+              className="w-3.5 h-3.5 flex-shrink-0 mt-0.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke={MISSING_FONT_COLOR}
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
             </svg>
             <div className="flex-1">
               <p className="text-[10px] font-bold" style={{ color: MISSING_FONT_COLOR }}>
@@ -1029,14 +1134,14 @@ export function FontTypesTab() {
             </div>
             {/* テーブルボディ */}
             <div>
-            {displayPresets.map(({ preset: p, originalIndex }, idx) => {
-              const missing = isFontMissing(p.font);
-              const count = fontCountMap.get(p.font);
-              const isManualSelected = manualSelected.has(originalIndex);
-              return (
-              <div key={originalIndex}>
-                <div
-                  className={`grid items-start gap-x-2.5 px-2.5 py-1.5 group
+              {displayPresets.map(({ preset: p, originalIndex }, idx) => {
+                const missing = isFontMissing(p.font);
+                const count = fontCountMap.get(p.font);
+                const isManualSelected = manualSelected.has(originalIndex);
+                return (
+                  <div key={originalIndex}>
+                    <div
+                      className={`grid items-start gap-x-2.5 px-2.5 py-1.5 group
                     border-b last:border-b-0 transition-all ${
                       isManualSelected
                         ? "bg-purple-50/80 hover:bg-purple-50 border-purple-200/30"
@@ -1046,160 +1151,208 @@ export function FontTypesTab() {
                             ? "bg-white hover:bg-bg-secondary/60 border-border/20"
                             : "bg-bg-secondary/30 hover:bg-bg-secondary/60 border-border/20"
                     }`}
-                  style={{ gridTemplateColumns: gridCols }}
-                >
-                  {/* 手動纏め選択 */}
-                  {manualSelectMode && (
-                    <span className="flex items-center justify-center pt-0.5">
-                      <input
-                        type="checkbox"
-                        checked={isManualSelected}
-                        onChange={() => toggleManualSelect(originalIndex)}
-                        className="w-3 h-3 accent-purple-500 cursor-pointer"
-                      />
-                    </span>
-                  )}
-                  {/* インストール状態 */}
-                  <span className="flex items-center justify-center pt-0.5">
-                    {fontChecked && (
-                      missing ? (
-                        <span
-                          className="w-4 h-4 rounded flex items-center justify-center"
-                          style={{ backgroundColor: `${MISSING_FONT_COLOR}15` }}
-                          title="未インストール"
-                        >
-                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke={MISSING_FONT_COLOR} strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </span>
-                      ) : (
-                        <span
-                          className="w-4 h-4 rounded flex items-center justify-center"
-                          style={{ backgroundColor: "#10b98115" }}
-                          title="インストール済み"
-                        >
-                          <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="#10b981" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        </span>
-                      )
-                    )}
-                  </span>
-                  {/* カテゴリ */}
-                  <span>
-                    {p.subName ? (
-                      <span
-                        className="text-[9px] font-semibold px-1.5 py-0.5 rounded border inline-block truncate max-w-full"
-                        style={getSubNameStyle(p.subName)}
-                      >
-                        {p.subName}
-                      </span>
-                    ) : (
-                      <span className="text-[9px] text-text-muted/40">&mdash;</span>
-                    )}
-                  </span>
-                  {/* フォント名 + PostScript名 + 出現数 */}
-                  <span className="min-w-0">
-                    <span
-                      className={`text-[11px] block ${missing ? "" : "text-text-primary"}`}
-                      style={missing
-                        ? { color: MISSING_FONT_COLOR, textDecoration: "line-through", textDecorationColor: `${MISSING_FONT_COLOR}50` }
-                        : undefined
-                      }
+                      style={{ gridTemplateColumns: gridCols }}
                     >
-                      {p.name}
-                      {count != null && (
-                        <span className="text-[8px] text-text-muted ml-1.5 font-normal">
-                          ({count}回)
+                      {/* 手動纏め選択 */}
+                      {manualSelectMode && (
+                        <span className="flex items-center justify-center pt-0.5">
+                          <input
+                            type="checkbox"
+                            checked={isManualSelected}
+                            onChange={() => toggleManualSelect(originalIndex)}
+                            className="w-3 h-3 accent-purple-500 cursor-pointer"
+                          />
                         </span>
                       )}
-                    </span>
-                    <span
-                      className={`text-[9px] font-mono block ${missing ? "" : "text-text-muted"}`}
-                      style={missing ? { color: `${MISSING_FONT_COLOR}90` } : undefined}
-                    >
-                      {p.font}
-                    </span>
-                  </span>
-                  {/* アクション */}
-                  <span className="flex items-center gap-1 justify-end">
-                    <button
-                      onClick={() => {
-                        setEditingPresetIndex(originalIndex);
-                        setEditForm({ name: p.name, subName: p.subName || "" });
-                      }}
-                      className="text-text-muted hover:text-accent transition-colors opacity-0 group-hover:opacity-100"
-                      title="編集"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => removeFontFromPreset(currentSetName, originalIndex)}
-                      className="text-text-muted hover:text-error transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </span>
-                </div>
-                {/* インライン編集フォーム */}
-                {editingPresetIndex === originalIndex && (
-                  <div className="mx-2 my-1 bg-bg-tertiary/60 rounded-lg px-2.5 py-2 border border-accent/20 space-y-1.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] text-text-muted w-12 flex-shrink-0">カテゴリ</span>
-                      <input
-                        list="subname-edit-list"
-                        value={editForm.subName}
-                        onChange={(e) => setEditForm({ ...editForm, subName: e.target.value })}
-                        placeholder="なし（選択 or 手入力）"
-                        className="flex-1 bg-white border border-border rounded-lg px-2 py-1 text-[10px] text-text-primary
+                      {/* インストール状態 */}
+                      <span className="flex items-center justify-center pt-0.5">
+                        {fontChecked &&
+                          (missing ? (
+                            <span
+                              className="w-4 h-4 rounded flex items-center justify-center"
+                              style={{ backgroundColor: `${MISSING_FONT_COLOR}15` }}
+                              title="未インストール"
+                            >
+                              <svg
+                                className="w-2.5 h-2.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke={MISSING_FONT_COLOR}
+                                strokeWidth={3}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </span>
+                          ) : (
+                            <span
+                              className="w-4 h-4 rounded flex items-center justify-center"
+                              style={{ backgroundColor: "#10b98115" }}
+                              title="インストール済み"
+                            >
+                              <svg
+                                className="w-2.5 h-2.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="#10b981"
+                                strokeWidth={3}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            </span>
+                          ))}
+                      </span>
+                      {/* カテゴリ */}
+                      <span>
+                        {p.subName ? (
+                          <span
+                            className="text-[9px] font-semibold px-1.5 py-0.5 rounded border inline-block truncate max-w-full"
+                            style={getSubNameStyle(p.subName)}
+                          >
+                            {p.subName}
+                          </span>
+                        ) : (
+                          <span className="text-[9px] text-text-muted/40">&mdash;</span>
+                        )}
+                      </span>
+                      {/* フォント名 + PostScript名 + 出現数 */}
+                      <span className="min-w-0">
+                        <span
+                          className={`text-[11px] block ${missing ? "" : "text-text-primary"}`}
+                          style={
+                            missing
+                              ? {
+                                  color: MISSING_FONT_COLOR,
+                                  textDecoration: "line-through",
+                                  textDecorationColor: `${MISSING_FONT_COLOR}50`,
+                                }
+                              : undefined
+                          }
+                        >
+                          {p.name}
+                          {count != null && (
+                            <span className="text-[8px] text-text-muted ml-1.5 font-normal">
+                              ({count}回)
+                            </span>
+                          )}
+                        </span>
+                        <span
+                          className={`text-[9px] font-mono block ${missing ? "" : "text-text-muted"}`}
+                          style={missing ? { color: `${MISSING_FONT_COLOR}90` } : undefined}
+                        >
+                          {p.font}
+                        </span>
+                      </span>
+                      {/* アクション */}
+                      <span className="flex items-center gap-1 justify-end">
+                        <button
+                          onClick={() => {
+                            setEditingPresetIndex(originalIndex);
+                            setEditForm({ name: p.name, subName: p.subName || "" });
+                          }}
+                          className="text-text-muted hover:text-accent transition-colors opacity-0 group-hover:opacity-100"
+                          title="編集"
+                        >
+                          <svg
+                            className="w-3 h-3"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                            />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => removeFontFromPreset(currentSetName, originalIndex)}
+                          className="text-text-muted hover:text-error transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <svg
+                            className="w-3 h-3"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      </span>
+                    </div>
+                    {/* インライン編集フォーム */}
+                    {editingPresetIndex === originalIndex && (
+                      <div className="mx-2 my-1 bg-bg-tertiary/60 rounded-lg px-2.5 py-2 border border-accent/20 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] text-text-muted w-12 flex-shrink-0">
+                            カテゴリ
+                          </span>
+                          <input
+                            list="subname-edit-list"
+                            value={editForm.subName}
+                            onChange={(e) => setEditForm({ ...editForm, subName: e.target.value })}
+                            placeholder="なし（選択 or 手入力）"
+                            className="flex-1 bg-white border border-border rounded-lg px-2 py-1 text-[10px] text-text-primary
                           focus:border-accent focus:outline-none"
-                      />
-                      <datalist id="subname-edit-list">
-                        {UNIQUE_SUB_NAMES.map((sn) => (
-                          <option key={sn} value={sn} />
-                        ))}
-                      </datalist>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] text-text-muted w-12 flex-shrink-0">表示名</span>
-                      <input
-                        type="text"
-                        value={editForm.name}
-                        onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                        className="flex-1 bg-white border border-border rounded-lg px-2 py-1 text-[10px] text-text-primary
+                          />
+                          <datalist id="subname-edit-list">
+                            {UNIQUE_SUB_NAMES.map((sn) => (
+                              <option key={sn} value={sn} />
+                            ))}
+                          </datalist>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] text-text-muted w-12 flex-shrink-0">
+                            表示名
+                          </span>
+                          <input
+                            type="text"
+                            value={editForm.name}
+                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                            className="flex-1 bg-white border border-border rounded-lg px-2 py-1 text-[10px] text-text-primary
                           focus:border-accent focus:outline-none"
-                      />
-                    </div>
-                    <div className="flex gap-1.5 justify-end">
-                      <button
-                        onClick={() => {
-                          updateFontInPreset(currentSetName, originalIndex, {
-                            name: editForm.name,
-                            subName: editForm.subName,
-                          });
-                          setEditingPresetIndex(null);
-                        }}
-                        className="text-[9px] font-bold text-white px-3 py-1 rounded-lg transition-all"
-                        style={{ background: "linear-gradient(135deg, #ff5a8a, #7c5cff)" }}
-                      >
-                        保存
-                      </button>
-                      <button
-                        onClick={() => setEditingPresetIndex(null)}
-                        className="text-[9px] text-text-muted px-2 py-1 hover:text-text-primary transition-colors"
-                      >
-                        取消
-                      </button>
-                    </div>
+                          />
+                        </div>
+                        <div className="flex gap-1.5 justify-end">
+                          <button
+                            onClick={() => {
+                              updateFontInPreset(currentSetName, originalIndex, {
+                                name: editForm.name,
+                                subName: editForm.subName,
+                              });
+                              setEditingPresetIndex(null);
+                            }}
+                            className="text-[9px] font-bold text-white px-3 py-1 rounded-lg transition-all"
+                            style={{ background: "linear-gradient(135deg, #ff5a8a, #7c5cff)" }}
+                          >
+                            保存
+                          </button>
+                          <button
+                            onClick={() => setEditingPresetIndex(null)}
+                            className="text-[9px] text-text-muted px-2 py-1 hover:text-text-primary transition-colors"
+                          >
+                            取消
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-              );
-            })}
+                );
+              })}
             </div>
           </div>
         )}
@@ -1208,9 +1361,7 @@ export function FontTypesTab() {
       {/* === 手動フォント追加 === */}
       <div>
         <div className="flex items-center gap-2 mb-2">
-          <h4 className="text-[10px] font-bold text-text-secondary">
-            フォント手動追加
-          </h4>
+          <h4 className="text-[10px] font-bold text-text-secondary">フォント手動追加</h4>
           <button
             onClick={() => setShowManualFontAdd(!showManualFontAdd)}
             className={`text-[10px] font-medium px-2.5 py-1 rounded-lg border transition-all ${
@@ -1239,7 +1390,9 @@ export function FontTypesTab() {
                     setFontSearchNotFound(false);
                     setShowSearchResults(false);
                   }}
-                  onKeyDown={(e) => { if (e.key === "Enter") resolveManualFontName(); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") resolveManualFontName();
+                  }}
                   placeholder="例: 小塚ゴシック, KozGo, ヒラギノ..."
                   className={`flex-1 bg-white border rounded-lg px-2 py-1 text-[10px] text-text-primary
                     focus:border-accent-tertiary focus:outline-none focus:ring-2 focus:ring-accent-tertiary/15
@@ -1270,8 +1423,12 @@ export function FontTypesTab() {
                       onClick={() => selectSearchResult(r)}
                       className="w-full text-left px-2 py-1.5 hover:bg-accent-tertiary/10 transition-colors border-b border-border/50 last:border-b-0"
                     >
-                      <div className="text-[10px] text-text-primary font-medium">{r.display_name} {r.style_name}</div>
-                      <div className="text-[9px] text-text-muted font-mono">{r.postscript_name}</div>
+                      <div className="text-[10px] text-text-primary font-medium">
+                        {r.display_name} {r.style_name}
+                      </div>
+                      <div className="text-[9px] text-text-muted font-mono">
+                        {r.postscript_name}
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -1325,7 +1482,14 @@ export function FontTypesTab() {
                 手動追加に登録
               </button>
               <button
-                onClick={() => { setShowManualFontAdd(false); setManualFont({ psName: "", displayName: "", subName: "" }); setFontSearchQuery(""); setFontSearchResults([]); setShowSearchResults(false); setFontSearchNotFound(false); }}
+                onClick={() => {
+                  setShowManualFontAdd(false);
+                  setManualFont({ psName: "", displayName: "", subName: "" });
+                  setFontSearchQuery("");
+                  setFontSearchResults([]);
+                  setShowSearchResults(false);
+                  setFontSearchNotFound(false);
+                }}
                 className="text-[10px] text-text-muted px-3 py-1.5 hover:text-text-primary transition-colors"
               >
                 取消
@@ -1339,23 +1503,35 @@ export function FontTypesTab() {
       {scanData && (
         <div>
           <div className="flex items-center gap-2 mb-2">
-            <h4 className="text-[10px] font-bold text-text-secondary">
-              未登録フォント
-            </h4>
-            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-              unregisteredFonts.length === 0
-                ? "text-success bg-success/10"
-                : "text-warning bg-warning/10"
-            }`}>
+            <h4 className="text-[10px] font-bold text-text-secondary">未登録フォント</h4>
+            <span
+              className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                unregisteredFonts.length === 0
+                  ? "text-success bg-success/10"
+                  : "text-warning bg-warning/10"
+              }`}
+            >
               {unregisteredFonts.length}
             </span>
           </div>
           {unregisteredFonts.length === 0 ? (
             <div className="flex items-center gap-2 py-2.5 px-3 bg-success/5 rounded-xl border border-success/20">
-              <svg className="w-3.5 h-3.5 text-success flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                className="w-3.5 h-3.5 text-success flex-shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
-              <span className="text-[10px] text-success font-medium">全てのフォントが登録済みです</span>
+              <span className="text-[10px] text-success font-medium">
+                全てのフォントが登録済みです
+              </span>
             </div>
           ) : (
             <>
@@ -1369,7 +1545,9 @@ export function FontTypesTab() {
                     <span className="text-xs text-text-primary flex-1 truncate">
                       {f.displayName || f.name}
                     </span>
-                    <span className="text-[9px] text-text-muted bg-bg-tertiary px-1.5 py-0.5 rounded">{f.count}回</span>
+                    <span className="text-[9px] text-text-muted bg-bg-tertiary px-1.5 py-0.5 rounded">
+                      {f.count}回
+                    </span>
                     <button
                       onClick={() => handleAddUnregistered(f.name, f.displayName, f.count)}
                       className="text-[10px] text-accent font-medium hover:text-white hover:bg-accent px-2 py-0.5 rounded-lg transition-all"
@@ -1382,7 +1560,10 @@ export function FontTypesTab() {
               <button
                 onClick={handleAddAllUnregistered}
                 className="w-full py-2 text-[10px] font-bold text-white rounded-xl transition-all hover:-translate-y-0.5"
-                style={{ background: "linear-gradient(135deg, #ff5a8a, #7c5cff)", boxShadow: "0 3px 12px rgba(255,90,138,0.2)" }}
+                style={{
+                  background: "linear-gradient(135deg, #ff5a8a, #7c5cff)",
+                  boxShadow: "0 3px 12px rgba(255,90,138,0.2)",
+                }}
               >
                 検出フォントを全て追加
               </button>
@@ -1416,17 +1597,24 @@ export function FontTypesTab() {
 
 // --- フィルタチップコンポーネント ---
 function FilterChip({
-  label, active, onClick, color = "accent",
+  label,
+  active,
+  onClick,
+  color = "accent",
 }: {
-  label: string; active: boolean; onClick: () => void; color?: "accent" | "error";
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  color?: "accent" | "error";
 }) {
-  const base = color === "error"
-    ? active
-      ? `bg-red-100 text-red-600 border-red-300`
-      : "bg-white text-text-muted border-border hover:text-red-500 hover:border-red-200"
-    : active
-      ? "bg-accent/10 text-accent border-accent/30"
-      : "bg-white text-text-muted border-border hover:text-accent hover:border-accent/20";
+  const base =
+    color === "error"
+      ? active
+        ? `bg-red-100 text-red-600 border-red-300`
+        : "bg-white text-text-muted border-border hover:text-red-500 hover:border-red-200"
+      : active
+        ? "bg-accent/10 text-accent border-accent/30"
+        : "bg-white text-text-muted border-border hover:text-accent hover:border-accent/20";
   return (
     <button
       onClick={onClick}

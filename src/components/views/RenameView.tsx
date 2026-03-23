@@ -29,14 +29,12 @@ export function RenameView() {
   // fileEntries 内の PSD/PSB を psdStore へ自動同期（レイヤーリネーム用）
   const syncedPathsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    const psdPaths = fileEntries
-      .filter((e) => isPsdFile(e.fileName))
-      .map((e) => e.filePath);
+    const psdPaths = fileEntries.filter((e) => isPsdFile(e.fileName)).map((e) => e.filePath);
 
     // 未同期の PSD パスを抽出
     const existingPaths = new Set(usePsdStore.getState().files.map((f) => f.filePath));
     const newPaths = psdPaths.filter(
-      (p) => !existingPaths.has(p) && !syncedPathsRef.current.has(p)
+      (p) => !existingPaths.has(p) && !syncedPathsRef.current.has(p),
     );
     if (newPaths.length === 0) return;
 
@@ -57,10 +55,15 @@ export function RenameView() {
       const { updateFile } = usePsdStore.getState();
 
       try {
-        const results = await invoke<{ filePath: string; metadata: any; thumbnailData: string | null; fileSize: number; error: string | null }[]>(
-          "parse_psd_metadata_batch",
-          { filePaths: skeletons.map((f) => f.filePath) }
-        );
+        const results = await invoke<
+          {
+            filePath: string;
+            metadata: any;
+            thumbnailData: string | null;
+            fileSize: number;
+            error: string | null;
+          }[]
+        >("parse_psd_metadata_batch", { filePaths: skeletons.map((f) => f.filePath) });
         for (const result of results) {
           const file = skeletons.find((f) => f.filePath === result.filePath);
           if (!file || !result.metadata) continue;
@@ -159,7 +162,7 @@ export function RenameView() {
         }
       }
     },
-    [addFileEntries, loadFiles]
+    [addFileEntries, loadFiles],
   );
 
   useEffect(() => {

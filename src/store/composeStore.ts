@@ -73,7 +73,12 @@ interface ComposeState {
   // Actions - ペアリング
   setPairingJobs: (jobs: PairingJob[]) => void;
   setDetectedLinkChar: (char: string | null) => void;
-  updatePairFile: (pairIndex: number, side: "source" | "target", newFile: string, newName: string) => void;
+  updatePairFile: (
+    pairIndex: number,
+    side: "source" | "target",
+    newFile: string,
+    newName: string,
+  ) => void;
   addAutoPair: (sourceFile: string, targetFile: string) => void;
   removeAutoPair: (pairIndex: number) => void;
 
@@ -98,9 +103,30 @@ const defaultComposeSettings: ComposeSettings = {
   elements: [
     { id: "textFolders", type: "textFolders", label: "テキストフォルダ", source: "A" },
     { id: "background", type: "background", label: "背景", source: "B" },
-    { id: "manuscript", type: "namedGroup", label: "#背景#", source: "exclude", customName: "#背景#", partialMatch: false },
-    { id: "specialLayer", type: "specialLayer", label: "白消し", source: "exclude", customName: "白消し", partialMatch: true },
-    { id: "namedGroup", type: "namedGroup", label: "棒消し", source: "exclude", customName: "棒消し", partialMatch: true },
+    {
+      id: "manuscript",
+      type: "namedGroup",
+      label: "#背景#",
+      source: "exclude",
+      customName: "#背景#",
+      partialMatch: false,
+    },
+    {
+      id: "specialLayer",
+      type: "specialLayer",
+      label: "白消し",
+      source: "exclude",
+      customName: "白消し",
+      partialMatch: true,
+    },
+    {
+      id: "namedGroup",
+      type: "namedGroup",
+      label: "棒消し",
+      source: "exclude",
+      customName: "棒消し",
+      partialMatch: true,
+    },
   ],
   restSource: "B",
   skipResize: false,
@@ -112,7 +138,12 @@ export const useComposeStore = create<ComposeState>((set) => ({
   composeSettings: defaultComposeSettings,
   organizePre: { enabled: false, targetName: "#原稿#", includeSpecial: false },
   pairingSettings: { mode: "fileOrder", linkCharacter: "" },
-  generalSettings: { skipResize: false, roundFontSize: true, saveFileName: "target", outputFolderName: "" },
+  generalSettings: {
+    skipResize: false,
+    roundFontSize: true,
+    saveFileName: "target",
+    outputFolderName: "",
+  },
   subfolderSettings: { mode: "none" },
 
   isModalOpen: false,
@@ -130,9 +161,13 @@ export const useComposeStore = create<ComposeState>((set) => ({
 
   // フォルダ
   setSourceFolder: (path, files) =>
-    set((state) => ({ folders: { ...state.folders, sourceFolder: path, sourceFiles: files ?? null } })),
+    set((state) => ({
+      folders: { ...state.folders, sourceFolder: path, sourceFiles: files ?? null },
+    })),
   setTargetFolder: (path, files) =>
-    set((state) => ({ folders: { ...state.folders, targetFolder: path, targetFiles: files ?? null } })),
+    set((state) => ({
+      folders: { ...state.folders, targetFolder: path, targetFiles: files ?? null },
+    })),
 
   // 前処理（フォルダ格納）
   setOrganizePre: (newSettings) =>
@@ -144,17 +179,17 @@ export const useComposeStore = create<ComposeState>((set) => ({
   setComposeElementSource: (elementId, source) =>
     set((state) => {
       let newElements = state.composeSettings.elements.map((el) =>
-        el.id === elementId ? { ...el, source } : el
+        el.id === elementId ? { ...el, source } : el,
       );
       // 背景 と #原稿# は排他（片方をA/Bにすると、もう片方は除外）
       if (source !== "exclude") {
         if (elementId === "background") {
           newElements = newElements.map((el) =>
-            el.id === "manuscript" ? { ...el, source: "exclude" as ComposeSource } : el
+            el.id === "manuscript" ? { ...el, source: "exclude" as ComposeSource } : el,
           );
         } else if (elementId === "manuscript") {
           newElements = newElements.map((el) =>
-            el.id === "background" ? { ...el, source: "exclude" as ComposeSource } : el
+            el.id === "background" ? { ...el, source: "exclude" as ComposeSource } : el,
           );
         }
       }
@@ -181,7 +216,7 @@ export const useComposeStore = create<ComposeState>((set) => ({
       composeSettings: {
         ...state.composeSettings,
         elements: state.composeSettings.elements.map((el) =>
-          el.id === elementId ? { ...el, ...updates } : el
+          el.id === elementId ? { ...el, ...updates } : el,
         ),
       },
     })),
@@ -226,32 +261,47 @@ export const useComposeStore = create<ComposeState>((set) => ({
           if (p.pairIndex !== pairIndex) {
             const otherFile = side === "source" ? p.sourceFile : p.targetFile;
             if (otherFile === newFile) {
-              if (side === "source") { p.sourceFile = oldFile; p.sourceName = oldName; }
-              else { p.targetFile = oldFile; p.targetName = oldName; }
+              if (side === "source") {
+                p.sourceFile = oldFile;
+                p.sourceName = oldName;
+              } else {
+                p.targetFile = oldFile;
+                p.targetName = oldName;
+              }
               break;
             }
           }
         }
       }
-      if (side === "source") { editedPair.sourceFile = newFile; editedPair.sourceName = newName; }
-      else { editedPair.targetFile = newFile; editedPair.targetName = newName; }
+      if (side === "source") {
+        editedPair.sourceFile = newFile;
+        editedPair.sourceName = newName;
+      } else {
+        editedPair.targetFile = newFile;
+        editedPair.targetName = newName;
+      }
       return { pairingJobs: newJobs };
     }),
   addAutoPair: (sourceFile, targetFile) =>
     set((state) => {
       const newJobs = state.pairingJobs.map((job) => ({ ...job, pairs: [...job.pairs] }));
-      const maxIndex = newJobs.flatMap((j) => j.pairs).reduce((max, p) => Math.max(max, p.pairIndex), -1);
+      const maxIndex = newJobs
+        .flatMap((j) => j.pairs)
+        .reduce((max, p) => Math.max(max, p.pairIndex), -1);
       const getName = (path: string) => path.split(/[\\/]/).pop() || "";
       const newPair: FilePair = {
-        sourceFile, sourceName: getName(sourceFile),
-        targetFile, targetName: getName(targetFile),
+        sourceFile,
+        sourceName: getName(sourceFile),
+        targetFile,
+        targetName: getName(targetFile),
         pairIndex: maxIndex + 1,
       };
       let targetJobIdx = 0;
       for (let i = 0; i < state.scannedFileGroups.length; i++) {
         const g = state.scannedFileGroups[i];
         if (g.sourceFiles.includes(sourceFile) || g.targetFiles.includes(targetFile)) {
-          targetJobIdx = i; break;
+          targetJobIdx = i;
+          break;
         }
       }
       if (newJobs[targetJobIdx]) newJobs[targetJobIdx].pairs.push(newPair);
@@ -261,7 +311,8 @@ export const useComposeStore = create<ComposeState>((set) => ({
   removeAutoPair: (pairIndex) =>
     set((state) => {
       const newJobs = state.pairingJobs.map((job) => ({
-        ...job, pairs: job.pairs.filter((p) => p.pairIndex !== pairIndex),
+        ...job,
+        pairs: job.pairs.filter((p) => p.pairIndex !== pairIndex),
       }));
       const next = new Set(state.excludedPairIndices);
       next.delete(pairIndex);
@@ -274,12 +325,12 @@ export const useComposeStore = create<ComposeState>((set) => ({
   toggleExcludedPair: (index) =>
     set((state) => {
       const next = new Set(state.excludedPairIndices);
-      if (next.has(index)) next.delete(index); else next.add(index);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
       return { excludedPairIndices: next };
     }),
   setManualPairs: (pairs) => set({ manualPairs: pairs }),
-  addManualPair: (pair) =>
-    set((state) => ({ manualPairs: [...state.manualPairs, pair] })),
+  addManualPair: (pair) => set((state) => ({ manualPairs: [...state.manualPairs, pair] })),
   removeManualPair: (pairIndex) =>
     set((state) => ({ manualPairs: state.manualPairs.filter((p) => p.pairIndex !== pairIndex) })),
 
@@ -291,8 +342,16 @@ export const useComposeStore = create<ComposeState>((set) => ({
   clearResults: () => set({ results: [] }),
   reset: () =>
     set({
-      phase: "idle", progress: 0, totalPairs: 0, currentPair: null, results: [],
-      pairingJobs: [], detectedLinkChar: null, scannedFileGroups: [],
-      pairingDialogMode: "auto", excludedPairIndices: new Set(), manualPairs: [],
+      phase: "idle",
+      progress: 0,
+      totalPairs: 0,
+      currentPair: null,
+      results: [],
+      pairingJobs: [],
+      detectedLinkChar: null,
+      scannedFileGroups: [],
+      pairingDialogMode: "auto",
+      excludedPairIndices: new Set(),
+      manualPairs: [],
     }),
 }));

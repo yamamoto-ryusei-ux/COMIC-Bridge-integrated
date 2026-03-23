@@ -98,31 +98,32 @@ export interface TiffScandataFile {
 
 /** ジャンル→レーベル階層（Tachimi LABELS_BY_GENRE 互換） */
 export const GENRE_LABELS: Record<string, string[]> = {
-  "一般女性": ["Ropopo!", "コイパレ", "キスカラ", "カルコミ", "ウーコミ!", "シェノン"],
+  一般女性: ["Ropopo!", "コイパレ", "キスカラ", "カルコミ", "ウーコミ!", "シェノン"],
   TL: ["TLオトメチカ", "LOVE FLICK", "乙女チック", "ウーコミkiss!", "シェノン+", "@夜噺"],
   BL: ["NuPu", "spicomi", "MooiComics", "BLオトメチカ", "BOYS FAN"],
-  "一般男性": ["DEDEDE", "GG-COMICS", "コミックREBEL"],
-  "メンズ": ["カゲキヤコミック", "もえスタビースト", "@夜噺＋"],
-  "タテコミ": ["GIGATOON"],
+  一般男性: ["DEDEDE", "GG-COMICS", "コミックREBEL"],
+  メンズ: ["カゲキヤコミック", "もえスタビースト", "@夜噺＋"],
+  タテコミ: ["GIGATOON"],
 };
 
 /** JSON検索ベースパス（Tachimi互換） */
-export const JSON_BASE_PATH = "G:/共有ドライブ/CLLENN/編集部フォルダ/編集企画部/編集企画_C班(AT業務推進)/DTP制作部/JSONフォルダ";
+export const JSON_BASE_PATH =
+  "G:/共有ドライブ/CLLENN/編集部フォルダ/編集企画部/編集企画_C班(AT業務推進)/DTP制作部/JSONフォルダ";
 
 // --- リサイズ ---
 
 export interface TiffResizeSettings {
-  targetWidth: number;  // デフォルト 1280
+  targetWidth: number; // デフォルト 1280
   targetHeight: number; // デフォルト 1818
 }
 
 // --- リネーム ---
 
 export interface TiffRenameSettings {
-  keepOriginalName: boolean;  // リネームしない（元のファイル名を維持）
+  keepOriginalName: boolean; // リネームしない（元のファイル名を維持）
   extractPageNumber: boolean; // ファイル名からページ数を計算
-  startNumber: number;        // 開始ページ番号（デフォルト 3）
-  padding: number;            // ゼロ埋め桁数（デフォルト 4）
+  startNumber: number; // 開始ページ番号（デフォルト 3）
+  padding: number; // ゼロ埋め桁数（デフォルト 4）
   flattenSubfolders: boolean; // サブフォルダ一括リネーム（フラット出力）
 }
 
@@ -130,9 +131,9 @@ export interface TiffRenameSettings {
 
 export interface TiffOutputSettings {
   outputDirectory: string | null; // null = Desktop/Script_Output
-  proceedAsTiff: boolean;         // true=TIFF出力, false=PSD出力
-  outputJpg: boolean;             // true=JPG出力（最高画質）
-  saveIntermediatePsd: boolean;   // 中間PSD保存
+  proceedAsTiff: boolean; // true=TIFF出力, false=PSD出力
+  outputJpg: boolean; // true=JPG出力（最高画質）
+  saveIntermediatePsd: boolean; // 中間PSD保存
   mergeAfterColorConvert: boolean; // 画像レイヤーを統合する
 }
 
@@ -146,7 +147,7 @@ export interface TiffTextSettings {
 
 export interface TiffFileOverride {
   fileId: string;
-  skip: boolean;                  // タチキリスキップ
+  skip: boolean; // タチキリスキップ
   colorMode?: TiffColorMode;
   blurEnabled?: boolean;
   blurRadius?: number;

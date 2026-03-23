@@ -1,10 +1,13 @@
 // Supported file extensions
 export const PSD_EXTENSIONS = [".psd", ".psb"] as const;
 export const IMAGE_EXTENSIONS = [
-  ".psd", ".psb",
-  ".jpg", ".jpeg",
+  ".psd",
+  ".psb",
+  ".jpg",
+  ".jpeg",
   ".png",
-  ".tif", ".tiff",
+  ".tif",
+  ".tiff",
   ".bmp",
   ".pdf",
   ".gif",
@@ -118,7 +121,14 @@ export interface Specification {
 }
 
 export interface SpecRule {
-  type: "colorMode" | "resolution" | "dimensions" | "dpi" | "hasGuides" | "bitsPerChannel" | "hasAlphaChannels";
+  type:
+    | "colorMode"
+    | "resolution"
+    | "dimensions"
+    | "dpi"
+    | "hasGuides"
+    | "bitsPerChannel"
+    | "hasAlphaChannels";
   operator: "equals" | "greaterThan" | "lessThan" | "between" | "includes";
   value: string | number | boolean | number[];
   message: string;
@@ -145,4 +155,3 @@ export const THUMBNAIL_SIZES: Record<ThumbnailSize, { value: number; label: stri
   large: { value: 180, label: "大" },
   xlarge: { value: 240, label: "特大" },
 };
-

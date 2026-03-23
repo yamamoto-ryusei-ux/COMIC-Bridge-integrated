@@ -35,6 +35,16 @@ jobs:
         with:
           node-version: 'lts/*'
 
+      - name: Download PDFium
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path src-tauri/resources/pdfium | Out-Null
+          Invoke-WebRequest -Uri "https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-win-x64.tgz" -OutFile pdfium.tgz
+          tar -xzf pdfium.tgz
+          $dll = Get-ChildItem -Recurse -Filter "pdfium.dll" | Select-Object -First 1
+          Copy-Item $dll.FullName src-tauri/resources/pdfium/pdfium.dll
+          Remove-Item pdfium.tgz -Force
+
       - name: Install frontend dependencies
         run: npm install
 

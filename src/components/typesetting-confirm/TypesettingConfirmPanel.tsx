@@ -20,7 +20,11 @@ import html2canvas from "html2canvas";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { usePsdStore } from "../../store/psdStore";
 import { useScanPsdStore } from "../../store/scanPsdStore";
-import { useHighResPreview, prefetchPreview, invalidateUrlCache } from "../../hooks/useHighResPreview";
+import {
+  useHighResPreview,
+  prefetchPreview,
+  invalidateUrlCache,
+} from "../../hooks/useHighResPreview";
 import { useOpenFolder } from "../../hooks/useOpenFolder";
 import { useOpenInPhotoshop } from "../../hooks/useOpenInPhotoshop";
 
@@ -72,15 +76,30 @@ function computeViewerPages(
   let textPageNum = 1;
   for (let i = 0; i < files.length; i++) {
     if (splitMode === "coverSpread" && i === 0) {
-      pages.push({ fileIndex: i, cropSide: null, displayLabel: `表紙`, textPageNumber: textPageNum });
+      pages.push({
+        fileIndex: i,
+        cropSide: null,
+        displayLabel: `表紙`,
+        textPageNumber: textPageNum,
+      });
       textPageNum++;
     } else if (splitMode === "skipCover" && i === 0) {
       continue;
     } else {
       // 右→左 (manga reading order: right half is earlier page)
-      pages.push({ fileIndex: i, cropSide: "right", displayLabel: `${textPageNum}P`, textPageNumber: textPageNum });
+      pages.push({
+        fileIndex: i,
+        cropSide: "right",
+        displayLabel: `${textPageNum}P`,
+        textPageNumber: textPageNum,
+      });
       textPageNum++;
-      pages.push({ fileIndex: i, cropSide: "left", displayLabel: `${textPageNum}P`, textPageNumber: textPageNum });
+      pages.push({
+        fileIndex: i,
+        cropSide: "left",
+        displayLabel: `${textPageNum}P`,
+        textPageNumber: textPageNum,
+      });
       textPageNum++;
     }
   }
@@ -149,7 +168,11 @@ function validateFontTag(tag: string): string {
 }
 
 /** テキストデータを保存用文字列に変換 */
-function serializeText(header: string[], pages: TextPage[], fontPresets: FontPresetEntry[]): string {
+function serializeText(
+  header: string[],
+  pages: TextPage[],
+  fontPresets: FontPresetEntry[],
+): string {
   const lines: string[] = [];
   for (const h of header) lines.push(h);
   for (const page of pages) {
@@ -159,7 +182,9 @@ function serializeText(header: string[], pages: TextPage[], fontPresets: FontPre
       if (block.assignedFont) {
         const fp = fontPresets.find((fp) => fp.font === block.assignedFont);
         const sanitize = (s: string) => s.replace(/[()（）[\]]/g, "");
-        const nameInfo = fp ? `(${sanitize(fp.name)}${fp.subName ? `(${sanitize(fp.subName)})` : ""})` : "";
+        const nameInfo = fp
+          ? `(${sanitize(fp.name)}${fp.subName ? `(${sanitize(fp.subName)})` : ""})`
+          : "";
         const fontTag = `[font:${block.assignedFont}${nameInfo}]`;
         lines.push(validateFontTag(fontTag));
       }
@@ -185,8 +210,16 @@ function extractPageNumber(fileName: string): number | null {
 // ─── Font colors ─────────────────────────────────────────
 
 const FONT_COLORS = [
-  "#3498db", "#27ae60", "#e67e22", "#9b59b6", "#1abc9c",
-  "#e91e63", "#3f51b5", "#e74c3c", "#f1c40f", "#00bcd4",
+  "#3498db",
+  "#27ae60",
+  "#e67e22",
+  "#9b59b6",
+  "#1abc9c",
+  "#e91e63",
+  "#3f51b5",
+  "#e74c3c",
+  "#f1c40f",
+  "#00bcd4",
 ];
 
 function getFontColor(index: number): string {
@@ -229,10 +262,13 @@ export function TypesettingConfirmPanel() {
   const hasPdf = files.some((f) => f.sourceType === "pdf");
   const viewerPages = computeViewerPages(files, hasPdf ? pdfSplitMode : "none");
   const currentPage = viewerPages[viewerPageIndex] ?? viewerPages[0] ?? null;
-  const viewerFile = currentPage ? files[currentPage.fileIndex] ?? null : null;
+  const viewerFile = currentPage ? (files[currentPage.fileIndex] ?? null) : null;
 
   const {
-    imageUrl, isLoading, error: viewerError, reload: viewerReload,
+    imageUrl,
+    isLoading,
+    error: viewerError,
+    reload: viewerReload,
   } = useHighResPreview(viewerFile?.filePath, {
     maxSize: 2000,
     enabled: !!viewerFile,
@@ -247,7 +283,9 @@ export function TypesettingConfirmPanel() {
     viewerReload();
   }, [viewerFile?.fileChanged, viewerFile?.filePath]);
 
-  useEffect(() => { setViewerPageIndex(0); }, [files.length, pdfSplitMode]);
+  useEffect(() => {
+    setViewerPageIndex(0);
+  }, [files.length, pdfSplitMode]);
 
   useEffect(() => {
     if (selectedFileIds.length === 0) return;
@@ -273,9 +311,12 @@ export function TypesettingConfirmPanel() {
 
   useEffect(() => {
     if (!currentPage || textPages.length === 0) return;
-    const pageNum = pdfSplitMode !== "none"
-      ? currentPage.textPageNumber
-      : (viewerFile ? extractPageNumber(viewerFile.fileName) : null);
+    const pageNum =
+      pdfSplitMode !== "none"
+        ? currentPage.textPageNumber
+        : viewerFile
+          ? extractPageNumber(viewerFile.fileName)
+          : null;
     if (pageNum !== null) {
       setActivePageNumber(pageNum);
       const el = pageRefs.current.get(pageNum);
@@ -300,7 +341,7 @@ export function TypesettingConfirmPanel() {
           }
           return { ...b, lines: ["//" + b.lines[0], ...b.lines.slice(1)] };
         }),
-      }))
+      })),
     );
     setSelectedBlockIds(new Set());
     setEditingBlockId(null);
@@ -311,14 +352,17 @@ export function TypesettingConfirmPanel() {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if ((e.key === "Delete" || e.key === "Backspace") && selectedBlockIds.size > 0) {
-        e.preventDefault(); handleDeleteBlocks();
+        e.preventDefault();
+        handleDeleteBlocks();
         return;
       }
       if (viewerPages.length <= 1) return;
       if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-        e.preventDefault(); setViewerPageIndex(Math.max(0, viewerPageIndex - 1));
+        e.preventDefault();
+        setViewerPageIndex(Math.max(0, viewerPageIndex - 1));
       } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-        e.preventDefault(); setViewerPageIndex(Math.min(viewerPages.length - 1, viewerPageIndex + 1));
+        e.preventDefault();
+        setViewerPageIndex(Math.min(viewerPages.length - 1, viewerPageIndex + 1));
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -345,10 +389,12 @@ export function TypesettingConfirmPanel() {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (!viewerFile) return;
       if (e.key === "p" || e.key === "P") {
-        e.preventDefault(); e.stopImmediatePropagation();
+        e.preventDefault();
+        e.stopImmediatePropagation();
         openFileInPhotoshop(viewerFile.filePath);
       } else if (e.key === "f" || e.key === "F") {
-        e.preventDefault(); e.stopImmediatePropagation();
+        e.preventDefault();
+        e.stopImmediatePropagation();
         openFolderForFile(viewerFile.filePath);
       }
     };
@@ -386,9 +432,7 @@ export function TypesettingConfirmPanel() {
       ? textFileName.replace(/\.txt$/i, "_edited.txt")
       : "edited.txt";
     const selected = await save({
-      defaultPath: textFilePath
-        ? textFilePath.replace(/[^/\\]+$/, defaultName)
-        : defaultName,
+      defaultPath: textFilePath ? textFilePath.replace(/[^/\\]+$/, defaultName) : defaultName,
       filters: [{ name: "テキストファイル", extensions: ["txt"] }],
     });
     if (!selected) return;
@@ -407,7 +451,7 @@ export function TypesettingConfirmPanel() {
   const handleSaveAsImage = useCallback(async () => {
     if (!textContainerRef.current) return;
     const filterFontName = activeFontFilter
-      ? fontPresets.find((fp) => fp.font === activeFontFilter)?.name ?? activeFontFilter
+      ? (fontPresets.find((fp) => fp.font === activeFontFilter)?.name ?? activeFontFilter)
       : "";
     const defaultName = textFileName
       ? textFileName.replace(/\.txt$/i, `_${filterFontName}.png`)
@@ -439,7 +483,8 @@ export function TypesettingConfirmPanel() {
   const loadFontBrowserFolder = useCallback(async (folderPath: string) => {
     try {
       const result = await invoke<{ folders: string[]; json_files: string[] }>(
-        "list_folder_contents", { folderPath }
+        "list_folder_contents",
+        { folderPath },
       );
       setFontBrowserPath(folderPath);
       setFontBrowserFolders(result.folders);
@@ -490,66 +535,72 @@ export function TypesettingConfirmPanel() {
   }, []);
 
   // ブロック選択（複数対応: Ctrl=個別, Shift=範囲）
-  const handleSelectBlock = useCallback((blockId: string, ctrlKey: boolean, shiftKey: boolean) => {
-    const allBlocks = textPages.flatMap((p) => p.blocks);
+  const handleSelectBlock = useCallback(
+    (blockId: string, ctrlKey: boolean, shiftKey: boolean) => {
+      const allBlocks = textPages.flatMap((p) => p.blocks);
 
-    if (shiftKey && lastSelectedBlockIdRef.current) {
-      // Shift+click: 範囲選択
-      const lastIdx = allBlocks.findIndex((b) => b.id === lastSelectedBlockIdRef.current);
-      const curIdx = allBlocks.findIndex((b) => b.id === blockId);
-      if (lastIdx >= 0 && curIdx >= 0) {
-        const start = Math.min(lastIdx, curIdx);
-        const end = Math.max(lastIdx, curIdx);
-        setSelectedBlockIds((prev) => {
-          const next = new Set(prev);
-          for (let i = start; i <= end; i++) {
-            next.add(allBlocks[i].id);
-          }
-          return next;
-        });
-        return;
-      }
-    }
-
-    setSelectedBlockIds((prev) => {
-      const next = new Set(prev);
-      if (ctrlKey) {
-        if (next.has(blockId)) next.delete(blockId);
-        else next.add(blockId);
-      } else {
-        if (next.size === 1 && next.has(blockId)) {
-          next.clear();
-        } else {
-          next.clear();
-          next.add(blockId);
+      if (shiftKey && lastSelectedBlockIdRef.current) {
+        // Shift+click: 範囲選択
+        const lastIdx = allBlocks.findIndex((b) => b.id === lastSelectedBlockIdRef.current);
+        const curIdx = allBlocks.findIndex((b) => b.id === blockId);
+        if (lastIdx >= 0 && curIdx >= 0) {
+          const start = Math.min(lastIdx, curIdx);
+          const end = Math.max(lastIdx, curIdx);
+          setSelectedBlockIds((prev) => {
+            const next = new Set(prev);
+            for (let i = start; i <= end; i++) {
+              next.add(allBlocks[i].id);
+            }
+            return next;
+          });
+          return;
         }
       }
-      return next;
-    });
-    lastSelectedBlockIdRef.current = blockId;
-  }, [textPages]);
+
+      setSelectedBlockIds((prev) => {
+        const next = new Set(prev);
+        if (ctrlKey) {
+          if (next.has(blockId)) next.delete(blockId);
+          else next.add(blockId);
+        } else {
+          if (next.size === 1 && next.has(blockId)) {
+            next.clear();
+          } else {
+            next.clear();
+            next.add(blockId);
+          }
+        }
+        return next;
+      });
+      lastSelectedBlockIdRef.current = blockId;
+    },
+    [textPages],
+  );
 
   // ブロックにフォント指定（複数対応）
-  const handleAssignFont = useCallback((font: string) => {
-    if (selectedBlockIds.size === 0) return;
-    setTextPages((prev) =>
-      prev.map((page) => ({
-        ...page,
-        blocks: page.blocks.map((block) =>
-          selectedBlockIds.has(block.id) ? { ...block, assignedFont: font } : block
-        ),
-      }))
-    );
-    // 最後の選択ブロックの次を自動選択
-    const allBlocks = textPages.flatMap((p) => p.blocks);
-    const lastSelectedIdx = Math.max(
-      ...Array.from(selectedBlockIds).map((id) => allBlocks.findIndex((b) => b.id === id))
-    );
-    setSelectedBlockIds(new Set());
-    if (lastSelectedIdx >= 0 && lastSelectedIdx < allBlocks.length - 1) {
-      setSelectedBlockIds(new Set([allBlocks[lastSelectedIdx + 1].id]));
-    }
-  }, [selectedBlockIds, textPages]);
+  const handleAssignFont = useCallback(
+    (font: string) => {
+      if (selectedBlockIds.size === 0) return;
+      setTextPages((prev) =>
+        prev.map((page) => ({
+          ...page,
+          blocks: page.blocks.map((block) =>
+            selectedBlockIds.has(block.id) ? { ...block, assignedFont: font } : block,
+          ),
+        })),
+      );
+      // 最後の選択ブロックの次を自動選択
+      const allBlocks = textPages.flatMap((p) => p.blocks);
+      const lastSelectedIdx = Math.max(
+        ...Array.from(selectedBlockIds).map((id) => allBlocks.findIndex((b) => b.id === id)),
+      );
+      setSelectedBlockIds(new Set());
+      if (lastSelectedIdx >= 0 && lastSelectedIdx < allBlocks.length - 1) {
+        setSelectedBlockIds(new Set([allBlocks[lastSelectedIdx + 1].id]));
+      }
+    },
+    [selectedBlockIds, textPages],
+  );
 
   // フォント指定解除（複数対応）
   const handleClearFont = useCallback(() => {
@@ -558,9 +609,9 @@ export function TypesettingConfirmPanel() {
       prev.map((page) => ({
         ...page,
         blocks: page.blocks.map((block) =>
-          selectedBlockIds.has(block.id) ? { ...block, assignedFont: undefined } : block
+          selectedBlockIds.has(block.id) ? { ...block, assignedFont: undefined } : block,
         ),
-      }))
+      })),
     );
   }, [selectedBlockIds]);
 
@@ -573,7 +624,7 @@ export function TypesettingConfirmPanel() {
         const newIdx = page.blocks.findIndex((b) => b.id === overId);
         if (oldIdx < 0 || newIdx < 0) return page;
         return { ...page, blocks: arrayMove(page.blocks, oldIdx, newIdx) };
-      })
+      }),
     );
   }, []);
 
@@ -583,9 +634,9 @@ export function TypesettingConfirmPanel() {
       prev.map((page) => ({
         ...page,
         blocks: page.blocks.map((block) =>
-          block.id === blockId ? { ...block, lines: newLines } : block
+          block.id === blockId ? { ...block, lines: newLines } : block,
         ),
-      }))
+      })),
     );
     setEditingBlockId(null);
   }, []);
@@ -606,55 +657,85 @@ export function TypesettingConfirmPanel() {
         const insertAt = afterIndex !== undefined ? afterIndex + 1 : blocks.length;
         blocks.splice(insertAt, 0, newBlock);
         return { ...page, blocks };
-      })
+      }),
     );
     setEditingBlockId(newId);
   }, []);
 
-  const handlePageClick = useCallback((pageNumber: number) => {
-    setActivePageNumber(pageNumber);
-    // Find matching viewer page
-    const pageIdx = viewerPages.findIndex((p) => p.textPageNumber === pageNumber);
-    if (pageIdx >= 0) {
-      setViewerPageIndex(pageIdx);
-    } else {
-      // Fallback: search by file name
-      const fileIdx = files.findIndex((f) => extractPageNumber(f.fileName) === pageNumber);
-      const vpIdx = viewerPages.findIndex((p) => p.fileIndex === fileIdx);
-      if (vpIdx >= 0) setViewerPageIndex(vpIdx);
-    }
-  }, [files, viewerPages]);
-
+  const handlePageClick = useCallback(
+    (pageNumber: number) => {
+      setActivePageNumber(pageNumber);
+      // Find matching viewer page
+      const pageIdx = viewerPages.findIndex((p) => p.textPageNumber === pageNumber);
+      if (pageIdx >= 0) {
+        setViewerPageIndex(pageIdx);
+      } else {
+        // Fallback: search by file name
+        const fileIdx = files.findIndex((f) => extractPageNumber(f.fileName) === pageNumber);
+        const vpIdx = viewerPages.findIndex((p) => p.fileIndex === fileIdx);
+        if (vpIdx >= 0) setViewerPageIndex(vpIdx);
+      }
+    },
+    [files, viewerPages],
+  );
 
   const fontColorMap = new Map<string, string>();
-  fontPresets.forEach((fp, i) => { fontColorMap.set(fp.font, getFontColor(i)); });
+  fontPresets.forEach((fp, i) => {
+    fontColorMap.set(fp.font, getFontColor(i));
+  });
 
   if (files.length === 0) {
     return (
       <div className="flex h-full overflow-hidden">
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-2">
-            <svg className="w-12 h-12 mx-auto text-text-muted/30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            <svg
+              className="w-12 h-12 mx-auto text-text-muted/30"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
             </svg>
             <p className="text-xs text-text-muted">画像/PDFファイルをドロップしてください</p>
           </div>
         </div>
         <TextPanel
-          textFileName={textFileName} textFilePath={textFilePath} textHeader={textHeader}
-          textPages={textPages} activePageNumber={activePageNumber}
-          textContainerRef={textContainerRef} pageRefs={pageRefs}
-          onSelectTextFile={handleSelectTextFile} onPageClick={handlePageClick}
-          onSaveAs={handleSaveAs} onSaveAsImage={handleSaveAsImage}
-          fontPresets={fontPresets} fontColorMap={fontColorMap}
-          selectedBlockIds={selectedBlockIds} onSelectBlock={handleSelectBlock}
-          onAssignFont={handleAssignFont} onClearFont={handleClearFont}
-          onOpenFontBrowser={handleOpenFontBrowser} onBlockReorder={handleBlockReorder}
-          onEditBlock={handleEditBlock} onAddBlock={handleAddBlock} onDeleteBlocks={handleDeleteBlocks}
-          editingBlockId={editingBlockId} onSetEditingBlockId={setEditingBlockId}
-          activeFontFilter={activeFontFilter} onSetFontFilter={setActiveFontFilter}
-          showFontBrowser={showFontBrowser} fontBrowserPath={fontBrowserPath}
-          fontBrowserFolders={fontBrowserFolders} fontBrowserFiles={fontBrowserFiles}
+          textFileName={textFileName}
+          textFilePath={textFilePath}
+          textHeader={textHeader}
+          textPages={textPages}
+          activePageNumber={activePageNumber}
+          textContainerRef={textContainerRef}
+          pageRefs={pageRefs}
+          onSelectTextFile={handleSelectTextFile}
+          onPageClick={handlePageClick}
+          onSaveAs={handleSaveAs}
+          onSaveAsImage={handleSaveAsImage}
+          fontPresets={fontPresets}
+          fontColorMap={fontColorMap}
+          selectedBlockIds={selectedBlockIds}
+          onSelectBlock={handleSelectBlock}
+          onAssignFont={handleAssignFont}
+          onClearFont={handleClearFont}
+          onOpenFontBrowser={handleOpenFontBrowser}
+          onBlockReorder={handleBlockReorder}
+          onEditBlock={handleEditBlock}
+          onAddBlock={handleAddBlock}
+          onDeleteBlocks={handleDeleteBlocks}
+          editingBlockId={editingBlockId}
+          onSetEditingBlockId={setEditingBlockId}
+          activeFontFilter={activeFontFilter}
+          onSetFontFilter={setActiveFontFilter}
+          showFontBrowser={showFontBrowser}
+          fontBrowserPath={fontBrowserPath}
+          fontBrowserFolders={fontBrowserFolders}
+          fontBrowserFiles={fontBrowserFiles}
           onCloseFontBrowser={() => setShowFontBrowser(false)}
           onNavigateFontBrowser={loadFontBrowserFolder}
           onSelectFontJson={handleSelectFontJson}
@@ -672,14 +753,38 @@ export function TypesettingConfirmPanel() {
             <span className="text-xs font-display font-medium text-text-primary truncate flex-1">
               {currentPage?.cropSide ? currentPage.displayLabel : viewerFile?.fileName}
             </span>
-            {viewerPages.length > 1 && <span className="text-[10px] text-text-muted flex-shrink-0">{viewerPageIndex + 1} / {viewerPages.length}</span>}
+            {viewerPages.length > 1 && (
+              <span className="text-[10px] text-text-muted flex-shrink-0">
+                {viewerPageIndex + 1} / {viewerPages.length}
+              </span>
+            )}
             {viewerFile && (
-              <button className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded transition-all text-text-muted hover:text-text-primary hover:bg-bg-tertiary active:scale-95" onClick={() => openFolderForFile(viewerFile.filePath)} title="フォルダを開く (F)">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+              <button
+                className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded transition-all text-text-muted hover:text-text-primary hover:bg-bg-tertiary active:scale-95"
+                onClick={() => openFolderForFile(viewerFile.filePath)}
+                title="フォルダを開く (F)"
+              >
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                  />
+                </svg>
               </button>
             )}
             {viewerFile && (
-              <button className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded transition-all text-[#31A8FF] hover:bg-[#31A8FF]/15 active:scale-95" onClick={() => openFileInPhotoshop(viewerFile.filePath)} title="Photoshopで開く (P)">
+              <button
+                className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded transition-all text-[#31A8FF] hover:bg-[#31A8FF]/15 active:scale-95"
+                onClick={() => openFileInPhotoshop(viewerFile.filePath)}
+                title="Photoshopで開く (P)"
+              >
                 <span className="text-sm font-bold leading-none">Ps</span>
               </button>
             )}
@@ -687,7 +792,9 @@ export function TypesettingConfirmPanel() {
           <div className="flex items-center gap-2 mt-0.5">
             {viewerFile?.metadata && (
               <>
-                <span className="text-[10px] text-text-muted">{viewerFile.metadata.width} x {viewerFile.metadata.height}</span>
+                <span className="text-[10px] text-text-muted">
+                  {viewerFile.metadata.width} x {viewerFile.metadata.height}
+                </span>
                 <span className="text-[10px] text-text-muted">{viewerFile.metadata.dpi} dpi</span>
                 <span className="text-[10px] text-text-muted">{viewerFile.metadata.colorMode}</span>
               </>
@@ -706,10 +813,16 @@ export function TypesettingConfirmPanel() {
             )}
           </div>
         </div>
-        <div ref={viewerRef} className="flex-1 overflow-hidden relative flex items-center justify-center bg-[#1a1a1e]">
+        <div
+          ref={viewerRef}
+          className="flex-1 overflow-hidden relative flex items-center justify-center bg-[#1a1a1e]"
+        >
           {imageUrl ? (
             currentPage?.cropSide ? (
-              <div className="overflow-hidden flex items-center justify-center max-w-full max-h-full" style={{ width: '50%', height: '100%' }}>
+              <div
+                className="overflow-hidden flex items-center justify-center max-w-full max-h-full"
+                style={{ width: "50%", height: "100%" }}
+              >
                 <img
                   key={`${imageUrl}-${currentPage.cropSide}`}
                   src={imageUrl}
@@ -717,38 +830,96 @@ export function TypesettingConfirmPanel() {
                   className={`h-full select-none transition-opacity duration-150 ${isLoading ? "opacity-40" : "opacity-100"}`}
                   style={{
                     objectFit: "cover",
-                    objectPosition: currentPage.cropSide === "right" ? "right center" : "left center",
+                    objectPosition:
+                      currentPage.cropSide === "right" ? "right center" : "left center",
                     width: "100%",
                   }}
                   draggable={false}
                 />
               </div>
             ) : (
-              <img key={imageUrl} src={imageUrl} alt={viewerFile?.fileName} className={`max-w-full max-h-full object-contain select-none transition-opacity duration-150 ${isLoading ? "opacity-40" : "opacity-100"}`} draggable={false} />
+              <img
+                key={imageUrl}
+                src={imageUrl}
+                alt={viewerFile?.fileName}
+                className={`max-w-full max-h-full object-contain select-none transition-opacity duration-150 ${isLoading ? "opacity-40" : "opacity-100"}`}
+                draggable={false}
+              />
             )
           ) : viewerFile?.thumbnailUrl ? (
-            <img src={viewerFile.thumbnailUrl} alt={viewerFile.fileName} className="max-w-full max-h-full object-contain select-none opacity-60" draggable={false} />
+            <img
+              src={viewerFile.thumbnailUrl}
+              alt={viewerFile.fileName}
+              className="max-w-full max-h-full object-contain select-none opacity-60"
+              draggable={false}
+            />
           ) : !isLoading && !viewerError ? (
-            <div className="flex flex-col items-center gap-2"><div className="w-6 h-6 rounded-full border-2 border-accent/30 border-t-accent animate-spin" /><p className="text-[10px] text-text-muted">読み込み中...</p></div>
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-6 h-6 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
+              <p className="text-[10px] text-text-muted">読み込み中...</p>
+            </div>
           ) : null}
-          {isLoading && <div className="absolute top-3 right-3 z-10"><div className="w-5 h-5 rounded-full border-2 border-accent/30 border-t-accent animate-spin" /></div>}
+          {isLoading && (
+            <div className="absolute top-3 right-3 z-10">
+              <div className="w-5 h-5 rounded-full border-2 border-accent/30 border-t-accent animate-spin" />
+            </div>
+          )}
           {viewerError && !imageUrl && (
             <div className="flex flex-col items-center gap-2 text-center px-6">
-              <svg className="w-8 h-8 text-error/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+              <svg
+                className="w-8 h-8 text-error/50"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={1.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
+                />
+              </svg>
               <p className="text-[11px] text-text-muted">プレビューの読み込みに失敗</p>
-              <button onClick={viewerReload} className="text-[10px] text-accent hover:text-accent/80 transition-colors">再試行</button>
+              <button
+                onClick={viewerReload}
+                className="text-[10px] text-accent hover:text-accent/80 transition-colors"
+              >
+                再試行
+              </button>
             </div>
           )}
           {viewerPages.length > 1 && (
             <>
               {viewerPageIndex > 0 && (
-                <button onClick={() => setViewerPageIndex(viewerPageIndex - 1)} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white/70 hover:text-white transition-all backdrop-blur-sm">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                <button
+                  onClick={() => setViewerPageIndex(viewerPageIndex - 1)}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white/70 hover:text-white transition-all backdrop-blur-sm"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
                 </button>
               )}
               {viewerPageIndex < viewerPages.length - 1 && (
-                <button onClick={() => setViewerPageIndex(viewerPageIndex + 1)} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white/70 hover:text-white transition-all backdrop-blur-sm">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                <button
+                  onClick={() => setViewerPageIndex(viewerPageIndex + 1)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 flex items-center justify-center text-white/70 hover:text-white transition-all backdrop-blur-sm"
+                >
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
                 </button>
               )}
             </>
@@ -758,20 +929,36 @@ export function TypesettingConfirmPanel() {
 
       {/* Right: Text Panel */}
       <TextPanel
-        textFileName={textFileName} textFilePath={textFilePath} textHeader={textHeader}
-        textPages={textPages} activePageNumber={activePageNumber}
-        textContainerRef={textContainerRef} pageRefs={pageRefs}
-        onSelectTextFile={handleSelectTextFile} onPageClick={handlePageClick}
-        onSaveAs={handleSaveAs} onSaveAsImage={handleSaveAsImage}
-        fontPresets={fontPresets} fontColorMap={fontColorMap}
-        selectedBlockIds={selectedBlockIds} onSelectBlock={handleSelectBlock}
-        onAssignFont={handleAssignFont} onClearFont={handleClearFont}
-        onOpenFontBrowser={handleOpenFontBrowser} onBlockReorder={handleBlockReorder}
-        onEditBlock={handleEditBlock} onAddBlock={handleAddBlock} onDeleteBlocks={handleDeleteBlocks}
-        editingBlockId={editingBlockId} onSetEditingBlockId={setEditingBlockId}
-        activeFontFilter={activeFontFilter} onSetFontFilter={setActiveFontFilter}
-        showFontBrowser={showFontBrowser} fontBrowserPath={fontBrowserPath}
-        fontBrowserFolders={fontBrowserFolders} fontBrowserFiles={fontBrowserFiles}
+        textFileName={textFileName}
+        textFilePath={textFilePath}
+        textHeader={textHeader}
+        textPages={textPages}
+        activePageNumber={activePageNumber}
+        textContainerRef={textContainerRef}
+        pageRefs={pageRefs}
+        onSelectTextFile={handleSelectTextFile}
+        onPageClick={handlePageClick}
+        onSaveAs={handleSaveAs}
+        onSaveAsImage={handleSaveAsImage}
+        fontPresets={fontPresets}
+        fontColorMap={fontColorMap}
+        selectedBlockIds={selectedBlockIds}
+        onSelectBlock={handleSelectBlock}
+        onAssignFont={handleAssignFont}
+        onClearFont={handleClearFont}
+        onOpenFontBrowser={handleOpenFontBrowser}
+        onBlockReorder={handleBlockReorder}
+        onEditBlock={handleEditBlock}
+        onAddBlock={handleAddBlock}
+        onDeleteBlocks={handleDeleteBlocks}
+        editingBlockId={editingBlockId}
+        onSetEditingBlockId={setEditingBlockId}
+        activeFontFilter={activeFontFilter}
+        onSetFontFilter={setActiveFontFilter}
+        showFontBrowser={showFontBrowser}
+        fontBrowserPath={fontBrowserPath}
+        fontBrowserFolders={fontBrowserFolders}
+        fontBrowserFiles={fontBrowserFiles}
         onCloseFontBrowser={() => setShowFontBrowser(false)}
         onNavigateFontBrowser={loadFontBrowserFolder}
         onSelectFontJson={handleSelectFontJson}
@@ -820,15 +1007,39 @@ interface TextPanelProps {
 
 function TextPanel(props: TextPanelProps) {
   const {
-    textFileName, textFilePath, textHeader, textPages, activePageNumber,
-    textContainerRef, pageRefs, onSelectTextFile, onPageClick,
-    onSaveAs, onSaveAsImage,
-    fontPresets, fontColorMap, selectedBlockIds, onSelectBlock,
-    onAssignFont, onClearFont, onOpenFontBrowser, onBlockReorder,
-    onEditBlock, onAddBlock, onDeleteBlocks, editingBlockId, onSetEditingBlockId,
-    activeFontFilter, onSetFontFilter,
-    showFontBrowser, fontBrowserPath, fontBrowserFolders, fontBrowserFiles,
-    onCloseFontBrowser, onNavigateFontBrowser, onSelectFontJson,
+    textFileName,
+    textFilePath,
+    textHeader,
+    textPages,
+    activePageNumber,
+    textContainerRef,
+    pageRefs,
+    onSelectTextFile,
+    onPageClick,
+    onSaveAs,
+    onSaveAsImage,
+    fontPresets,
+    fontColorMap,
+    selectedBlockIds,
+    onSelectBlock,
+    onAssignFont,
+    onClearFont,
+    onOpenFontBrowser,
+    onBlockReorder,
+    onEditBlock,
+    onAddBlock,
+    onDeleteBlocks,
+    editingBlockId,
+    onSetEditingBlockId,
+    activeFontFilter,
+    onSetFontFilter,
+    showFontBrowser,
+    fontBrowserPath,
+    fontBrowserFolders,
+    fontBrowserFiles,
+    onCloseFontBrowser,
+    onNavigateFontBrowser,
+    onSelectFontJson,
   } = props;
 
   const storeJsonPath = useScanPsdStore((s) => s.jsonFolderPath);
@@ -845,25 +1056,49 @@ function TextPanel(props: TextPanelProps) {
     <div className="w-[400px] flex-shrink-0 border-l border-border flex flex-col bg-bg-secondary overflow-hidden">
       {/* Header */}
       <div className="px-3 py-2 border-b border-border flex items-center gap-1.5 flex-shrink-0">
-        <svg className="w-3.5 h-3.5 text-text-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+        <svg
+          className="w-3.5 h-3.5 text-text-muted flex-shrink-0"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={1.5}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+          />
         </svg>
         <span className="text-[10px] font-display font-medium text-text-primary truncate flex-1">
           {textFileName ?? "テキストメモ"}
         </span>
         {textPages.length > 0 && (
-          <button onClick={onSaveAs} className="flex-shrink-0 px-1.5 py-0.5 text-[9px] rounded bg-accent/10 text-accent hover:bg-accent/20 transition-all font-medium border border-accent/30" title="別名で保存">
+          <button
+            onClick={onSaveAs}
+            className="flex-shrink-0 px-1.5 py-0.5 text-[9px] rounded bg-accent/10 text-accent hover:bg-accent/20 transition-all font-medium border border-accent/30"
+            title="別名で保存"
+          >
             保存
           </button>
         )}
-        <button onClick={onSelectTextFile} className="flex-shrink-0 px-1.5 py-0.5 text-[9px] rounded bg-bg-tertiary hover:bg-bg-elevated text-text-secondary hover:text-text-primary transition-all border border-border">
+        <button
+          onClick={onSelectTextFile}
+          className="flex-shrink-0 px-1.5 py-0.5 text-[9px] rounded bg-bg-tertiary hover:bg-bg-elevated text-text-secondary hover:text-text-primary transition-all border border-border"
+        >
           {textFilePath ? "変更" : "テキスト"}
         </button>
-        <button onClick={onOpenFontBrowser} className="flex-shrink-0 px-1.5 py-0.5 text-[9px] rounded bg-bg-tertiary hover:bg-bg-elevated text-text-secondary hover:text-text-primary transition-all border border-border">
+        <button
+          onClick={onOpenFontBrowser}
+          className="flex-shrink-0 px-1.5 py-0.5 text-[9px] rounded bg-bg-tertiary hover:bg-bg-elevated text-text-secondary hover:text-text-primary transition-all border border-border"
+        >
           {fontPresets.length > 0 ? "フォント変更" : "フォント"}
         </button>
         {hasSelection && (
-          <button onClick={onDeleteBlocks} className="flex-shrink-0 px-1.5 py-0.5 text-[9px] rounded bg-error/10 text-error hover:bg-error/20 transition-all border border-error/30" title="選択ブロックの削除/復元 (Delete)">
+          <button
+            onClick={onDeleteBlocks}
+            className="flex-shrink-0 px-1.5 py-0.5 text-[9px] rounded bg-error/10 text-error hover:bg-error/20 transition-all border border-error/30"
+            title="選択ブロックの削除/復元 (Delete)"
+          >
             削除//
           </button>
         )}
@@ -876,7 +1111,12 @@ function TextPanel(props: TextPanelProps) {
             <span className="text-[10px] font-medium text-text-primary flex-1 truncate">
               {relativePath || "JSONフォルダ"}
             </span>
-            <button onClick={onCloseFontBrowser} className="text-[10px] text-text-muted hover:text-text-primary">&times;</button>
+            <button
+              onClick={onCloseFontBrowser}
+              className="text-[10px] text-text-muted hover:text-text-primary"
+            >
+              &times;
+            </button>
           </div>
           <div className="flex-1 overflow-y-auto">
             {/* Up button */}
@@ -889,7 +1129,15 @@ function TextPanel(props: TextPanelProps) {
                 }}
                 className="w-full px-3 py-1.5 text-left text-[10px] text-text-secondary hover:bg-bg-tertiary/50 flex items-center gap-1.5"
               >
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                <svg
+                  className="w-3 h-3"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
                 ..
               </button>
             )}
@@ -900,7 +1148,19 @@ function TextPanel(props: TextPanelProps) {
                 onClick={() => onNavigateFontBrowser(`${normalizedCurrent}/${folder}`)}
                 className="w-full px-3 py-1.5 text-left text-[10px] text-text-primary hover:bg-bg-tertiary/50 flex items-center gap-1.5"
               >
-                <svg className="w-3 h-3 text-accent-secondary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" /></svg>
+                <svg
+                  className="w-3 h-3 text-accent-secondary flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                  />
+                </svg>
                 {folder}
               </button>
             ))}
@@ -911,12 +1171,26 @@ function TextPanel(props: TextPanelProps) {
                 onClick={() => onSelectFontJson(`${normalizedCurrent}/${file}`)}
                 className="w-full px-3 py-1.5 text-left text-[10px] text-text-primary hover:bg-accent/10 flex items-center gap-1.5"
               >
-                <svg className="w-3 h-3 text-accent flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+                <svg
+                  className="w-3 h-3 text-accent flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.5}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                  />
+                </svg>
                 {file.replace(/\.json$/i, "")}
               </button>
             ))}
             {fontBrowserFolders.length === 0 && fontBrowserFiles.length === 0 && (
-              <p className="px-3 py-3 text-[10px] text-text-muted text-center">ファイルがありません</p>
+              <p className="px-3 py-3 text-[10px] text-text-muted text-center">
+                ファイルがありません
+              </p>
             )}
           </div>
         </div>
@@ -959,10 +1233,16 @@ function TextPanel(props: TextPanelProps) {
           })}
           {hasSelection && (
             <>
-              <button onClick={onClearFont} className="px-1.5 py-0.5 text-[9px] rounded border border-border text-text-muted hover:text-error hover:border-error transition-all" title="フォント指定を解除">
+              <button
+                onClick={onClearFont}
+                className="px-1.5 py-0.5 text-[9px] rounded border border-border text-text-muted hover:text-error hover:border-error transition-all"
+                title="フォント指定を解除"
+              >
                 &times;
               </button>
-              <span className="text-[8px] text-text-muted self-center ml-1">{selectedBlockIds.size}件選択中</span>
+              <span className="text-[8px] text-text-muted self-center ml-1">
+                {selectedBlockIds.size}件選択中
+              </span>
             </>
           )}
           {activeFontFilter && !hasSelection && (
@@ -971,9 +1251,23 @@ function TextPanel(props: TextPanelProps) {
               className="ml-auto px-1.5 py-0.5 text-[9px] rounded border border-accent-secondary/40 text-accent-secondary hover:bg-accent-secondary/10 transition-all flex items-center gap-1"
               title="フィルタ結果を画像として保存"
             >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                />
               </svg>
               画像保存
             </button>
@@ -985,14 +1279,27 @@ function TextPanel(props: TextPanelProps) {
       {textPages.length === 0 ? (
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-3 px-6">
-            <svg className="w-10 h-10 mx-auto text-text-muted/20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            <svg
+              className="w-10 h-10 mx-auto text-text-muted/20"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+              />
             </svg>
             <div className="space-y-1">
               <p className="text-xs text-text-muted">テキストファイルを読み込んでください</p>
               <p className="text-[10px] text-text-muted/60">COMIC-POT形式に対応</p>
             </div>
-            <button onClick={onSelectTextFile} className="px-3 py-1.5 text-[11px] rounded-lg bg-accent/10 text-accent hover:bg-accent/20 transition-all font-medium">
+            <button
+              onClick={onSelectTextFile}
+              className="px-3 py-1.5 text-[11px] rounded-lg bg-accent/10 text-accent hover:bg-accent/20 transition-all font-medium"
+            >
               テキストファイルを選択
             </button>
           </div>
@@ -1001,9 +1308,13 @@ function TextPanel(props: TextPanelProps) {
         <div ref={textContainerRef} className="flex-1 overflow-y-auto">
           {textHeader.filter((l) => l.trim()).length > 0 && (
             <div className="px-3 py-2 bg-bg-tertiary/50 border-b border-border">
-              {textHeader.filter((l) => l.trim()).map((line, i) => (
-                <p key={i} className="text-[10px] text-text-muted">{line}</p>
-              ))}
+              {textHeader
+                .filter((l) => l.trim())
+                .map((line, i) => (
+                  <p key={i} className="text-[10px] text-text-muted">
+                    {line}
+                  </p>
+                ))}
             </div>
           )}
           {textPages.map((page) => (
@@ -1034,9 +1345,19 @@ function TextPanel(props: TextPanelProps) {
 // ─── Page Section ────────────────────────────────────────
 
 function PageSection({
-  page, isActive, pageRefs, onPageClick,
-  fontColorMap, fontPresets, selectedBlockIds, onSelectBlock, onBlockReorder,
-  onEditBlock, onAddBlock, editingBlockId, onSetEditingBlockId,
+  page,
+  isActive,
+  pageRefs,
+  onPageClick,
+  fontColorMap,
+  fontPresets,
+  selectedBlockIds,
+  onSelectBlock,
+  onBlockReorder,
+  onEditBlock,
+  onAddBlock,
+  editingBlockId,
+  onSetEditingBlockId,
   activeFontFilter,
 }: {
   page: TextPage;
@@ -1054,9 +1375,7 @@ function PageSection({
   onSetEditingBlockId: (id: string | null) => void;
   activeFontFilter: string | null;
 }) {
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -1082,29 +1401,51 @@ function PageSection({
         }`}
         onClick={() => onPageClick(page.pageNumber)}
       >
-        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-          isActive ? "bg-accent text-white" : "bg-bg-elevated text-text-muted"
-        }`}>
+        <span
+          className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+            isActive ? "bg-accent text-white" : "bg-bg-elevated text-text-muted"
+          }`}
+        >
           {page.pageNumber}P
         </span>
         {hasOrderChanges && (
-          <span className="text-[9px] px-1 py-0.5 rounded bg-warning/15 text-warning font-medium">順序変更</span>
+          <span className="text-[9px] px-1 py-0.5 rounded bg-warning/15 text-warning font-medium">
+            順序変更
+          </span>
         )}
         {!hasBlocks && (
           <span className="text-[10px] text-text-muted/40 italic">（テキストなし）</span>
         )}
         <button
-          onClick={(e) => { e.stopPropagation(); onAddBlock(page.pageNumber); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onAddBlock(page.pageNumber);
+          }}
           className="ml-auto flex-shrink-0 w-5 h-5 flex items-center justify-center rounded text-text-muted/50 hover:text-accent hover:bg-accent/10 transition-all"
           title="ブロック追加"
         >
-          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+          <svg
+            className="w-3 h-3"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
         </button>
       </div>
       {hasBlocks && (
         <div className="px-2 pb-2">
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={page.blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={page.blocks.map((b) => b.id)}
+              strategy={verticalListSortingStrategy}
+            >
               {page.blocks.map((block, currentIndex) => (
                 <SortableBlock
                   key={block.id}
@@ -1116,9 +1457,15 @@ function PageSection({
                   onEditBlock={onEditBlock}
                   onSetEditingBlockId={onSetEditingBlockId}
                   fontColor={block.assignedFont ? fontColorMap.get(block.assignedFont) : undefined}
-                  fontDisplayName={block.assignedFont ? fontPresets.find((fp) => fp.font === block.assignedFont)?.name : undefined}
+                  fontDisplayName={
+                    block.assignedFont
+                      ? fontPresets.find((fp) => fp.font === block.assignedFont)?.name
+                      : undefined
+                  }
                   isMoved={block.originalIndex !== currentIndex}
-                  isFilteredOut={activeFontFilter !== null && block.assignedFont !== activeFontFilter}
+                  isFilteredOut={
+                    activeFontFilter !== null && block.assignedFont !== activeFontFilter
+                  }
                 />
               ))}
             </SortableContext>
@@ -1132,7 +1479,17 @@ function PageSection({
 // ─── Sortable Block ──────────────────────────────────────
 
 function SortableBlock({
-  block, currentIndex, isSelected, isEditing, onSelect, onEditBlock, onSetEditingBlockId, fontColor, fontDisplayName, isMoved, isFilteredOut,
+  block,
+  currentIndex,
+  isSelected,
+  isEditing,
+  onSelect,
+  onEditBlock,
+  onSetEditingBlockId,
+  fontColor,
+  fontDisplayName,
+  isMoved,
+  isFilteredOut,
 }: {
   block: TextBlock;
   currentIndex: number;
@@ -1146,7 +1503,9 @@ function SortableBlock({
   isMoved: boolean;
   isFilteredOut: boolean;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: block.id,
+  });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [editText, setEditText] = useState("");
 
@@ -1158,7 +1517,9 @@ function SortableBlock({
   }, [isEditing, block.lines]);
 
   const commitEdit = () => {
-    const newLines = editText.split("\n").filter((l) => l.trim() !== "" || editText.split("\n").length === 1);
+    const newLines = editText
+      .split("\n")
+      .filter((l) => l.trim() !== "" || editText.split("\n").length === 1);
     if (newLines.length === 0 || (newLines.length === 1 && newLines[0].trim() === "")) {
       onSetEditingBlockId(null);
       return;
@@ -1179,7 +1540,11 @@ function SortableBlock({
           ? "border-success/30 bg-success/5"
           : "border-transparent hover:border-border";
 
-  const textColorClass = isDeleted ? "text-error/60 line-through" : isAdded ? "text-success" : "text-text-primary";
+  const textColorClass = isDeleted
+    ? "text-error/60 line-through"
+    : isAdded
+      ? "text-success"
+      : "text-text-primary";
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -1201,20 +1566,28 @@ function SortableBlock({
           title="ドラッグで並べ替え"
         >
           <svg className="w-3 h-3 text-text-muted/40" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="9" cy="5" r="1.5" /><circle cx="15" cy="5" r="1.5" />
-            <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
-            <circle cx="9" cy="19" r="1.5" /><circle cx="15" cy="19" r="1.5" />
+            <circle cx="9" cy="5" r="1.5" />
+            <circle cx="15" cy="5" r="1.5" />
+            <circle cx="9" cy="12" r="1.5" />
+            <circle cx="15" cy="12" r="1.5" />
+            <circle cx="9" cy="19" r="1.5" />
+            <circle cx="15" cy="19" r="1.5" />
           </svg>
-          <span className={`text-[8px] mt-0.5 font-mono leading-none ${
-            isMoved ? "text-warning font-bold" : "text-text-muted/50"
-          }`}>
+          <span
+            className={`text-[8px] mt-0.5 font-mono leading-none ${
+              isMoved ? "text-warning font-bold" : "text-text-muted/50"
+            }`}
+          >
             {isMoved ? `${block.originalIndex + 1}→${currentIndex + 1}` : `${currentIndex + 1}`}
           </span>
         </div>
         {isEditing ? (
           <div className="flex-1 py-1 pr-2 min-w-0">
             {fontColor && (
-              <span className="inline-block text-[8px] px-1 py-px rounded mb-0.5 font-medium" style={{ backgroundColor: fontColor + "20", color: fontColor }}>
+              <span
+                className="inline-block text-[8px] px-1 py-px rounded mb-0.5 font-medium"
+                style={{ backgroundColor: fontColor + "20", color: fontColor }}
+              >
                 {fontDisplayName || block.assignedFont}
               </span>
             )}
@@ -1224,12 +1597,19 @@ function SortableBlock({
               onChange={(e) => setEditText(e.target.value)}
               onBlur={commitEdit}
               onKeyDown={(e) => {
-                if (e.key === "Escape") { onSetEditingBlockId(null); }
-                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commitEdit(); }
+                if (e.key === "Escape") {
+                  onSetEditingBlockId(null);
+                }
+                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  commitEdit();
+                }
               }}
               className="w-full text-[11px] text-text-primary leading-relaxed font-ui bg-transparent border border-accent-secondary/30 rounded px-1 py-0.5 resize-y outline-none focus:border-accent-secondary"
               rows={Math.max(2, block.lines.length + 1)}
-              style={fontColor ? { borderLeft: `2px solid ${fontColor}`, paddingLeft: "4px" } : undefined}
+              style={
+                fontColor ? { borderLeft: `2px solid ${fontColor}`, paddingLeft: "4px" } : undefined
+              }
             />
             <div className="flex items-center gap-1 mt-0.5">
               <span className="text-[8px] text-text-muted">Ctrl+Enter: 確定 / Esc: キャンセル</span>
@@ -1244,20 +1624,35 @@ function SortableBlock({
             {(fontColor || isAdded || isDeleted) && (
               <div className="flex items-center gap-1 mb-0.5">
                 {fontColor && (
-                  <span className="inline-block text-[8px] px-1 py-px rounded font-medium" style={{ backgroundColor: fontColor + "20", color: fontColor }}>
+                  <span
+                    className="inline-block text-[8px] px-1 py-px rounded font-medium"
+                    style={{ backgroundColor: fontColor + "20", color: fontColor }}
+                  >
                     {fontDisplayName || block.assignedFont}
                   </span>
                 )}
                 {isAdded && (
-                  <span className="inline-block text-[8px] px-1 py-px rounded font-medium bg-success/15 text-success">追加</span>
+                  <span className="inline-block text-[8px] px-1 py-px rounded font-medium bg-success/15 text-success">
+                    追加
+                  </span>
                 )}
                 {isDeleted && (
-                  <span className="inline-block text-[8px] px-1 py-px rounded font-medium bg-error/15 text-error">削除</span>
+                  <span className="inline-block text-[8px] px-1 py-px rounded font-medium bg-error/15 text-error">
+                    削除
+                  </span>
                 )}
               </div>
             )}
             {block.lines.map((line, i) => (
-              <p key={i} className={`text-[11px] leading-relaxed font-ui ${textColorClass}`} style={fontColor ? { borderLeft: `2px solid ${fontColor}`, paddingLeft: "4px" } : undefined}>
+              <p
+                key={i}
+                className={`text-[11px] leading-relaxed font-ui ${textColorClass}`}
+                style={
+                  fontColor
+                    ? { borderLeft: `2px solid ${fontColor}`, paddingLeft: "4px" }
+                    : undefined
+                }
+              >
                 {line || "\u00A0"}
               </p>
             ))}

@@ -27,14 +27,16 @@ function isValidTachikiriGuideSet(gs: ScanGuideSet): boolean {
   const centerY = gs.docHeight / 2;
   const tolerance = 1;
 
-  let hasAbove = false, hasBelow = false;
+  let hasAbove = false,
+    hasBelow = false;
   for (const h of gs.horizontal) {
     if (Math.abs(h - centerY) <= tolerance) continue;
     if (h < centerY) hasAbove = true;
     else hasBelow = true;
   }
 
-  let hasLeft = false, hasRight = false;
+  let hasLeft = false,
+    hasRight = false;
   for (const v of gs.vertical) {
     if (Math.abs(v - centerX) <= tolerance) continue;
     if (v < centerX) hasLeft = true;
@@ -71,7 +73,7 @@ function autoSelectGuideSet(guideSets: ScanGuideSet[]): number | null {
  * - top10Sizes: 上位10件を {size,count}[] で別途出力
  */
 function convertSizeStatsForExport(
-  sizeStats: ScanData["sizeStats"] | undefined
+  sizeStats: ScanData["sizeStats"] | undefined,
 ): Record<string, unknown> | undefined {
   if (!sizeStats) return undefined;
 
@@ -105,7 +107,7 @@ function convertSizeStatsForExport(
  * - count フィールドを除去、fontSizes のみ出力
  */
 function convertStrokeSizesForExport(
-  strokeSizes: ScanData["strokeStats"]["sizes"] | undefined
+  strokeSizes: ScanData["strokeStats"]["sizes"] | undefined,
 ): { size: number; fontSizes: number[] }[] | undefined {
   if (!strokeSizes || strokeSizes.length === 0) return undefined;
   return strokeSizes.map((s) => ({
@@ -120,9 +122,12 @@ function convertStrokeSizesForExport(
  * - description に「使用回数:」を含む場合は省略
  */
 function convertPresetsForExport(
-  presetSets: Record<string, FontPreset[]>
+  presetSets: Record<string, FontPreset[]>,
 ): Record<string, { name: string; font: string; subName?: string; description?: string }[]> {
-  const result: Record<string, { name: string; font: string; subName?: string; description?: string }[]> = {};
+  const result: Record<
+    string,
+    { name: string; font: string; subName?: string; description?: string }[]
+  > = {};
   for (const [setName, presets] of Object.entries(presetSets)) {
     result[setName] = presets.map((p) => {
       const entry: { name: string; font: string; subName?: string; description?: string } = {
@@ -193,11 +198,19 @@ export async function performPresetJsonSave(): Promise<boolean> {
   // 旧ファイルを削除（タイトル/レーベル変更でパスが変わった場合）
   const oldPath = store.currentJsonFilePath;
   if (oldPath && oldPath !== filePath) {
-    try { await invoke("delete_file", { filePath: oldPath }); } catch { /* ignore */ }
+    try {
+      await invoke("delete_file", { filePath: oldPath });
+    } catch {
+      /* ignore */
+    }
   }
   const oldTempPath = store.tempJsonFilePath;
   if (oldTempPath && oldTempPath !== filePath) {
-    try { await invoke("delete_file", { filePath: oldTempPath }); } catch { /* ignore */ }
+    try {
+      await invoke("delete_file", { filePath: oldTempPath });
+    } catch {
+      /* ignore */
+    }
   }
 
   // 既存ファイルを読み込んでマージ
@@ -259,7 +272,11 @@ export async function performPresetJsonSave(): Promise<boolean> {
     }
     const oldTempScandata = store.tempScandataFilePath;
     if (oldTempScandata) {
-      try { await invoke("delete_file", { filePath: oldTempScandata }); } catch { /* ignore */ }
+      try {
+        await invoke("delete_file", { filePath: oldTempScandata });
+      } catch {
+        /* ignore */
+      }
       store.setTempScandataFilePath(null);
     }
   } else {
@@ -268,20 +285,26 @@ export async function performPresetJsonSave(): Promise<boolean> {
     store.setPendingTitleLabel(true);
 
     if (store.scanData) {
-      const tempScandataPath = `${store.saveDataBasePath}/_仮保存/temp_scandata.json`.replace(/\\/g, "/");
+      const tempScandataPath = `${store.saveDataBasePath}/_仮保存/temp_scandata.json`.replace(
+        /\\/g,
+        "/",
+      );
       const scandataContent = {
         ...store.scanData,
         workInfo: store.workInfo,
         presets: store.presetSets,
         editedRubyList: undefined,
         selectedGuideSetIndex: store.selectedGuideIndex,
-        excludedGuideIndices: store.excludedGuideIndices.size > 0
-          ? Array.from(store.excludedGuideIndices)
-          : undefined,
+        excludedGuideIndices:
+          store.excludedGuideIndices.size > 0 ? Array.from(store.excludedGuideIndices) : undefined,
       };
       const oldTempSd = store.tempScandataFilePath;
       if (oldTempSd && oldTempSd !== tempScandataPath) {
-        try { await invoke("delete_file", { filePath: oldTempSd }); } catch { /* ignore */ }
+        try {
+          await invoke("delete_file", { filePath: oldTempSd });
+        } catch {
+          /* ignore */
+        }
       }
       await invoke("write_text_file", {
         filePath: tempScandataPath,
@@ -327,9 +350,8 @@ async function saveScandataLinked(store: ReturnType<typeof useScanPsdStore.getSt
     editedRubyList: undefined,
     // ガイド選択・除外状態もscandataに保存
     selectedGuideSetIndex: store.selectedGuideIndex,
-    excludedGuideIndices: store.excludedGuideIndices.size > 0
-      ? Array.from(store.excludedGuideIndices)
-      : undefined,
+    excludedGuideIndices:
+      store.excludedGuideIndices.size > 0 ? Array.from(store.excludedGuideIndices) : undefined,
     saveDataPath: scandataPath,
     label: workInfo.label,
     title: workInfo.title,
@@ -382,7 +404,10 @@ function appendRubiesFromFolders(newFolderNames: string[]): void {
       const texts = folderData[docName];
 
       // リンクグループを収集
-      const linkedGroups: Record<string, { content: string; fontSize: number; layerName: string }[]> = {};
+      const linkedGroups: Record<
+        string,
+        { content: string; fontSize: number; layerName: string }[]
+      > = {};
       for (const t of texts) {
         if (t.isLinked && t.linkGroupId) {
           if (!linkedGroups[t.linkGroupId]) linkedGroups[t.linkGroupId] = [];
@@ -456,23 +481,28 @@ export async function performExportTextLog(): Promise<void> {
 
   // フォルダ名を収集して自然順ソート
   const folderNames = Object.keys(scanData.textLogByFolder).sort((a, b) =>
-    a.localeCompare(b, "ja", { numeric: true })
+    a.localeCompare(b, "ja", { numeric: true }),
   );
 
   // リンクグループ収集用（ルビ一覧生成用）
-  const linkedGroups: Record<string, {
-    pageNum: number; volumeStr: string;
-    texts: { content: string; fontSize: number; layerName: string }[];
-  }> = {};
+  const linkedGroups: Record<
+    string,
+    {
+      pageNum: number;
+      volumeStr: string;
+      texts: { content: string; fontSize: number; layerName: string }[];
+    }
+  > = {};
 
   // 各フォルダごとにテキストファイルを出力
   for (let folderIdx = 0; folderIdx < folderNames.length; folderIdx++) {
     const srcFolderName = folderNames[folderIdx];
 
     // 個別巻数マッピングがあればそれを使用、なければ連番
-    const currentVolume = folderVolumeMapping[srcFolderName] !== undefined
-      ? folderVolumeMapping[srcFolderName]
-      : startVolume + folderIdx;
+    const currentVolume =
+      folderVolumeMapping[srcFolderName] !== undefined
+        ? folderVolumeMapping[srcFolderName]
+        : startVolume + folderIdx;
     const volumeStr = String(currentVolume).padStart(2, "0");
 
     const folderData = scanData.textLogByFolder[srcFolderName];
@@ -502,7 +532,8 @@ export async function performExportTextLog(): Promise<void> {
         if (entry.isLinked && entry.linkGroupId) {
           if (!linkedGroups[entry.linkGroupId]) {
             linkedGroups[entry.linkGroupId] = {
-              pageNum, volumeStr,
+              pageNum,
+              volumeStr,
               texts: [],
             };
           }
@@ -575,7 +606,8 @@ export async function performLoadPresetJson(filePath: string): Promise<void> {
   if (pd?.workInfo?.label && pd?.workInfo?.title) {
     const safeLabel = pd.workInfo.label.replace(/[\\/:*?"<>|]/g, "_");
     const safeTitle = pd.workInfo.title.replace(/[\\/:*?"<>|]/g, "_");
-    const scandataPath = `${store.saveDataBasePath}/${safeLabel}/${safeTitle}_scandata.json`.replace(/\\/g, "/");
+    const scandataPath =
+      `${store.saveDataBasePath}/${safeLabel}/${safeTitle}_scandata.json`.replace(/\\/g, "/");
     try {
       const scandataContent = await invoke<string>("read_text_file", { filePath: scandataPath });
       const scandataData = JSON.parse(scandataContent) as ScanData;
@@ -599,17 +631,24 @@ export async function performLoadPresetJson(filePath: string): Promise<void> {
       // scandataが見つからない場合、JSON内のguideSetsから最小限のscanDataを構築
       if (pd.guideSets && pd.guideSets.length > 0) {
         const rawStats = pd.fontSizeStats as Record<string, unknown> | undefined;
-        let sizeStats: ScanData["sizeStats"] = { mostFrequent: null, sizes: [], excludeRange: null, allSizes: {} };
+        let sizeStats: ScanData["sizeStats"] = {
+          mostFrequent: null,
+          sizes: [],
+          excludeRange: null,
+          allSizes: {},
+        };
         if (rawStats) {
           const mf = rawStats.mostFrequent;
           sizeStats.mostFrequent =
             typeof mf === "number"
               ? { size: mf, count: 0 }
-              : (mf as ScanData["sizeStats"]["mostFrequent"]) ?? null;
+              : ((mf as ScanData["sizeStats"]["mostFrequent"]) ?? null);
           const rawSizes = rawStats.sizes;
           if (Array.isArray(rawSizes)) {
             sizeStats.sizes = rawSizes.map((s: unknown) =>
-              typeof s === "number" ? { size: s, count: 0 } : (s as { size: number; count: number })
+              typeof s === "number"
+                ? { size: s, count: 0 }
+                : (s as { size: number; count: number }),
             );
           }
           const rawTop10 = rawStats.top10Sizes;
@@ -626,7 +665,8 @@ export async function performLoadPresetJson(filePath: string): Promise<void> {
               sizeStats.mostFrequent = { size: mf, count: countMap.get(mf)! };
             }
           }
-          sizeStats.excludeRange = (rawStats.excludeRange as ScanData["sizeStats"]["excludeRange"]) ?? null;
+          sizeStats.excludeRange =
+            (rawStats.excludeRange as ScanData["sizeStats"]["excludeRange"]) ?? null;
           sizeStats.allSizes = (rawStats.allSizes as Record<string, number>) ?? {};
         }
         const rawStrokes = pd.strokeSizes ?? [];
@@ -734,7 +774,10 @@ function performRemoveVolumeData(volume: number): void {
   // --- 集計データを残存データから再計算 ---
 
   // fonts + allFontSizes を再計算
-  const fontMap = new Map<string, { displayName: string; count: number; sizeMap: Map<number, number> }>();
+  const fontMap = new Map<
+    string,
+    { displayName: string; count: number; sizeMap: Map<number, number> }
+  >();
   const allFontSizes: Record<string, number> = {};
   for (const layers of Object.values(scanData.textLayersByDoc || {})) {
     for (const layer of layers) {
@@ -749,14 +792,16 @@ function performRemoveVolumeData(volume: number): void {
       allFontSizes[sizeKey] = (allFontSizes[sizeKey] || 0) + 1;
     }
   }
-  scanData.fonts = Array.from(fontMap.entries()).map(([name, data]) => ({
-    name,
-    displayName: data.displayName,
-    count: data.count,
-    sizes: Array.from(data.sizeMap.entries())
-      .map(([size, count]) => ({ size, count }))
-      .sort((a, b) => b.count - a.count),
-  })).sort((a, b) => b.count - a.count);
+  scanData.fonts = Array.from(fontMap.entries())
+    .map(([name, data]) => ({
+      name,
+      displayName: data.displayName,
+      count: data.count,
+      sizes: Array.from(data.sizeMap.entries())
+        .map(([size, count]) => ({ size, count }))
+        .sort((a, b) => b.count - a.count),
+    }))
+    .sort((a, b) => b.count - a.count);
   scanData.allFontSizes = allFontSizes;
 
   // sizeStats を再計算
@@ -825,7 +870,7 @@ export function useScanPsdProcessor() {
       try {
         const result = await invoke<{ mode: string; folders: { path: string; name: string }[] }>(
           "detect_psd_folders",
-          { folderPath: selected }
+          { folderPath: selected },
         );
         if (result.folders.length > 0) {
           for (let i = 0; i < result.folders.length; i++) {
@@ -872,14 +917,10 @@ export function useScanPsdProcessor() {
     // Poll progress
     pollingRef.current = setInterval(async () => {
       try {
-        const progressJson = await invoke<string | null>(
-          "poll_scan_psd_progress"
-        );
+        const progressJson = await invoke<string | null>("poll_scan_psd_progress");
         if (progressJson) {
           const p = JSON.parse(progressJson);
-          useScanPsdStore
-            .getState()
-            .setProgress(p.current || 0, p.total || 0, p.message || "");
+          useScanPsdStore.getState().setProgress(p.current || 0, p.total || 0, p.message || "");
         }
       } catch {
         /* ignore polling errors */
@@ -933,20 +974,34 @@ export function useScanPsdProcessor() {
       if (freshState.scanData?.strokeStats?.sizes?.length) {
         const oldSizes = freshState.scanData.strokeStats.sizes;
         const newSizes = scanData.strokeStats?.sizes || [];
-        const mergedMap = new Map<number, { count: number; fontSizes: Set<number>; maxFontSize: number | null }>();
+        const mergedMap = new Map<
+          number,
+          { count: number; fontSizes: Set<number>; maxFontSize: number | null }
+        >();
         for (const s of oldSizes) {
-          mergedMap.set(s.size, { count: s.count, fontSizes: new Set(s.fontSizes), maxFontSize: s.maxFontSize });
+          mergedMap.set(s.size, {
+            count: s.count,
+            fontSizes: new Set(s.fontSizes),
+            maxFontSize: s.maxFontSize,
+          });
         }
         for (const s of newSizes) {
           const existing = mergedMap.get(s.size);
           if (existing) {
             existing.count += s.count;
             for (const fs of s.fontSizes) existing.fontSizes.add(fs);
-            if (s.maxFontSize != null && (existing.maxFontSize == null || s.maxFontSize > existing.maxFontSize)) {
+            if (
+              s.maxFontSize != null &&
+              (existing.maxFontSize == null || s.maxFontSize > existing.maxFontSize)
+            ) {
               existing.maxFontSize = s.maxFontSize;
             }
           } else {
-            mergedMap.set(s.size, { count: s.count, fontSizes: new Set(s.fontSizes), maxFontSize: s.maxFontSize });
+            mergedMap.set(s.size, {
+              count: s.count,
+              fontSizes: new Set(s.fontSizes),
+              maxFontSize: s.maxFontSize,
+            });
           }
         }
         scanData.strokeStats = {
@@ -982,7 +1037,7 @@ export function useScanPsdProcessor() {
       // JSXの determineTargetFolders がサブフォルダに分解するため、
       // store.foldersの名前ではなく textLogByFolder のキー差分で新規フォルダを特定する
       const newTextLogKeys = Object.keys(scanData.textLogByFolder || {}).filter(
-        (k) => !oldTextLogKeys.has(k)
+        (k) => !oldTextLogKeys.has(k),
       );
       appendRubiesFromFolders(newTextLogKeys);
 
@@ -1069,9 +1124,12 @@ export function useScanPsdProcessor() {
       if (pd?.workInfo?.label && pd?.workInfo?.title) {
         const safeLabel = pd.workInfo.label.replace(/[\\/:*?"<>|]/g, "_");
         const safeTitle = pd.workInfo.title.replace(/[\\/:*?"<>|]/g, "_");
-        const scandataPath = `${store.saveDataBasePath}/${safeLabel}/${safeTitle}_scandata.json`.replace(/\\/g, "/");
+        const scandataPath =
+          `${store.saveDataBasePath}/${safeLabel}/${safeTitle}_scandata.json`.replace(/\\/g, "/");
         try {
-          const scandataContent = await invoke<string>("read_text_file", { filePath: scandataPath });
+          const scandataContent = await invoke<string>("read_text_file", {
+            filePath: scandataPath,
+          });
           const scandataData = JSON.parse(scandataContent) as ScanData;
           store.setScanData(scandataData);
           store.setCurrentScandataFilePath(scandataPath);
@@ -1099,17 +1157,24 @@ export function useScanPsdProcessor() {
             // sizes: number[] (元) → {size,count}[] (アプリ)
             // top10Sizes: {size,count}[] (元) → 存在しない (アプリ)
             const rawStats = pd.fontSizeStats as Record<string, unknown> | undefined;
-            let sizeStats: ScanData["sizeStats"] = { mostFrequent: null, sizes: [], excludeRange: null, allSizes: {} };
+            let sizeStats: ScanData["sizeStats"] = {
+              mostFrequent: null,
+              sizes: [],
+              excludeRange: null,
+              allSizes: {},
+            };
             if (rawStats) {
               const mf = rawStats.mostFrequent;
               sizeStats.mostFrequent =
                 typeof mf === "number"
                   ? { size: mf, count: 0 }
-                  : (mf as ScanData["sizeStats"]["mostFrequent"]) ?? null;
+                  : ((mf as ScanData["sizeStats"]["mostFrequent"]) ?? null);
               const rawSizes = rawStats.sizes;
               if (Array.isArray(rawSizes)) {
                 sizeStats.sizes = rawSizes.map((s: unknown) =>
-                  typeof s === "number" ? { size: s, count: 0 } : (s as { size: number; count: number })
+                  typeof s === "number"
+                    ? { size: s, count: 0 }
+                    : (s as { size: number; count: number }),
                 );
               }
               const rawTop10 = rawStats.top10Sizes;
@@ -1127,7 +1192,8 @@ export function useScanPsdProcessor() {
                   sizeStats.mostFrequent = { size: mf, count: countMap.get(mf)! };
                 }
               }
-              sizeStats.excludeRange = (rawStats.excludeRange as ScanData["sizeStats"]["excludeRange"]) ?? null;
+              sizeStats.excludeRange =
+                (rawStats.excludeRange as ScanData["sizeStats"]["excludeRange"]) ?? null;
               sizeStats.allSizes = (rawStats.allSizes as Record<string, number>) ?? {};
             }
 
@@ -1234,9 +1300,7 @@ export function useScanPsdProcessor() {
       const lines: string[] = [];
       lines.push("親文字\tルビ\t巻\tページ\t順番");
       for (const r of store.rubyList) {
-        lines.push(
-          `${r.parentText}\t${r.rubyText}\t${r.volume}\t${r.page}\t${r.order}`
-        );
+        lines.push(`${r.parentText}\t${r.rubyText}\t${r.volume}\t${r.page}\t${r.order}`);
       }
 
       await invoke("write_text_file", {

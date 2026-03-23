@@ -29,7 +29,11 @@ interface UseHighResPreviewReturn {
 /** フロントエンド側URLキャッシュ（asset:// URL + サイズ情報） */
 const urlCache = new Map<
   string,
-  { url: string; original: { width: number; height: number }; preview: { width: number; height: number } }
+  {
+    url: string;
+    original: { width: number; height: number };
+    preview: { width: number; height: number };
+  }
 >();
 const MAX_URL_CACHE = 50;
 
@@ -100,7 +104,7 @@ export async function prefetchPreview(
  */
 export function useHighResPreview(
   filePath: string | undefined,
-  options: UseHighResPreviewOptions = {}
+  options: UseHighResPreviewOptions = {},
 ): UseHighResPreviewReturn {
   const { maxSize = 1200, enabled = true, pdfPageIndex, pdfSourcePath } = options;
 

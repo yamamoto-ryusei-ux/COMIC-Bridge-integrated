@@ -26,7 +26,7 @@ interface RenameInfo {
 function buildRenameMap(
   tree: LayerNode[],
   rules: RenameRule[],
-  bottomLayer: { enabled: boolean; newName: string }
+  bottomLayer: { enabled: boolean; newName: string },
 ): Map<string, RenameInfo> {
   const map = new Map<string, RenameInfo>();
   const activeRules = rules.filter((r) => r.oldName.trim() !== "");
@@ -75,9 +75,7 @@ function LayerPreview() {
   const layerSettings = useRenameStore((s) => s.layerSettings);
   const files = usePsdStore((s) => s.files);
   const psdFiles = files.filter(
-    (f) =>
-      f.filePath.toLowerCase().endsWith(".psd") ||
-      f.filePath.toLowerCase().endsWith(".psb")
+    (f) => f.filePath.toLowerCase().endsWith(".psd") || f.filePath.toLowerCase().endsWith(".psb"),
   );
 
   if (psdFiles.length === 0) {
@@ -87,8 +85,7 @@ function LayerPreview() {
   }
 
   const hasRules =
-    layerSettings.bottomLayer.enabled ||
-    layerSettings.rules.some((r) => r.oldName.trim() !== "");
+    layerSettings.bottomLayer.enabled || layerSettings.rules.some((r) => r.oldName.trim() !== "");
 
   return (
     <div className="h-full flex flex-col">
@@ -104,9 +101,7 @@ function LayerPreview() {
       )}
 
       {/* File columns */}
-      <div
-        className="flex-1 overflow-auto"
-      >
+      <div className="flex-1 overflow-auto">
         <div
           className="grid h-fit"
           style={{
@@ -115,14 +110,13 @@ function LayerPreview() {
         >
           {psdFiles.map((file) => {
             const tree = file.metadata?.layerTree || [];
-            const renameMap = hasRules ? buildRenameMap(tree, layerSettings.rules, layerSettings.bottomLayer) : new Map<string, RenameInfo>();
+            const renameMap = hasRules
+              ? buildRenameMap(tree, layerSettings.rules, layerSettings.bottomLayer)
+              : new Map<string, RenameInfo>();
             const renameCount = renameMap.size;
 
             return (
-              <div
-                key={file.id}
-                className="flex flex-col min-w-0 border-r border-b border-border"
-              >
+              <div key={file.id} className="flex flex-col min-w-0 border-r border-b border-border">
                 {/* File header */}
                 <div className="px-2 py-1.5 border-b border-border/60 bg-bg-secondary/30 flex items-center gap-1.5 flex-shrink-0">
                   <span className="text-[11px] font-medium text-text-primary truncate flex-1">
@@ -174,7 +168,13 @@ function RenameTree({
   return (
     <div className="text-[11px]">
       {reversed.map((layer) => (
-        <RenameItem key={layer.id} layer={layer} depth={depth} renameMap={renameMap} parentVisible={parentVisible} />
+        <RenameItem
+          key={layer.id}
+          layer={layer}
+          depth={depth}
+          renameMap={renameMap}
+          parentVisible={parentVisible}
+        />
       ))}
     </div>
   );
@@ -210,7 +210,11 @@ function RenameItem({
         `}
         style={{ paddingLeft: `${depth * 12 + 2}px` }}
       >
-        <ExpandBtn has={!!hasChildren} open={isExpanded} toggle={() => setIsExpanded(!isExpanded)} />
+        <ExpandBtn
+          has={!!hasChildren}
+          open={isExpanded}
+          toggle={() => setIsExpanded(!isExpanded)}
+        />
         <VisIcon visible={layer.visible} effective={effectiveVisible} />
         <TypeIcon type={layer.type} visible={effectiveVisible} />
 
@@ -219,7 +223,13 @@ function RenameItem({
             <span className="text-text-muted line-through truncate" title={layer.name}>
               {layer.name || <span className="italic text-text-muted/50">名称なし</span>}
             </span>
-            <svg className="w-2.5 h-2.5 text-text-muted/60 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg
+              className="w-2.5 h-2.5 text-text-muted/60 flex-shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
             <span className="text-accent-secondary font-medium truncate" title={info.newName}>
@@ -227,17 +237,30 @@ function RenameItem({
             </span>
           </>
         ) : (
-          <span className={`truncate flex-1 ${effectiveVisible ? "text-text-primary" : "text-text-muted/50"}`} title={layer.name}>
+          <span
+            className={`truncate flex-1 ${effectiveVisible ? "text-text-primary" : "text-text-muted/50"}`}
+            title={layer.name}
+          >
             {layer.name || <span className="italic text-text-muted/50">名称なし</span>}
           </span>
         )}
 
-        <div className={effectiveVisible ? "" : "opacity-40"}><Badges layer={layer} /></div>
+        <div className={effectiveVisible ? "" : "opacity-40"}>
+          <Badges layer={layer} />
+        </div>
       </div>
       {hasChildren && isExpanded && (
         <div className="relative">
-          <div className="absolute left-0 top-0 bottom-1 w-px bg-border/40" style={{ marginLeft: `${depth * 12 + 9}px` }} />
-          <RenameTree layers={layer.children!} depth={depth + 1} renameMap={renameMap} parentVisible={effectiveVisible} />
+          <div
+            className="absolute left-0 top-0 bottom-1 w-px bg-border/40"
+            style={{ marginLeft: `${depth * 12 + 9}px` }}
+          />
+          <RenameTree
+            layers={layer.children!}
+            depth={depth + 1}
+            renameMap={renameMap}
+            parentVisible={effectiveVisible}
+          />
         </div>
       )}
     </div>
@@ -251,14 +274,21 @@ function ExpandBtn({ has, open, toggle }: { has: boolean; open: boolean; toggle:
   return (
     <button
       className="w-3.5 h-3.5 flex items-center justify-center text-text-muted hover:text-accent transition-colors"
-      onClick={(e) => { e.stopPropagation(); toggle(); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        toggle();
+      }}
     >
       <svg
         className={`w-2.5 h-2.5 transition-transform duration-150 ${open ? "rotate-90" : ""}`}
         fill="currentColor"
         viewBox="0 0 20 20"
       >
-        <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+        <path
+          fillRule="evenodd"
+          d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+          clipRule="evenodd"
+        />
       </svg>
     </button>
   );
@@ -271,11 +301,19 @@ function VisIcon({ visible, effective = visible }: { visible: boolean; effective
       {visible ? (
         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
           <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-          <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+          <path
+            fillRule="evenodd"
+            d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+            clipRule="evenodd"
+          />
         </svg>
       ) : (
         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-          <path fillRule="evenodd" d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z" clipRule="evenodd" />
+          <path
+            fillRule="evenodd"
+            d="M3.707 2.293a1 1 0 00-1.414 1.414l14 14a1 1 0 001.414-1.414l-1.473-1.473A10.014 10.014 0 0019.542 10C18.268 5.943 14.478 3 10 3a9.958 9.958 0 00-4.512 1.074l-1.78-1.781zm4.261 4.26l1.514 1.515a2.003 2.003 0 012.45 2.45l1.514 1.514a4 4 0 00-5.478-5.478z"
+            clipRule="evenodd"
+          />
           <path d="M12.454 16.697L9.75 13.992a4 4 0 01-3.742-3.741L2.335 6.578A9.98 9.98 0 00.458 10c1.274 4.057 5.065 7 9.542 7 .847 0 1.669-.105 2.454-.303z" />
         </svg>
       )}
@@ -329,12 +367,23 @@ function Badges({ layer }: { layer: LayerNode }) {
   return (
     <>
       {layer.clipping && (
-        <span className="text-[8px] px-0.5 rounded bg-accent/12 text-accent flex-shrink-0">clip</span>
+        <span className="text-[8px] px-0.5 rounded bg-accent/12 text-accent flex-shrink-0">
+          clip
+        </span>
       )}
       {layer.hasMask && (
         <span className="flex-shrink-0">
           <svg className="w-2.5 h-2.5 text-text-muted/60" viewBox="0 0 16 16" fill="currentColor">
-            <rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <rect
+              x="1"
+              y="1"
+              width="14"
+              height="14"
+              rx="2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
             <circle cx="8" cy="8" r="4" />
           </svg>
         </span>
@@ -342,7 +391,16 @@ function Badges({ layer }: { layer: LayerNode }) {
       {layer.hasVectorMask && (
         <span className="flex-shrink-0">
           <svg className="w-2.5 h-2.5 text-[#59a8f8]/60" viewBox="0 0 16 16" fill="currentColor">
-            <rect x="1" y="1" width="14" height="14" rx="2" fill="none" stroke="currentColor" strokeWidth="1.5" />
+            <rect
+              x="1"
+              y="1"
+              width="14"
+              height="14"
+              rx="2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
             <path d="M4 12L8 4l4 8H4z" fill="none" stroke="currentColor" strokeWidth="1.5" />
           </svg>
         </span>
@@ -371,12 +429,7 @@ function matchName(name: string, pattern: string, mode: string): boolean {
   return false;
 }
 
-function applyRename(
-  name: string,
-  oldName: string,
-  newName: string,
-  mode: string
-): string {
+function applyRename(name: string, oldName: string, newName: string, mode: string): string {
   if (mode === "exact") return newName;
   if (mode === "partial") return name.split(oldName).join(newName);
   if (mode === "regex") {
@@ -403,11 +456,7 @@ function FilePreview() {
   const reorderFolder = useRenameStore((s) => s.reorderFolder);
 
   const { computeFilePreview } = useRenameProcessor();
-  const previews = useMemo(computeFilePreview, [
-    fileEntries,
-    fileSettings,
-    computeFilePreview,
-  ]);
+  const previews = useMemo(computeFilePreview, [fileEntries, fileSettings, computeFilePreview]);
 
   const previewMap = useMemo(() => {
     const map = new Map<string, FileRenamePreview>();
@@ -448,7 +497,7 @@ function FilePreview() {
       const preview = previewMap.get(id);
       setEditValue(preview?.newName || currentName);
     },
-    [previewMap]
+    [previewMap],
   );
 
   const commitEdit = useCallback(
@@ -460,7 +509,7 @@ function FilePreview() {
       }
       setEditingId(null);
     },
-    [editValue, setEntryCustomName]
+    [editValue, setEntryCustomName],
   );
 
   // Folder D&D
@@ -515,7 +564,8 @@ function FilePreview() {
           <span className="text-[10px] text-text-muted">全選択</span>
         </label>
         <span className="text-[10px] text-text-muted">
-          {folderGroups.length > 1 && `${folderGroups.length} フォルダ / `}{fileEntries.length} ファイル
+          {folderGroups.length > 1 && `${folderGroups.length} フォルダ / `}
+          {fileEntries.length} ファイル
         </span>
         <div className="flex-1" />
         <button
@@ -552,14 +602,31 @@ function FilePreview() {
               <div className="px-2 py-1.5 border-b border-border/60 bg-bg-secondary/30 flex items-center gap-1.5 flex-shrink-0 group">
                 {/* Drag handle (when multi-folder) */}
                 {folderGroups.length > 1 && (
-                  <svg className="w-3 h-3 text-text-muted/40 flex-shrink-0 cursor-grab active:cursor-grabbing" fill="currentColor" viewBox="0 0 24 24">
-                    <circle cx="9" cy="7" r="1.5" /><circle cx="15" cy="7" r="1.5" />
-                    <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
-                    <circle cx="9" cy="17" r="1.5" /><circle cx="15" cy="17" r="1.5" />
+                  <svg
+                    className="w-3 h-3 text-text-muted/40 flex-shrink-0 cursor-grab active:cursor-grabbing"
+                    fill="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle cx="9" cy="7" r="1.5" />
+                    <circle cx="15" cy="7" r="1.5" />
+                    <circle cx="9" cy="12" r="1.5" />
+                    <circle cx="15" cy="12" r="1.5" />
+                    <circle cx="9" cy="17" r="1.5" />
+                    <circle cx="15" cy="17" r="1.5" />
                   </svg>
                 )}
-                <svg className="w-3.5 h-3.5 text-accent-secondary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                <svg
+                  className="w-3.5 h-3.5 text-accent-secondary flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+                  />
                 </svg>
                 <span className="text-[11px] font-medium text-text-secondary truncate flex-1">
                   {group.folderName}
@@ -571,7 +638,13 @@ function FilePreview() {
                   onClick={() => removeFolder(group.folderPath)}
                   className="p-0.5 rounded text-text-muted/40 hover:text-error transition-colors opacity-0 group-hover:opacity-100"
                 >
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
                 </button>
@@ -622,8 +695,12 @@ function FilePreview() {
                             onDoubleClick={() => startEdit(entry.id, entry.fileName)}
                             title="ダブルクリックで個別編集"
                           >
-                            <div className="text-[11px] text-text-muted/60 line-through truncate">{entry.fileName}</div>
-                            <div className={`text-[11px] truncate text-accent-tertiary font-medium ${entry.customName ? "underline decoration-dotted" : ""}`}>
+                            <div className="text-[11px] text-text-muted/60 line-through truncate">
+                              {entry.fileName}
+                            </div>
+                            <div
+                              className={`text-[11px] truncate text-accent-tertiary font-medium ${entry.customName ? "underline decoration-dotted" : ""}`}
+                            >
                               {newName}
                             </div>
                           </div>

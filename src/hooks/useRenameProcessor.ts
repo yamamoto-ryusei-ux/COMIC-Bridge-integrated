@@ -78,8 +78,7 @@ export function useRenameProcessor() {
             break;
           }
           case "replace": {
-            const { searchText, replaceText, matchMode } =
-              fileSettings.replaceString;
+            const { searchText, replaceText, matchMode } = fileSettings.replaceString;
             if (!searchText) {
               newName = entry.fileName;
             } else if (matchMode === "regex") {
@@ -91,8 +90,7 @@ export function useRenameProcessor() {
               }
             } else {
               // partial (部分一致)
-              newName =
-                nameNoExt.split(searchText).join(replaceText) + ext;
+              newName = nameNoExt.split(searchText).join(replaceText) + ext;
             }
             break;
           }
@@ -125,9 +123,7 @@ export function useRenameProcessor() {
 
     // PSDファイルのみ対象
     const psdFiles: PsdFile[] = psdState.files.filter(
-      (f) =>
-        f.filePath.toLowerCase().endsWith(".psd") ||
-        f.filePath.toLowerCase().endsWith(".psb")
+      (f) => f.filePath.toLowerCase().endsWith(".psd") || f.filePath.toLowerCase().endsWith(".psb"),
     );
 
     if (psdFiles.length === 0) return;
@@ -140,27 +136,22 @@ export function useRenameProcessor() {
       const filePaths = psdFiles.map((f) => f.filePath);
 
       // ルールをフィルタ（空のルールは除外）
-      const activeRules = layerSettings.rules.filter(
-        (r) => r.oldName.trim() !== ""
-      );
+      const activeRules = layerSettings.rules.filter((r) => r.oldName.trim() !== "");
 
-      const psResults = await invoke<PhotoshopResult[]>(
-        "run_photoshop_rename",
-        {
-          settings: {
-            files: filePaths,
-            bottomLayer: layerSettings.bottomLayer,
-            rules: activeRules.map((r) => ({
-              target: r.target,
-              oldName: r.oldName,
-              newName: r.newName,
-              matchMode: r.matchMode,
-            })),
-            fileOutput: layerSettings.fileOutput,
-            outputDirectory: layerSettings.outputDirectory,
-          },
-        }
-      );
+      const psResults = await invoke<PhotoshopResult[]>("run_photoshop_rename", {
+        settings: {
+          files: filePaths,
+          bottomLayer: layerSettings.bottomLayer,
+          rules: activeRules.map((r) => ({
+            target: r.target,
+            oldName: r.oldName,
+            newName: r.newName,
+            matchMode: r.matchMode,
+          })),
+          fileOutput: layerSettings.fileOutput,
+          outputDirectory: layerSettings.outputDirectory,
+        },
+      });
 
       for (let i = 0; i < psResults.length; i++) {
         const psResult = psResults[i];
@@ -212,14 +203,11 @@ export function useRenameProcessor() {
         };
       });
 
-      const batchResults = await invoke<BatchRenameResult[]>(
-        "batch_rename_files",
-        {
-          entries,
-          mode: fileSettings.outputMode,
-          outputDirectory: fileSettings.outputDirectory,
-        }
-      );
+      const batchResults = await invoke<BatchRenameResult[]>("batch_rename_files", {
+        entries,
+        mode: fileSettings.outputMode,
+        outputDirectory: fileSettings.outputDirectory,
+      });
 
       for (let i = 0; i < batchResults.length; i++) {
         const br = batchResults[i];
@@ -229,9 +217,7 @@ export function useRenameProcessor() {
           newFileName: br.newName,
           success: br.success,
           outputFile: br.outputPath,
-          changes: br.success
-            ? [`${br.originalName} → ${br.newName}`]
-            : [],
+          changes: br.success ? [`${br.originalName} → ${br.newName}`] : [],
           error: br.error || undefined,
         };
 
@@ -245,14 +231,7 @@ export function useRenameProcessor() {
       console.error("File rename error:", err);
       setPhase("error");
     }
-  }, [
-    computeFilePreview,
-    setPhase,
-    clearResults,
-    setProgress,
-    addResult,
-    setShowResultDialog,
-  ]);
+  }, [computeFilePreview, setPhase, clearResults, setProgress, addResult, setShowResultDialog]);
 
   return {
     computeFilePreview,

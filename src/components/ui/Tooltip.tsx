@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect, ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useRef, useEffect, ReactNode } from "react";
+import { createPortal } from "react-dom";
 
-type TooltipPosition = 'top' | 'bottom' | 'left' | 'right';
+type TooltipPosition = "top" | "bottom" | "left" | "right";
 
 interface TooltipProps {
   content: ReactNode;
@@ -10,12 +10,7 @@ interface TooltipProps {
   children: ReactNode;
 }
 
-export function Tooltip({
-  content,
-  position = 'top',
-  delay = 200,
-  children,
-}: TooltipProps) {
+export function Tooltip({ content, position = "top", delay = 200, children }: TooltipProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [coords, setCoords] = useState({ x: 0, y: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -26,7 +21,7 @@ export function Tooltip({
       if (triggerRef.current) {
         const rect = triggerRef.current.getBoundingClientRect();
         const x = rect.left + rect.width / 2;
-        const y = position === 'top' ? rect.top : rect.bottom;
+        const y = position === "top" ? rect.top : rect.bottom;
         setCoords({ x, y });
         setIsVisible(true);
       }
@@ -49,21 +44,21 @@ export function Tooltip({
   }, []);
 
   const positionStyles: Record<TooltipPosition, string> = {
-    top: '-translate-x-1/2 -translate-y-full mb-2',
-    bottom: '-translate-x-1/2 mt-2',
-    left: '-translate-x-full -translate-y-1/2 mr-2',
-    right: 'translate-y-[-50%] ml-2',
+    top: "-translate-x-1/2 -translate-y-full mb-2",
+    bottom: "-translate-x-1/2 mt-2",
+    left: "-translate-x-full -translate-y-1/2 mr-2",
+    right: "translate-y-[-50%] ml-2",
   };
 
   const getTooltipStyle = () => {
     switch (position) {
-      case 'top':
+      case "top":
         return { left: coords.x, top: coords.y - 8 };
-      case 'bottom':
+      case "bottom":
         return { left: coords.x, top: coords.y + 8 };
-      case 'left':
+      case "left":
         return { left: coords.x - 8, top: coords.y };
-      case 'right':
+      case "right":
         return { left: coords.x + 8, top: coords.y };
     }
   };
@@ -96,7 +91,7 @@ export function Tooltip({
           >
             {content}
           </div>,
-          document.body
+          document.body,
         )}
     </>
   );

@@ -1,12 +1,7 @@
 import { useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useReplaceStore } from "../store/replaceStore";
-import type {
-  FilePair,
-  PairingJob,
-  ReplaceResult,
-  ScannedFileGroup,
-} from "../types/replace";
+import type { FilePair, PairingJob, ReplaceResult, ScannedFileGroup } from "../types/replace";
 
 interface PhotoshopResult {
   filePath: string;
@@ -50,10 +45,7 @@ function getPageNumber(fileName: string): number | null {
 }
 
 // --- ヘルパー: リンク文字自動検出 ---
-function autoDetectLinkCharacter(
-  sourceFiles: string[],
-  targetFiles: string[]
-): string | null {
+function autoDetectLinkCharacter(sourceFiles: string[], targetFiles: string[]): string | null {
   const diffs: Record<string, number> = {};
 
   const sourceBaseNames = new Set(sourceFiles.map(getBaseName));
@@ -93,10 +85,7 @@ function getNumberFromFolderName(folderPath: string): number | null {
 
 // --- ペアリングアルゴリズム ---
 
-function pairByFileOrder(
-  sourceFiles: string[],
-  targetFiles: string[]
-): FilePair[] {
+function pairByFileOrder(sourceFiles: string[], targetFiles: string[]): FilePair[] {
   const pairs: FilePair[] = [];
   const len = Math.min(sourceFiles.length, targetFiles.length);
   for (let i = 0; i < len; i++) {
@@ -111,10 +100,7 @@ function pairByFileOrder(
   return pairs;
 }
 
-function pairByNumericKey(
-  sourceFiles: string[],
-  targetFiles: string[]
-): FilePair[] {
+function pairByNumericKey(sourceFiles: string[], targetFiles: string[]): FilePair[] {
   const sourceMap = new Map<number, string>();
   for (const f of sourceFiles) {
     const key = getPageNumber(getDisplayName(f));
@@ -140,7 +126,7 @@ function pairByNumericKey(
 function pairByLinkCharacter(
   sourceFiles: string[],
   targetFiles: string[],
-  linkChar: string
+  linkChar: string,
 ): FilePair[] {
   const normalize = (name: string) => name.split(linkChar).join("");
 
@@ -191,7 +177,7 @@ export function useReplaceProcessor() {
   const computePairs = useCallback(
     (
       sourceFiles: string[],
-      targetFiles: string[]
+      targetFiles: string[],
     ): { pairs: FilePair[]; detectedChar: string | null } => {
       const mode = settings.pairingSettings.mode;
       let detectedChar: string | null = null;
@@ -208,7 +194,7 @@ export function useReplaceProcessor() {
           pairs = pairByLinkCharacter(
             sourceFiles,
             targetFiles,
-            settings.pairingSettings.linkCharacter
+            settings.pairingSettings.linkCharacter,
           );
           break;
         case "linkCharAuto":
@@ -225,7 +211,7 @@ export function useReplaceProcessor() {
 
       return { pairs, detectedChar };
     },
-    [settings.pairingSettings]
+    [settings.pairingSettings],
   );
 
   // --- タイムスタンプ生成 (YYYY-MM-DD_HH-mm) ---
@@ -331,10 +317,7 @@ export function useReplaceProcessor() {
                 recursive: false,
               });
 
-          const { pairs, detectedChar } = computePairs(
-            sourceFiles,
-            targetFiles
-          );
+          const { pairs, detectedChar } = computePairs(sourceFiles, targetFiles);
           if (detectedChar) globalDetectedChar = detectedChar;
 
           const indexedPairs = pairs.map((p) => ({
@@ -413,10 +396,7 @@ export function useReplaceProcessor() {
                   recursive: false,
                 });
 
-                const { pairs, detectedChar } = computePairs(
-                  srcFiles,
-                  tgtFiles
-                );
+                const { pairs, detectedChar } = computePairs(srcFiles, tgtFiles);
                 if (detectedChar) globalDetectedChar = detectedChar;
 
                 const indexedPairs = pairs.map((p) => ({
@@ -501,8 +481,13 @@ export function useReplaceProcessor() {
   // --- Photoshop 実行 ---
   const executeReplacement = useCallback(async () => {
     const state = useReplaceStore.getState();
-    const { pairingJobs: jobs, pairingDialogMode, manualPairs,
-      excludedPairIndices, scannedFileGroups } = state;
+    const {
+      pairingJobs: jobs,
+      pairingDialogMode,
+      manualPairs,
+      excludedPairIndices,
+      scannedFileGroups,
+    } = state;
     const currentSettings = state.settings;
 
     // 出力パス再計算（ダイアログで変更された可能性がある）
@@ -519,7 +504,7 @@ export function useReplaceProcessor() {
       pairEntries = manualPairs.map((p) => {
         // ファイルが属するグループを見つけて出力パスを解決
         const group = scannedFileGroups.find(
-          (g) => g.sourceFiles.includes(p.sourceFile) || g.targetFiles.includes(p.targetFile)
+          (g) => g.sourceFiles.includes(p.sourceFile) || g.targetFiles.includes(p.targetFile),
         );
         return {
           sourceFile: p.sourceFile,
@@ -530,7 +515,7 @@ export function useReplaceProcessor() {
     } else {
       // 自動モード: excludedを除外
       allPairs = jobs.flatMap((job) =>
-        job.pairs.filter((p) => !excludedPairIndices.has(p.pairIndex))
+        job.pairs.filter((p) => !excludedPairIndices.has(p.pairIndex)),
       );
       pairEntries = jobs.flatMap((job, jobIdx) =>
         job.pairs
@@ -539,7 +524,7 @@ export function useReplaceProcessor() {
             sourceFile: pair.sourceFile,
             targetFile: pair.targetFile,
             outputDir: outBase + (scannedFileGroups[jobIdx]?.outputDirSuffix ?? ""),
-          }))
+          })),
       );
     }
 
@@ -550,26 +535,21 @@ export function useReplaceProcessor() {
     setProgress(0, allPairs.length);
 
     try {
-
       setCurrentPair("Photoshopで処理中...");
 
-      const psResults = await invoke<PhotoshopResult[]>(
-        "run_photoshop_replace",
-        {
-          jobs: {
-            mode: currentSettings.mode,
-            pairs: pairEntries,
-            textSettings: currentSettings.textSettings,
-            imageSettings: currentSettings.imageSettings,
-            switchSettings: currentSettings.switchSettings,
-            generalSettings: currentSettings.generalSettings,
-            composeSettings: currentSettings.mode === "compose"
-              ? currentSettings.composeSettings
-              : null,
-            outputPath: "", // Rust側で設定される
-          },
-        }
-      );
+      const psResults = await invoke<PhotoshopResult[]>("run_photoshop_replace", {
+        jobs: {
+          mode: currentSettings.mode,
+          pairs: pairEntries,
+          textSettings: currentSettings.textSettings,
+          imageSettings: currentSettings.imageSettings,
+          switchSettings: currentSettings.switchSettings,
+          generalSettings: currentSettings.generalSettings,
+          composeSettings:
+            currentSettings.mode === "compose" ? currentSettings.composeSettings : null,
+          outputPath: "", // Rust側で設定される
+        },
+      });
 
       // 結果をペアに紐付け
       for (let i = 0; i < psResults.length; i++) {
