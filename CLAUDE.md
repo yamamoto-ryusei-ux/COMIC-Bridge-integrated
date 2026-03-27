@@ -1160,7 +1160,7 @@ gh release view v1.x.x --json assets -q '.assets[].name'  # アセット確認
 - **署名キー**: `TAURI_SIGNING_PRIVATE_KEY` と `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` はGitHub Secretsに設定済み（ローカルビルドでは不要）
 - **ビルド時間**: CI完了まで約14〜16分
 - **タグの再作成**: タグが既にリモートにある場合は `git push origin :refs/tags/v1.x.x` で削除してから再作成
-- **リリースページ**: `https://github.com/Ina986/COMIC-Bridge/releases/tag/v1.x.x`
+- **リリースページ**: `https://github.com/yamamoto-ryusei-ux/COMIC-Bridge-integrated/releases/tag/v2.x.x`
 
 ### 重要: 作業フォルダとgit操作について
 - **作業フォルダに直接gitをセットアップすること**。別フォルダにクローンしてファイルをコピーする方法は禁止（変更漏れ・新規ファイルの見落とし・コミット履歴の不整合が発生する）

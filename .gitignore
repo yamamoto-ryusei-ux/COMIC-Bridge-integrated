@@ -30,3 +30,7 @@ src-tauri/.tauri/
 
 # PDFium binary (downloaded separately)
 src-tauri/resources/pdfium/
+
+# Tauri signing keys
+.tauri_private_key
+.tauri_private_key.pub

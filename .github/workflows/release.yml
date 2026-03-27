@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Download PDFium
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path src-tauri/resources/pdfium | Out-Null
+          Invoke-WebRequest -Uri "https://github.com/nicholasgasior/pdfium-binaries/releases/download/chromium%2F7049/pdfium-win-x64.tgz" -OutFile pdfium.tgz
+          tar -xzf pdfium.tgz
+          $dll = Get-ChildItem -Recurse -Filter "pdfium.dll" | Select-Object -First 1
+          if ($dll) {
+            Copy-Item $dll.FullName src-tauri/resources/pdfium/pdfium.dll
+            Write-Host "PDFium DLL copied from: $($dll.FullName)"
+          } else {
+            # Fallback: try bblanchon's builds
+            Write-Host "Trying fallback PDFium source..."
+            Invoke-WebRequest -Uri "https://github.com/nicholasgasior/pdfium-binaries/releases/latest/download/pdfium-win-x64.tgz" -OutFile pdfium2.tgz
+            tar -xzf pdfium2.tgz
+            $dll2 = Get-ChildItem -Recurse -Filter "pdfium.dll" | Select-Object -First 1
+            if ($dll2) {
+              Copy-Item $dll2.FullName src-tauri/resources/pdfium/pdfium.dll
+              Write-Host "PDFium DLL copied from fallback: $($dll2.FullName)"
+            } else {
+              Write-Error "Failed to find pdfium.dll"
+              exit 1
+            }
+          }
+
+      - name: Verify PDFium
+        shell: pwsh
+        run: |
+          if (Test-Path "src-tauri/resources/pdfium/pdfium.dll") {
+            $size = (Get-Item "src-tauri/resources/pdfium/pdfium.dll").Length
+            Write-Host "pdfium.dll exists, size: $size bytes"
+          } else {
+            Write-Error "pdfium.dll not found!"
+            exit 1
+          }
+
+      - name: Build the app
+        uses: tauri-apps/tauri-action@v0.5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: "COMIC-Bridge 統合版 ${{ github.ref_name }}"
+          releaseBody: |
+            COMIC-Bridge 統合版 ${{ github.ref_name }}
+
+            KENBAN（検版）とProGen（テキスト抽出・校正）を統合したデスクトップアプリケーション。
+
+            ## インストール
+            `.exe` ファイルをダウンロードして実行してください。
+          releaseDraft: false
+          prerelease: false
+          updaterJsonPreferNsis: true
+          includeUpdaterJson: true
