@@ -35,18 +35,13 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path src-tauri/resources/pdfium | Out-Null
-          Invoke-WebRequest -Uri "https://github.com/nicholasgasior/pdfium-binaries/releases/latest/download/pdfium-win-x64.tgz" -OutFile pdfium.tgz -ErrorAction SilentlyContinue
-          if (Test-Path pdfium.tgz) {
-            tar -xzf pdfium.tgz
-          } else {
-            Write-Host "Primary source failed, using bblanchon..."
-            Invoke-WebRequest -Uri "https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-win-x64.tgz" -OutFile pdfium.tgz
-            tar -xzf pdfium.tgz
-          }
+          Write-Host "Downloading PDFium from bblanchon/pdfium-binaries..."
+          Invoke-WebRequest -Uri "https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-win-x64.tgz" -OutFile pdfium.tgz
+          tar -xzf pdfium.tgz
           $dll = Get-ChildItem -Path . -Recurse -Filter "pdfium.dll" | Select-Object -First 1
           if ($dll) {
             Copy-Item $dll.FullName src-tauri/resources/pdfium/pdfium.dll
-            Write-Host "PDFium DLL copied: $($dll.FullName)"
+            Write-Host "PDFium DLL copied: $($dll.FullName), size: $($dll.Length) bytes"
           } else {
             Write-Error "pdfium.dll not found after extraction"
             exit 1
