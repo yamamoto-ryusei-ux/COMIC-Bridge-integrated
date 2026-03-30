@@ -5,8 +5,10 @@ import { ThumbnailCard } from "./ThumbnailCard";
 import { THUMBNAIL_SIZES } from "../../types";
 import { useCanvasSizeCheck } from "../../hooks/useCanvasSizeCheck";
 
-export function PreviewGrid() {
-  const files = usePsdStore((state) => state.files);
+export function PreviewGrid({ fileFilter, fileSorter, onDoubleClickFile }: { fileFilter?: (fileName: string) => boolean; fileSorter?: (files: any[]) => any[]; onDoubleClickFile?: (fileId: string) => void } = {}) {
+  const allFiles = usePsdStore((state) => state.files);
+  const filtered = fileFilter ? allFiles.filter((f) => fileFilter(f.fileName)) : allFiles;
+  const files = fileSorter ? fileSorter(filtered) : filtered;
   const thumbnailSize = usePsdStore((state) => state.thumbnailSize);
   const selectedFileIds = usePsdStore((state) => state.selectedFileIds);
   const activeFileId = usePsdStore((state) => state.activeFileId);
@@ -71,6 +73,7 @@ export function PreviewGrid() {
               isSelected={selectedFileIds.includes(file.id)}
               isActive={activeFileId === file.id}
               onClick={(e) => handleClick(file.id, e)}
+              onDoubleClick={onDoubleClickFile ? () => onDoubleClickFile(file.id) : undefined}
               isCanvasOutlier={outlierFileIds.has(file.id)}
               majoritySize={majoritySize ?? undefined}
               isCaution={isCaution}

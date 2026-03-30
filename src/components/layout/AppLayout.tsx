@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { TopNav } from "./TopNav";
+import { GlobalAddressBar } from "./GlobalAddressBar";
 import { ViewRouter } from "./ViewRouter";
 import { GuideEditorModal } from "../guide-editor/GuideEditorModal";
 import { ErrorBoundary } from "../ErrorBoundary";
@@ -66,6 +67,9 @@ export function AppLayout() {
 
       {/* Top Navigation */}
       <TopNav />
+
+      {/* Global Address Bar */}
+      <GlobalAddressBar />
 
       {/* View Content */}
       <ErrorBoundary>

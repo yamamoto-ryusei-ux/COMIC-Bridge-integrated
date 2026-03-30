@@ -237,6 +237,7 @@ export function usePsdLoader() {
           otherFiles.map(async (file) => {
             try {
               if (isPdfFile(file.fileName)) {
+                const pdfMode = usePsdStore.getState().pdfDisplayMode;
                 try {
                   const fileStat = await stat(file.filePath);
 
@@ -252,6 +253,44 @@ export function usePsdLoader() {
                     return;
                   }
 
+                  // "file" mode: keep as single file, no page expansion
+                  if (pdfMode === "file") {
+                    const firstPage = pdfInfo.pages[0];
+                    chunkUpdates.set(file.id, {
+                      fileSize: fileStat.size,
+                      metadata: {
+                        width: firstPage?.width || 0,
+                        height: firstPage?.height || 0,
+                        dpi: 72,
+                        colorMode: "RGB" as const,
+                        bitsPerChannel: 8,
+                        hasGuides: false,
+                        guides: [],
+                        layerCount: 0,
+                        layerTree: [],
+                        hasAlphaChannels: false,
+                        alphaChannelCount: 0,
+                        alphaChannelNames: [],
+                        hasOnlyTransparency: false,
+                        hasTombo: false,
+                      },
+                      thumbnailStatus: "pending",
+                    });
+                    // Generate thumbnail for first page
+                    try {
+                      const thumb = await invoke<string>("get_pdf_thumbnail", {
+                        filePath: file.filePath,
+                        pageIndex: 0,
+                        maxSize: 200,
+                      });
+                      chunkUpdates.set(file.id, { ...chunkUpdates.get(file.id), thumbnailUrl: `data:image/jpeg;base64,${thumb}`, thumbnailStatus: "ready" });
+                    } catch {
+                      chunkUpdates.set(file.id, { ...chunkUpdates.get(file.id), thumbnailStatus: "ready" });
+                    }
+                    return;
+                  }
+
+                  // "page" mode: expand into individual pages
                   const pageFiles: PsdFile[] = pdfInfo.pages.map((page, pageIdx) => ({
                     id: `${file.id}-p${pageIdx}`,
                     filePath: file.filePath,
@@ -274,6 +313,7 @@ export function usePsdLoader() {
                       hasAlphaChannels: false,
                       alphaChannelCount: 0,
                       alphaChannelNames: [],
+                      hasOnlyTransparency: false,
                       hasTombo: false,
                     },
                     thumbnailStatus: "pending",

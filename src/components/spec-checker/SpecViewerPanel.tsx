@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { usePsdStore } from "../../store/psdStore";
+import { detectPaperSize } from "../../lib/paperSize";
 import { useScanPsdStore } from "../../store/scanPsdStore";
 import {
   useHighResPreview,
@@ -1039,6 +1040,14 @@ export function SpecViewerPanel({
               <span className="text-[10px] text-text-muted">
                 {viewerFile.metadata.width} x {viewerFile.metadata.height}
               </span>
+              {(() => {
+                const paper = detectPaperSize(viewerFile.metadata.width, viewerFile.metadata.height, viewerFile.metadata.dpi);
+                return paper ? (
+                  <span className="text-[10px] px-1 py-0.5 rounded bg-accent-secondary/15 text-accent-secondary font-medium">
+                    {paper}
+                  </span>
+                ) : null;
+              })()}
               <span className="text-[10px] text-text-muted">{viewerFile.metadata.dpi} dpi</span>
               <span className="text-[10px] text-text-muted">{viewerFile.metadata.colorMode}</span>
             </div>

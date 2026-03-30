@@ -1,12 +1,45 @@
-import type { PsdFile } from "../../types";
+import { useState, type ReactNode } from "react";
+import type { PsdFile, LayerNode } from "../../types";
+
+/** 折りたたみ可能セクション */
+function CollapsibleSection({ title, children, defaultOpen = true }: { title: string; children: ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div>
+      <button onClick={() => setOpen(!open)} className="flex items-center gap-1.5 w-full text-left mb-1">
+        <svg className={`w-3 h-3 text-text-muted transition-transform ${open ? "rotate-90" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+        <span className="text-xs font-medium text-text-muted">{title}</span>
+      </button>
+      {open && children}
+    </div>
+  );
+}
 import { LayerTree } from "./LayerTree";
 import { useCanvasSizeCheck } from "../../hooks/useCanvasSizeCheck";
+import { detectPaperSize } from "../../lib/paperSize";
+
+/** テキストレイヤーのみ抽出（フラット、非表示除外、グループなし） */
+function filterTextLayers(layers: LayerNode[]): LayerNode[] {
+  const result: LayerNode[] = [];
+  for (const layer of layers) {
+    if (layer.type === "text" && layer.visible) {
+      result.push({ ...layer, children: undefined });
+    }
+    if (layer.children) {
+      result.push(...filterTextLayers(layer.children));
+    }
+  }
+  return result;
+}
 
 interface MetadataPanelProps {
   file: PsdFile;
 }
 
 export function MetadataPanel({ file }: MetadataPanelProps) {
+  const [textLayersOnly, setTextLayersOnly] = useState(false);
   const { outlierFileIds, majoritySize } = useCanvasSizeCheck();
   const isCanvasOutlier = outlierFileIds.has(file.id);
 
@@ -15,6 +48,7 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
       {file.metadata ? (
         <>
           {/* Color Mode & Bit Depth */}
+          <CollapsibleSection title="カラーモード・ビット深度">
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-bg-tertiary rounded-xl p-3">
               <h3 className="text-xs font-medium text-text-muted mb-2">カラーモード</h3>
@@ -39,8 +73,50 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
               </span>
             </div>
           </div>
+          </CollapsibleSection>
+
+          {/* Alpha Channels */}
+          {file.metadata.hasAlphaChannels && (
+          <CollapsibleSection title="αチャンネル">
+            <div
+              className={`bg-bg-tertiary rounded-xl p-3 ring-1 ${
+                file.metadata.hasOnlyTransparency ? "ring-warning/40" : "ring-error/40"
+              }`}
+            >
+              <h3 className="text-xs font-medium text-text-muted mb-2 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                </svg>
+                αチャンネル ({file.metadata.alphaChannelCount})
+              </h3>
+              <div className="flex flex-wrap gap-1.5">
+                {file.metadata.alphaChannelNames.map((name, i) => {
+                  const isTransparency = /^(透明部分|Transparency)$/i.test(name.trim());
+                  return (
+                    <span
+                      key={i}
+                      className={`text-[10px] px-2 py-0.5 rounded-md font-medium ${
+                        isTransparency
+                          ? "bg-warning/20 text-warning"
+                          : "bg-error/20 text-error"
+                      }`}
+                    >
+                      {name}
+                    </span>
+                  );
+                })}
+              </div>
+              {!file.metadata.hasOnlyTransparency && (
+                <p className="mt-1.5 text-[10px] text-error">
+                  ユーザー操作可能なαチャンネルが含まれています
+                </p>
+              )}
+            </div>
+          </CollapsibleSection>
+          )}
 
           {/* Canvas Size */}
+          <CollapsibleSection title="キャンバスサイズ">
           <div
             className={`bg-bg-tertiary rounded-xl p-3 ${isCanvasOutlier ? "ring-1 ring-warning/50" : ""}`}
           >
@@ -65,6 +141,14 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
                 {file.metadata.width} × {file.metadata.height}
               </p>
               <span className="text-xs text-text-muted">px</span>
+              {(() => {
+                const paper = detectPaperSize(file.metadata.width, file.metadata.height, file.metadata.dpi);
+                return paper ? (
+                  <span className="text-xs px-1.5 py-0.5 rounded-md bg-accent-secondary/15 text-accent-secondary font-medium">
+                    {paper}
+                  </span>
+                ) : null;
+              })()}
             </div>
             <div className="mt-2 flex items-center gap-2">
               <span className="px-2 py-0.5 rounded-md text-xs bg-manga-peach/20 text-manga-peach">
@@ -84,8 +168,10 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
               </div>
             )}
           </div>
+          </CollapsibleSection>
 
           {/* トンボ */}
+          <CollapsibleSection title="トンボ・ガイド" defaultOpen={false}>
           <div className="bg-bg-tertiary rounded-xl p-3">
             <h3 className="text-xs font-medium text-text-muted mb-2 flex items-center gap-1.5">
               <svg
@@ -113,8 +199,10 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
               </span>
             )}
           </div>
+          </CollapsibleSection>
 
           {/* Layer Tree */}
+          <CollapsibleSection title="レイヤー" defaultOpen={false}>
           <div>
             <h3 className="text-xs font-medium text-text-muted mb-2 flex items-center gap-1.5">
               <svg
@@ -135,10 +223,20 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
                 {file.metadata.layerCount}
               </span>
             </h3>
+            <label className="flex items-center gap-1.5 mb-1.5 cursor-pointer text-[10px] text-text-muted hover:text-text-secondary">
+              <input
+                type="checkbox"
+                checked={textLayersOnly}
+                onChange={(e) => setTextLayersOnly(e.target.checked)}
+                className="rounded border-border accent-accent w-3 h-3"
+              />
+              テキストのみ表示（非表示レイヤー除く）
+            </label>
             <div className="bg-bg-tertiary rounded-xl p-2 max-h-72 overflow-auto">
-              <LayerTree layers={file.metadata.layerTree} />
+              <LayerTree layers={textLayersOnly ? filterTextLayers(file.metadata.layerTree) : file.metadata.layerTree} />
             </div>
           </div>
+          </CollapsibleSection>
         </>
       ) : file.thumbnailStatus === "loading" ? (
         <div className="flex flex-col items-center justify-center py-8">

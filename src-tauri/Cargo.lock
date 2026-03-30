@@ -442,7 +442,7 @@ dependencies = [
 
 [[package]]
 name = "comic-bridge"
-version = "1.9.3"
+version = "2.0.0"
 dependencies = [
  "base64 0.22.1",
  "dirs 5.0.1",

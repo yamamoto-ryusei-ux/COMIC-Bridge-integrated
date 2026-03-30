@@ -1,10 +1,20 @@
+import { useState, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useViewStore, type AppView } from "../../store/viewStore";
+import { useViewStore } from "../../store/viewStore";
 import { usePsdStore } from "../../store/psdStore";
 import { useSpecStore } from "../../store/specStore";
 import { useAppUpdater } from "../../hooks/useAppUpdater";
+import { useUnifiedViewerStore, type FontPresetEntry } from "../../store/unifiedViewerStore";
+import { useScanPsdStore } from "../../store/scanPsdStore";
+import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
+import { readFile } from "@tauri-apps/plugin-fs";
+import { invoke } from "@tauri-apps/api/core";
+import type { ProofreadingCheckItem } from "../../types/typesettingCheck";
+import { JsonFileBrowser } from "../scanPsd/JsonFileBrowser";
+import { CheckJsonBrowser } from "../unified-viewer/UnifiedViewer";
 
-const VIEW_TABS: { id: AppView; label: string; icon: React.ReactNode }[] = [
+// @ts-ignore: View tabs moved to SpecCheckView dot menu
+const _unused = [
   {
     id: "specCheck",
     label: "完成原稿チェック",
@@ -237,22 +247,110 @@ const VIEW_TABS: { id: AppView; label: string; icon: React.ReactNode }[] = [
 ];
 
 export function TopNav() {
-  const activeView = useViewStore((s) => s.activeView);
   const setActiveView = useViewStore((s) => s.setActiveView);
   const files = usePsdStore((s) => s.files);
   const checkResults = useSpecStore((s) => s.checkResults);
   const updater = useAppUpdater();
+  const viewerStore = useUnifiedViewerStore();
+  const jsonFolderPath = useScanPsdStore((s) => s.jsonFolderPath);
+  const [jsonBrowserMode, setJsonBrowserMode] = useState<"preset" | "check" | null>(null);
 
   const passedCount = Array.from(checkResults.values()).filter((r) => r.passed).length;
   const failedCount = Array.from(checkResults.values()).filter((r) => !r.passed).length;
 
+  // Open text file (with COMIC-POT parsing)
+  const handleOpenText = useCallback(async () => {
+    const path = await dialogOpen({ filters: [{ name: "テキスト", extensions: ["txt"] }], multiple: false });
+    if (!path) return;
+    try {
+      const bytes = await readFile(path as string);
+      const content = new TextDecoder("utf-8").decode(bytes);
+      viewerStore.setTextContent(content);
+      viewerStore.setTextFilePath(path as string);
+      viewerStore.setIsDirty(false);
+      // Parse COMIC-POT format
+      const lines = content.split(/\r?\n/);
+      const header: string[] = [];
+      const pages: { pageNumber: number; blocks: { id: string; originalIndex: number; lines: string[]; }[] }[] = [];
+      let curPage: typeof pages[0] | null = null;
+      let blockLines: string[] = [];
+      let blockIdx = 0;
+      const pageRe = /^<<(\d+)Page>>$/;
+      const flush = () => {
+        if (blockLines.length > 0 && curPage) {
+          curPage.blocks.push({ id: `p${curPage.pageNumber}-b${blockIdx}`, originalIndex: blockIdx, lines: [...blockLines] });
+          blockIdx++;
+          blockLines = [];
+        }
+      };
+      for (const line of lines) {
+        const m = line.match(pageRe);
+        if (m) { flush(); blockIdx = 0; blockLines = []; curPage = { pageNumber: parseInt(m[1], 10), blocks: [] }; pages.push(curPage); }
+        else if (curPage) { if (line.trim() === "") flush(); else blockLines.push(line); }
+        else header.push(line);
+      }
+      flush();
+      viewerStore.setTextHeader(header);
+      viewerStore.setTextPages(pages);
+    } catch { /* ignore */ }
+  }, []);
+
+  // JSON file selection handler
+  const handleJsonSelect = useCallback(async (filePath: string) => {
+    try {
+      const content = await invoke<string>("read_text_file", { filePath });
+      const data = JSON.parse(content);
+      if (jsonBrowserMode === "check") {
+        const allItems: ProofreadingCheckItem[] = [];
+        const parse = (src: any, fallbackKind: "correctness" | "proposal") => {
+          const arr = Array.isArray(src) ? src : Array.isArray(src?.items) ? src.items : null;
+          if (!arr) return;
+          for (const item of arr)
+            allItems.push({ picked: false, category: item.category || "", page: item.page || "", excerpt: item.excerpt || "", content: item.content || item.text || "", checkKind: item.checkKind || fallbackKind });
+        };
+        if (data.checks) { parse(data.checks.simple, "correctness"); parse(data.checks.variation, "proposal"); }
+        else if (Array.isArray(data)) { parse(data, "correctness"); }
+        viewerStore.setCheckData({
+          title: data.work || "", fileName: filePath.substring(filePath.lastIndexOf("\\") + 1), filePath,
+          allItems, correctnessItems: allItems.filter((i) => i.checkKind === "correctness"), proposalItems: allItems.filter((i) => i.checkKind === "proposal"),
+        });
+      } else {
+        const presets: FontPresetEntry[] = [];
+        const presetsObj = data?.presetData?.presets ?? data?.presets ?? data?.presetSets ?? data;
+        if (typeof presetsObj === "object" && presetsObj !== null) {
+          const entries = Array.isArray(presetsObj) ? [["", presetsObj]] : Object.entries(presetsObj);
+          for (const [, arr] of entries) {
+            if (!Array.isArray(arr)) continue;
+            for (const p of arr as any[])
+              if (p?.font || p?.postScriptName)
+                presets.push({ font: p.font || p.postScriptName, name: p.name || p.displayName || "", subName: p.subName || "" });
+          }
+        }
+        if (presets.length > 0) { viewerStore.setFontPresets(presets); viewerStore.setPresetJsonPath(filePath); }
+      }
+    } catch { /* ignore */ }
+    setJsonBrowserMode(null);
+  }, [jsonBrowserMode]);
+
   return (
     <nav
-      className="h-12 flex-shrink-0 bg-bg-secondary border-b border-border flex items-center px-3 gap-2 relative z-20 shadow-soft"
+      className="h-9 flex-shrink-0 bg-bg-secondary border-b border-border flex items-center px-3 gap-2 relative z-20 shadow-soft"
       data-tauri-drag-region
     >
-      {/* Logo */}
-      <div className="flex items-center gap-2 mr-2 flex-shrink-0">
+      {/* Logo — click to go home (specCheck), reset if already there */}
+      <button
+        className="flex items-center gap-2 mr-2 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+        onClick={() => {
+          const currentView = useViewStore.getState().activeView;
+          if (currentView === "specCheck") {
+            // Already on home — reset to initial state
+            usePsdStore.getState().clearFiles();
+            usePsdStore.getState().setCurrentFolderPath(null);
+          }
+          setActiveView("specCheck");
+        }}
+        title="ホーム"
+      >
         <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-accent to-accent-secondary flex items-center justify-center shadow-sm">
           <svg
             className="w-4 h-4 text-white"
@@ -271,32 +369,28 @@ export function TopNav() {
         <span className="font-display font-bold text-sm text-text-primary hidden xl:block">
           COMIC-Bridge
         </span>
+      </button>
+
+      <div className="w-px h-5 bg-border flex-shrink-0" />
+
+      {/* Data load buttons */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <button onClick={handleOpenText} className="px-2 py-0.5 text-[10px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary rounded transition-colors" title="テキストファイルを読み込む">
+          テキスト
+        </button>
+        <button onClick={() => setJsonBrowserMode("preset")} className="px-2 py-0.5 text-[10px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary rounded transition-colors" title="作品情報JSONを読み込む">
+          作品情報
+        </button>
+        <button onClick={() => setJsonBrowserMode("check")} className="px-2 py-0.5 text-[10px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary rounded transition-colors" title="校正データJSONを読み込む">
+          校正JSON
+        </button>
+        {/* Indicators */}
+        {viewerStore.textContent.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-accent-tertiary flex-shrink-0" title="テキスト読込済" />}
+        {viewerStore.fontPresets.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-accent-secondary flex-shrink-0" title="作品情報読込済" />}
+        {viewerStore.checkData && <span className="w-1.5 h-1.5 rounded-full bg-warning flex-shrink-0" title="校正JSON読込済" />}
       </div>
 
-      {/* Separator */}
-      <div className="w-px h-6 bg-border flex-shrink-0" />
-
-      {/* View Tabs */}
-      <div className="flex items-center gap-1 flex-1 min-w-0">
-        {VIEW_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            className={`
-              flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg
-              transition-all duration-200 flex-shrink-0
-              ${
-                activeView === tab.id
-                  ? "text-white bg-gradient-to-r from-accent to-accent-secondary shadow-sm"
-                  : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
-              }
-            `}
-            onClick={() => setActiveView(tab.id)}
-          >
-            {tab.icon}
-            <span>{tab.label}</span>
-          </button>
-        ))}
-      </div>
+      <div className="flex-1" />
 
       {/* Right: Status */}
       {files.length > 0 && (
@@ -484,6 +578,28 @@ export function TopNav() {
                   </button>
                 </>
               )}
+            </div>
+          </div>,
+          document.body,
+        )}
+      {/* JSON File Browser Modal */}
+      {jsonBrowserMode &&
+        createPortal(
+          <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/40" onMouseDown={(e) => { if (e.target === e.currentTarget) setJsonBrowserMode(null); }}>
+            <div className="bg-bg-secondary rounded-xl shadow-2xl w-[500px] max-h-[70vh] flex flex-col overflow-hidden" onMouseDown={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+                <h3 className="text-sm font-medium">{jsonBrowserMode === "preset" ? "作品情報JSON" : "校正データJSON"} を選択</h3>
+                <button onClick={() => setJsonBrowserMode(null)} className="text-text-muted hover:text-text-primary">✕</button>
+              </div>
+              <div className="flex-1 overflow-auto">
+                {jsonBrowserMode === "preset" && jsonFolderPath ? (
+                  <JsonFileBrowser basePath={jsonFolderPath} onSelect={handleJsonSelect} onCancel={() => setJsonBrowserMode(null)} mode="open" />
+                ) : jsonBrowserMode === "check" ? (
+                  <CheckJsonBrowser onSelect={handleJsonSelect} onCancel={() => setJsonBrowserMode(null)} />
+                ) : (
+                  <div className="p-4 text-center text-text-muted text-xs">JSONフォルダパスが設定されていません</div>
+                )}
+              </div>
             </div>
           </div>,
           document.body,

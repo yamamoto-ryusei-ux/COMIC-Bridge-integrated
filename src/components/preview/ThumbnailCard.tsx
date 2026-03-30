@@ -8,6 +8,7 @@ interface ThumbnailCardProps {
   isSelected: boolean;
   isActive: boolean;
   onClick: (e: React.MouseEvent) => void;
+  onDoubleClick?: () => void;
   isCanvasOutlier?: boolean;
   majoritySize?: string;
   isCaution?: boolean;
@@ -29,6 +30,7 @@ export function ThumbnailCard({
   isSelected,
   isActive,
   onClick,
+  onDoubleClick,
   isCanvasOutlier,
   majoritySize,
   isCaution,
@@ -64,6 +66,7 @@ export function ThumbnailCard({
       `}
       style={{ aspectRatio: "1 / 1.4142" }} // A4/B5 aspect ratio
       onClick={onClick}
+      onDoubleClick={onDoubleClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -151,12 +154,14 @@ export function ThumbnailCard({
             {file.metadata.hasAlphaChannels ? (
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${
-                  failedRuleTypes.includes("hasAlphaChannels")
-                    ? "bg-error/30 text-error"
-                    : "bg-warning/25 text-warning"
+                  file.metadata.hasOnlyTransparency
+                    ? "bg-warning/25 text-warning"
+                    : "bg-error/30 text-error"
                 }`}
+                title={file.metadata.alphaChannelNames.join(", ")}
               >
                 α{file.metadata.alphaChannelCount}
+                {file.metadata.hasOnlyTransparency ? "" : " ⚠"}
               </span>
             ) : null}
             {file.metadata.hasGuides && (

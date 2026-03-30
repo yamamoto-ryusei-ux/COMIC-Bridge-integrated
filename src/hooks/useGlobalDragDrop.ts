@@ -51,9 +51,10 @@ export function useGlobalDragDrop() {
             }
           }
 
-          // フォルダパスを記録
+          // フォルダパスを記録 + アドレスバー連携
           if (folderPaths.length > 0) {
             usePsdStore.getState().setDroppedFolderPaths(folderPaths);
+            usePsdStore.getState().setCurrentFolderPath(folderPaths[0]);
           }
 
           // TIFFタブ: includeSubfolders有効 or ルートに画像なし（サブフォルダのみ）→自動サブフォルダ読み込み
@@ -72,6 +73,14 @@ export function useGlobalDragDrop() {
           }
 
           if (imageFiles.length > 0) {
+            // ファイル単体ドロップ時: 親フォルダをアドレスバーに設定
+            if (folderPaths.length === 0 && imageFiles.length > 0) {
+              const firstFile = imageFiles[0];
+              const sep = firstFile.lastIndexOf("\\");
+              if (sep > 0) {
+                usePsdStore.getState().setCurrentFolderPath(firstFile.substring(0, sep));
+              }
+            }
             await loadFiles(imageFiles);
           }
         }

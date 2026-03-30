@@ -16,6 +16,9 @@ interface PsdStore {
   // UI state
   viewMode: ViewMode;
   thumbnailSize: ThumbnailSize;
+  specViewMode: "thumbnails" | "list" | "layers" | "layerCheck";
+  psdOnlyFilter: boolean;
+  pdfDisplayMode: "page" | "file"; // page=ページごと展開, file=ファイル単位
 
   // Actions
   setFiles: (files: PsdFile[]) => void;
@@ -41,6 +44,9 @@ interface PsdStore {
   // UI actions
   setViewMode: (mode: ViewMode) => void;
   setThumbnailSize: (size: ThumbnailSize) => void;
+  setSpecViewMode: (mode: "thumbnails" | "list" | "layers" | "layerCheck") => void;
+  setPsdOnlyFilter: (v: boolean) => void;
+  setPdfDisplayMode: (mode: "page" | "file") => void;
 
   // Helpers
   getSelectedFiles: () => PsdFile[];
@@ -58,6 +64,9 @@ export const usePsdStore = create<PsdStore>((set, get) => ({
   activeFileId: null,
   viewMode: "grid",
   thumbnailSize: "medium",
+  specViewMode: "thumbnails",
+  psdOnlyFilter: false,
+  pdfDisplayMode: "page",
 
   // File actions
   setFiles: (files) => set({ files, selectedFileIds: [], activeFileId: null }),
@@ -150,6 +159,9 @@ export const usePsdStore = create<PsdStore>((set, get) => ({
   // UI actions
   setViewMode: (viewMode) => set({ viewMode }),
   setThumbnailSize: (thumbnailSize) => set({ thumbnailSize }),
+  setSpecViewMode: (specViewMode) => set({ specViewMode }),
+  setPsdOnlyFilter: (psdOnlyFilter) => set({ psdOnlyFilter }),
+  setPdfDisplayMode: (pdfDisplayMode) => set({ pdfDisplayMode }),
 
   // Helpers
   getSelectedFiles: () => {

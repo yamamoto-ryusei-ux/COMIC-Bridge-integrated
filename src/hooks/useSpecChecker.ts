@@ -149,7 +149,13 @@ function checkRule(
       break;
 
     case "hasAlphaChannels":
-      actualValue = metadata.hasAlphaChannels;
+      // 「透明部分」(Transparency) のみのαチャンネルは問題なし → パス扱い
+      // ユーザー操作可能なαチャンネルが存在する場合のみNG
+      if (metadata.hasOnlyTransparency) {
+        actualValue = false; // 透明部分のみ → αなし扱い
+      } else {
+        actualValue = metadata.hasAlphaChannels;
+      }
       passed = evaluateCondition(actualValue, rule.operator, rule.value);
       break;
 

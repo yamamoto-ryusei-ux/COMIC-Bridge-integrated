@@ -35,6 +35,8 @@ pub struct PsdMetadata {
     pub alpha_channel_count: u32,
     #[serde(rename = "alphaChannelNames")]
     pub alpha_channel_names: Vec<String>,
+    #[serde(rename = "hasOnlyTransparency")]
+    pub has_only_transparency: bool,
     #[serde(rename = "hasTombo")]
     pub has_tombo: bool,
 }
@@ -133,6 +135,10 @@ struct TyShData {
     font_sizes: Vec<f64>,
     anti_alias: Option<String>,
     tracking: Vec<f64>,
+    /// Transform matrix [a, b, c, d, tx, ty] — tx,ty are pixel coordinates
+    transform: Option<[f64; 6]>,
+    /// Text bounding box from descriptor (in Points, relative to transform origin)
+    bounding_box: Option<[f64; 4]>, // [top, left, bottom, right]
 }
 
 // ================================================================
@@ -146,7 +152,7 @@ pub fn parse_psd_file(file_path: &str) -> Result<(PsdMetadata, Option<String>), 
     let mut r = BufReader::with_capacity(256 * 1024, file);
 
     // ---- Section 1: Header (26 bytes) ----
-    let (version, _channels, height, width, depth, color_mode_num) = read_header(&mut r)?;
+    let (version, channels, height, width, depth, color_mode_num) = read_header(&mut r)?;
 
     // ---- Section 2: Color Mode Data ----
     skip_section_u32(&mut r)?;
@@ -185,6 +191,38 @@ pub fn parse_psd_file(file_path: &str) -> Result<(PsdMetadata, Option<String>), 
     // Thumbnail: encode JFIF as base64 (no temp file / asset protocol needed)
     let thumb_base64 = resources.thumbnail_jfif.as_ref().map(|jfif| base64_encode(jfif));
 
+    // αチャンネル数を正しく算出
+    // PSDヘッダーのchannels = 標準チャンネル数 + αチャンネル数
+    let std_channels: u16 = match color_mode_num {
+        0 => 1, // Bitmap
+        1 => 1, // Grayscale
+        2 => 1, // Indexed
+        3 => 3, // RGB
+        4 => 4, // CMYK
+        7 => 3, // Multichannel
+        8 => 1, // Duotone
+        9 => 3, // Lab
+        _ => 3,
+    };
+    let extra_channels = if channels > std_channels { channels - std_channels } else { 0 };
+    let alpha_count = std::cmp::max(resources.alpha_channel_names.len() as u16, extra_channels);
+
+    // 名前リストを構築（不足分は補完）
+    let mut alpha_names = resources.alpha_channel_names;
+    while (alpha_names.len() as u16) < alpha_count {
+        alpha_names.push(format!("Alpha {}", alpha_names.len() + 1));
+    }
+    // 超過分があればトリミング
+    alpha_names.truncate(alpha_count as usize);
+
+    // 「透明部分」のみかどうか判定
+    let has_only_transparency = alpha_count > 0
+        && alpha_names.iter().all(|n| {
+            let trimmed = n.trim();
+            trimmed.eq_ignore_ascii_case("Transparency")
+                || trimmed == "透明部分"
+        });
+
     let metadata = PsdMetadata {
         width,
         height,
@@ -195,9 +233,10 @@ pub fn parse_psd_file(file_path: &str) -> Result<(PsdMetadata, Option<String>), 
         guides: resources.guides,
         layer_count,
         layer_tree,
-        has_alpha_channels: !resources.alpha_channel_names.is_empty(),
-        alpha_channel_count: resources.alpha_channel_names.len() as u32,
-        alpha_channel_names: resources.alpha_channel_names,
+        has_alpha_channels: alpha_count > 0,
+        alpha_channel_count: alpha_count as u32,
+        alpha_channel_names: alpha_names,
+        has_only_transparency,
         has_tombo,
     };
 
@@ -299,9 +338,17 @@ fn parse_image_resources<R: Read + Seek>(r: &mut R, section_len: u64) -> Result<
                         result.guides = guides;
                     }
                 }
-                // Alpha Channel Names (0x0415 = 1045)
+                // Alpha Channel Names — Pascal strings (0x03EE = 1006)
+                0x03EE => {
+                    if result.alpha_channel_names.is_empty() {
+                        if let Ok(names) = parse_alpha_channel_names_pascal(r, data_len) {
+                            result.alpha_channel_names = names;
+                        }
+                    }
+                }
+                // Unicode Alpha Channel Names (0x0415 = 1045) — overrides 1006
                 0x0415 => {
-                    if let Ok(names) = parse_alpha_channel_names(r, data_len) {
+                    if let Ok(names) = parse_alpha_channel_names_unicode(r, data_len) {
                         result.alpha_channel_names = names;
                     }
                 }
@@ -364,8 +411,8 @@ fn parse_guides<R: Read>(r: &mut R, data_len: u64) -> Result<Vec<Guide>, String>
     Ok(guides)
 }
 
-/// Alpha Channel Names — sequence of Pascal strings
-fn parse_alpha_channel_names<R: Read>(r: &mut R, data_len: u64) -> Result<Vec<String>, String> {
+/// Alpha Channel Names (Resource 1006) — sequence of Pascal strings
+fn parse_alpha_channel_names_pascal<R: Read>(r: &mut R, data_len: u64) -> Result<Vec<String>, String> {
     let mut names = Vec::new();
     let mut consumed = 0u64;
 
@@ -373,7 +420,6 @@ fn parse_alpha_channel_names<R: Read>(r: &mut R, data_len: u64) -> Result<Vec<St
         let len = read_u8(r)? as u64;
         consumed += 1;
         if len == 0 {
-            // Empty name — still a valid alpha channel
             names.push(String::new());
             continue;
         }
@@ -383,11 +429,43 @@ fn parse_alpha_channel_names<R: Read>(r: &mut R, data_len: u64) -> Result<Vec<St
         let mut buf = vec![0u8; len as usize];
         r.read_exact(&mut buf).map_err(|e| format!("Alpha name read error: {}", e))?;
         consumed += len;
-        // Try UTF-8 first, then Shift-JIS fallback
+        // Try UTF-8 first, then replace invalid bytes
         let name = String::from_utf8(buf.clone()).unwrap_or_else(|_| {
-            // Simple fallback: replace invalid bytes with ?
             buf.iter().map(|&b| if b.is_ascii() { b as char } else { '?' }).collect()
         });
+        names.push(name);
+    }
+
+    Ok(names)
+}
+
+/// Unicode Alpha Channel Names (Resource 1045) — sequence of Unicode strings
+/// Format: repeat { uint32 length (chars) + UTF-16BE data (length * 2 bytes) }
+fn parse_alpha_channel_names_unicode<R: Read>(r: &mut R, data_len: u64) -> Result<Vec<String>, String> {
+    let mut names = Vec::new();
+    let mut consumed = 0u64;
+
+    while consumed + 4 <= data_len {
+        let char_count = read_u32(r)? as u64;
+        consumed += 4;
+        if char_count == 0 {
+            names.push(String::new());
+            continue;
+        }
+        let byte_count = char_count * 2;
+        if consumed + byte_count > data_len {
+            break;
+        }
+        let mut buf = vec![0u8; byte_count as usize];
+        r.read_exact(&mut buf).map_err(|e| format!("Unicode alpha name read error: {}", e))?;
+        consumed += byte_count;
+        // Decode UTF-16BE, strip trailing NULLs
+        let utf16: Vec<u16> = buf
+            .chunks_exact(2)
+            .map(|c| u16::from_be_bytes([c[0], c[1]]))
+            .collect();
+        let end = utf16.iter().position(|&c| c == 0).unwrap_or(utf16.len());
+        let name = String::from_utf16(&utf16[..end]).unwrap_or_else(|_| "?".to_string());
         names.push(name);
     }
 
@@ -761,7 +839,24 @@ fn build_layer_tree(raw_layers: &[RawLayer], dpi: u32) -> Vec<LayerNode> {
                     }
                 });
 
-                let bounds = if raw.right > raw.left && raw.bottom > raw.top {
+                // テキストレイヤーの場合: transform + boundingBox で実際の描画範囲を算出
+                // レイヤーのラスタ境界(raw.top等)はテキスト範囲と一致しないことがある
+                let bounds = if let Some(td) = &raw.tysh_data {
+                    if let (Some(tf), Some(bb)) = (&td.transform, &td.bounding_box) {
+                        // bb = [top, left, bottom, right] in Points (relative to transform origin)
+                        // tf = [a, b, c, d, tx, ty] — tx,ty are pixel coordinates
+                        Some(LayerBounds {
+                            top: (tf[5] + bb[0]).round() as i32,
+                            left: (tf[4] + bb[1]).round() as i32,
+                            bottom: (tf[5] + bb[2]).round() as i32,
+                            right: (tf[4] + bb[3]).round() as i32,
+                        })
+                    } else if raw.right > raw.left && raw.bottom > raw.top {
+                        Some(LayerBounds { top: raw.top, left: raw.left, bottom: raw.bottom, right: raw.right })
+                    } else {
+                        None
+                    }
+                } else if raw.right > raw.left && raw.bottom > raw.top {
                     Some(LayerBounds {
                         top: raw.top,
                         left: raw.left,
@@ -835,8 +930,13 @@ fn parse_tysh_data(data: &[u8]) -> Option<TyShData> {
     // Version (2 bytes) — expect 1
     let _version = read_u16(&mut r).ok()?;
 
-    // Transform matrix: 6 doubles (48 bytes) — skip for now
-    r.seek(SeekFrom::Current(48)).ok()?;
+    // Transform matrix: 6 doubles (48 bytes) [a, b, c, d, tx, ty]
+    let mut transform = [0f64; 6];
+    for t in &mut transform {
+        let mut buf = [0u8; 8];
+        r.read_exact(&mut buf).ok()?;
+        *t = f64::from_be_bytes(buf);
+    }
 
     // Text data version (2 bytes)
     let _text_version = read_u16(&mut r).ok()?;
@@ -844,8 +944,8 @@ fn parse_tysh_data(data: &[u8]) -> Option<TyShData> {
     // Descriptor version (4 bytes)
     let _desc_version = read_u32(&mut r).ok()?;
 
-    // Parse text descriptor — extract "Txt " text, "EngineData" blob, and "AntA" anti-alias
-    let (text, engine_data, anti_alias) = parse_ps_descriptor_for_text(&mut r)?;
+    // Parse text descriptor — extract "Txt " text, "EngineData" blob, "AntA", and "boundingBox"
+    let (text, engine_data, anti_alias, bounding_box) = parse_ps_descriptor_for_text(&mut r)?;
 
     // Extract font names and sizes from EngineData
     // Note: font sizes are in document pixels; DPI conversion happens in build_layer_tree
@@ -854,12 +954,17 @@ fn parse_tysh_data(data: &[u8]) -> Option<TyShData> {
         None => (Vec::new(), Vec::new(), Vec::new()),
     };
 
-    Some(TyShData { text, fonts, font_sizes, anti_alias, tracking })
+    Some(TyShData {
+        text, fonts, font_sizes, anti_alias, tracking,
+        transform: Some(transform),
+        bounding_box,
+    })
 }
 
 /// Parse a Photoshop descriptor, extracting "Txt " (text content),
-/// "EngineData" (raw blob for font extraction), and "AntA" (anti-aliasing enum).
-fn parse_ps_descriptor_for_text<R: Read + Seek>(r: &mut R) -> Option<(String, Option<Vec<u8>>, Option<String>)> {
+/// "EngineData" (raw blob for font extraction), "AntA" (anti-aliasing enum),
+/// and "boundingBox" (text bounding box as [top, left, bottom, right] in Points).
+fn parse_ps_descriptor_for_text<R: Read + Seek>(r: &mut R) -> Option<(String, Option<Vec<u8>>, Option<String>, Option<[f64; 4]>)> {
     // Unicode class name (length-prefixed, UTF-16BE)
     let name_len = read_u32(r).ok()? as i64;
     r.seek(SeekFrom::Current(name_len * 2)).ok()?;
@@ -875,6 +980,7 @@ fn parse_ps_descriptor_for_text<R: Read + Seek>(r: &mut R) -> Option<(String, Op
     let mut text: Option<String> = None;
     let mut engine_data: Option<Vec<u8>> = None;
     let mut anti_alias: Option<String> = None;
+    let mut bounding_box: Option<[f64; 4]> = None;
 
     for _ in 0..count {
         // Key
@@ -911,13 +1017,63 @@ fn parse_ps_descriptor_for_text<R: Read + Seek>(r: &mut R) -> Option<(String, Op
                 r.read_exact(&mut val_buf).ok()?;
                 anti_alias = Some(String::from_utf8_lossy(&val_buf).trim_end_matches('\0').to_string());
             }
+            // boundingBox (Objc type) — contains Top, Left, Btom, Rght as UntF values
+            b"Objc" if key == b"bnds" || key.starts_with(b"bound") => {
+                bounding_box = parse_bounds_object(r);
+                // If parse failed, the stream may be corrupted — break
+                if bounding_box.is_none() { break; }
+            }
             _ => {
                 if skip_ps_value(r, &tt).is_none() { break; }
             }
         }
     }
 
-    Some((text.unwrap_or_default(), engine_data, anti_alias))
+    Some((text.unwrap_or_default(), engine_data, anti_alias, bounding_box))
+}
+
+/// Parse a bounds Objc descriptor: { Top: UntF, Left: UntF, Btom: UntF, Rght: UntF }
+/// Returns [top, left, bottom, right] in Points.
+fn parse_bounds_object<R: Read + Seek>(r: &mut R) -> Option<[f64; 4]> {
+    // Unicode class name
+    let name_len = read_u32(r).ok()? as i64;
+    r.seek(SeekFrom::Current(name_len * 2)).ok()?;
+    // Class ID
+    let cid_len = read_u32(r).ok()?;
+    r.seek(SeekFrom::Current(if cid_len == 0 { 4 } else { cid_len as i64 })).ok()?;
+    // Item count
+    let count = read_u32(r).ok()?;
+    if count > 20 { return None; }
+
+    let mut top = 0f64;
+    let mut left = 0f64;
+    let mut bottom = 0f64;
+    let mut right = 0f64;
+
+    for _ in 0..count {
+        let key = read_ps_key(r)?;
+        let mut tt = [0u8; 4];
+        r.read_exact(&mut tt).ok()?;
+        match &tt {
+            b"UntF" => {
+                // Unit type (4 bytes) + value (8 bytes double)
+                let mut _unit = [0u8; 4];
+                r.read_exact(&mut _unit).ok()?;
+                let mut vbuf = [0u8; 8];
+                r.read_exact(&mut vbuf).ok()?;
+                let val = f64::from_be_bytes(vbuf);
+                if key == b"Top " { top = val; }
+                else if key == b"Left" { left = val; }
+                else if key == b"Btom" { bottom = val; }
+                else if key == b"Rght" { right = val; }
+            }
+            _ => {
+                if skip_ps_value(r, &tt).is_none() { return None; }
+            }
+        }
+    }
+
+    Some([top, left, bottom, right])
 }
 
 /// Read a Photoshop descriptor key (4-byte length; if 0, key is 4 bytes)
@@ -1421,3 +1577,4 @@ fn blend_mode_to_string(key: &[u8; 4]) -> String {
     }
     .to_string()
 }
+

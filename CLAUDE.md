@@ -398,7 +398,8 @@
 ## UI構成
 
 ### レイアウト
-- **TopNav**: 上部ナビゲーション。12タブでビュー切替（完成原稿チェック / レイヤー制御 / 写植関連 / 差替え / 合成 / TIFF化 / スキャナー / 見開き分割 / リネーム / 検版 / ProGen / ビューアー）
+- **TopNav**: ロゴ（CB Logo = ホームボタン）+ データ読込ボタン（テキスト/作品情報/校正JSON）+ ステータス + バージョン。旧12タブはドットメニューに統合
+- **GlobalAddressBar**: TopNav直下に常時表示。戻る/進む/上の階層/パス入力/フォルダ参照。全タブで共通表示
 - **ViewRouter + viewStore**: タブベースのビュー切替管理。AppView型:
   ```typescript
   export type AppView =
@@ -407,15 +408,20 @@
     | "kenban" | "progen" | "unifiedViewer";
   ```
   kenban / progen / unifiedViewer は状態保持型マウント（display切替、アンマウントしない）
-- **AppLayout**: TopNav + フルワイドビュー構成（旧3カラムサイドバーは廃止済み）、グローバルD&Dリスナー（useGlobalDragDrop）。`handleMouseDown`で領域外クリック時に選択解除（モーダルは`onMouseDown stopPropagation`で保護が必要）
+- **AppLayout**: TopNav + GlobalAddressBar + ViewRouter構成。グローバルD&Dリスナー（useGlobalDragDrop）
+- **ドットメニュー**: SpecCheckView中央エリア右端に9点アイコン。クリックで全タブ（レイヤー制御〜ビューアー）のドロップダウン表示
 
 ### ビュー
 - **FileView**: ファイル一覧・サムネイル・メタデータ表示
 - **LayerControlView**: レイヤー制御パネル + LayerPreviewPanel（レイヤー構造タブ + ビューアータブ）。**サブタブ構成**: 「レイヤー制御」「リネーム」の2タブ。リネームタブはRenameViewをそのまま内蔵
-- **SpecCheckView**: 仕様チェック（3カラム: CompactFileList | MetadataPanel | サムネイル/レイヤー構造/写植仕様タブ切替）
-  - viewMode切替: サムネイル（PreviewGrid）、レイヤー構造（SpecLayerGrid）、写植仕様（SpecTextGrid）
-  - SpecTextGrid: 使用フォントサマリー（種類数・レイヤー数）、サイズ統計（頻度順・基本ポイント数）、ファイル別テキストレイヤー一覧。フォント切替（デフォルト/プレビュー）、ソート切替（昇順/降順）
-  - SpecLayerGrid: 全ファイルのレイヤー構造をグリッド表示
+- **SpecCheckView**: ホーム画面。エクスプローラー風ファイルブラウザ + 仕様チェック
+  - アドレスバー（GlobalAddressBar）でフォルダ移動。D&Dも対応
+  - 中央エリア上部: ビューモード切替バー + 仕様バー（仕様選択/統計/サイズ/ソート/PSD/PDFフィルタ/ドットメニュー）
+  - viewMode切替: サムネイル（PreviewGrid）、リスト（PsdFileListView）、レイヤー構造（SpecLayerGrid）、レイヤー分離確認
+  - SpecLayerGrid: 写植仕様（テキストレイヤーフォント/サイズ情報）+ レイヤーツリーを統合表示。「写植仕様のみ」チェック
+  - 右プレビューパネル: ロック機能付き。ダブルクリックで中央拡大表示。テキスト読込ボタン
+  - MetadataPanel: 各セクション折りたたみ可能。テキストのみ表示チェック
+  - PSDフィルタ / PDF表示切替（ページごと/ファイル単位）/ ソート（名前/サイズ/DPI/チェック結果）
 - **TypsettingView**: 写植関連（写植チェック・写植確認を統合）。MojiQ校正JSONの読み込み・カテゴリ別表示・ページ遷移連動
 - **ViewerView**: 独立ビューアー（SpecViewerPanelを再利用）。画像+サイドバー（写植仕様/レイヤー構造タブ）。OS全画面（Tauri setFullscreen）、スプラッシュトランジション、矢印キー/ホイールナビ、P/Fショートカット
 - **ReplaceView**: レイヤー差替え
@@ -426,7 +432,7 @@
 - **ScanPsdView**: Scan PSD（2カラム: ScanPsdPanel(5タブ) | ScanPsdContent(モード選択/スキャン/サマリー)）
 - **KenbanView**: KENBAN検版（kenban-scope CSS、状態保持型マウント）
 - **ProgenView**: ProGen（iframe `/progen/index.html`、状態保持型マウント）
-- **UnifiedViewerView**: 統合ビューアータブ（6サブタブ: 画像ビューアー / 写植調整 / 写植確認 / 差分モード / 分割ビューアー / ProGen）。状態保持型マウント（display切替）
+- **UnifiedViewerView**: 統合ビューアー + 差分モード + 分割ビューアーの3タブ。統合ビューアーは3カラム（左:DTPビューアー/右:テキスト・校正JSON・テキスト照合）。unifiedViewerStore独立管理。psdStoreと自動同期
 
 ### レイヤーツリー (LayerPreviewPanel)
 - **タブ切替**: 「レイヤー構造」（デフォルト）/ 「ビューアー」のセグメントボタン
@@ -478,11 +484,13 @@ src/
 │   │   ├── FileBrowser.tsx       # フォルダ/ファイル選択ハンドラー
 │   │   └── FileList.tsx          # ファイルリスト表示（選択/マルチセレクト）
 │   ├── layout/            # レイアウトコンポーネント
-│   │   ├── AppLayout.tsx         # メインレイアウト（TopNav + ビュー）
+│   │   ├── AppLayout.tsx         # メインレイアウト（TopNav + GlobalAddressBar + ViewRouter）
+│   │   ├── GlobalAddressBar.tsx  # グローバルアドレスバー（全タブ共通）
 │   │   ├── TopNav.tsx            # 上部ナビゲーション（タブ切替）
 │   │   └── ViewRouter.tsx        # ビュー切替ルーター
 │   ├── unified-viewer/   # 統合ビューアー
-│   │   └── ProgenImageViewer.tsx    # ProGen画像ビューアー（React製、COMIC-POTスタイル）
+│   │   ├── ProgenImageViewer.tsx    # ProGen画像ビューアー（React製、COMIC-POTスタイル）
+│   │   └── UnifiedViewer.tsx       # 統合ビューアー（3カラム: DTPビューアー/テキスト/校正）
 │   ├── kenban/           # KENBAN統合タブ
 │   │   ├── KenbanApp.tsx         # メインアプリ（元App.tsx）
 │   │   ├── KenbanDiffViewer.tsx  # 差分ビューア
@@ -631,6 +639,7 @@ src/
 │   ├── layerMatcher.ts          # レイヤーマッチング・リスク分類（共有ロジック）+ 差替え対象マッチング
 │   ├── layerTreeOps.ts          # レイヤーツリー操作ユーティリティ
 │   ├── naturalSort.ts           # 自然順ソート（数字部分を数値比較）
+│   ├── paperSize.ts             # 用紙サイズ判定（ピクセル+DPI→B4/A4等）
 │   └── textUtils.ts             # テキスト処理ユーティリティ
 ├── store/
 │   ├── index.ts           # バレルエクスポート（psdStore, guideStore, specStore）
@@ -646,7 +655,8 @@ src/
 │   ├── renameStore.ts     # リネーム設定（subMode, layerSettings, fileSettings, fileEntries）
 │   ├── tiffStore.ts       # TIFF化設定・状態（settings, fileOverrides, cropPresets, cropGuides, phase, results）。localStorage永続化（crop.bounds除く）
 │   ├── scanPsdStore.ts    # Scan PSD（mode, scanData, presetSets, workInfo, guide選択/除外, パス設定）。パスのみlocalStorage永続化
-│   └── typesettingCheckStore.ts  # 写植チェック（checkData, checkTabMode, searchQuery, navigateToPage）
+│   ├── typesettingCheckStore.ts  # 写植チェック（checkData, checkTabMode, searchQuery, navigateToPage）
+│   └── unifiedViewerStore.ts    # 統合ビューアー（独立ファイル管理、テキスト、校正JSON、フォントプリセット）
 ├── styles/
 │   └── globals.css
 ├── kenban-utils/         # KENBAN ユーティリティ

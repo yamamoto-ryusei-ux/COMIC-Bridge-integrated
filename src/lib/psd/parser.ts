@@ -105,6 +105,7 @@ export function extractMetadata(psd: Psd): PsdMetadata {
     hasAlphaChannels: alphaChannelInfo.count > 0,
     alphaChannelCount: alphaChannelInfo.count,
     alphaChannelNames: alphaChannelInfo.names,
+    hasOnlyTransparency: alphaChannelInfo.onlyTransparency,
     hasTombo: detectTombo(layerTree),
   };
 }
@@ -122,21 +123,55 @@ function detectTombo(layers: LayerNode[]): boolean {
 
 /**
  * αチャンネル情報を抽出
- * カラーモードに応じた標準チャンネル数を超えるチャンネルがαチャンネル
+ *
+ * PSD形式のチャンネル構造:
+ * - 標準チャンネル数: RGB=3, CMYK=4, Grayscale=1, Bitmap=1, Lab=3, Duotone=1
+ * - psd.channels: チャンネル総数（標準 + 透明部分 + ユーザーα）
+ * - alphaChannelNames: 全αチャンネル名（透明部分 + ユーザーα）
+ *
+ * 「透明部分」(Transparency) はPhotoshopが自動管理するαチャンネルで
+ * レイヤーの透明度情報を持つ。ユーザーが手動で追加したαチャンネルとは区別する。
  */
-function extractAlphaChannelInfo(psd: Psd): { count: number; names: string[] } {
-  // αチャンネル名はimageResourcesに格納されている
+function extractAlphaChannelInfo(psd: Psd): {
+  count: number;
+  names: string[];
+  onlyTransparency: boolean;
+} {
   const alphaNames = psd.imageResources?.alphaChannelNames || [];
 
-  // チャンネル数から計算（psd.channelsがある場合）
-  // ag-psdでは、channelsの長さがチャンネル総数
-  // または、alphaChannelNamesの長さがαチャンネル数
-  const alphaCount = alphaNames.length;
-
-  return {
-    count: alphaCount,
-    names: alphaNames,
+  // 標準チャンネル数をカラーモードから算出
+  const standardChannels: Record<number, number> = {
+    0: 1, // Bitmap
+    1: 1, // Grayscale
+    2: 1, // Indexed
+    3: 3, // RGB
+    4: 4, // CMYK
+    7: 3, // Multichannel -> Lab相当
+    8: 1, // Duotone
+    9: 3, // Lab
   };
+  const std = standardChannels[psd.colorMode || 3] ?? 3;
+  const totalChannels = psd.channels ?? std;
+  const extraChannels = totalChannels - std;
+
+  // αチャンネル数: alphaChannelNamesの長さ or チャンネル差分のうち大きい方
+  const alphaCount = Math.max(alphaNames.length, extraChannels);
+
+  if (alphaCount <= 0) {
+    return { count: 0, names: [], onlyTransparency: false };
+  }
+
+  // 名前リストを構築（alphaChannelNamesが不足していれば補完）
+  const names: string[] = [];
+  for (let i = 0; i < alphaCount; i++) {
+    names.push(alphaNames[i] ?? `Alpha ${i + 1}`);
+  }
+
+  // 「透明部分」のみかどうか判定
+  const transparencyPattern = /^(透明部分|Transparency)$/i;
+  const onlyTransparency = names.every((n) => transparencyPattern.test(n.trim()));
+
+  return { count: alphaCount, names, onlyTransparency };
 }
 
 function extractDpi(psd: Psd): number {
@@ -181,6 +216,39 @@ function extractLayerTree(children: Psd["children"], parentPath = "", dpi = 72):
         childAny.compositeProtected ||
         undefined,
     };
+
+    // レイヤーのバウンディングボックスを抽出（ag-psdはtop/left/right/bottomを直接持つ）
+    if (
+      child.top !== undefined &&
+      child.left !== undefined &&
+      child.bottom !== undefined &&
+      child.right !== undefined
+    ) {
+      node.bounds = {
+        top: child.top,
+        left: child.left,
+        bottom: child.bottom,
+        right: child.right,
+      };
+    }
+
+    // テキストレイヤーの場合: text.boundingBox + transform で実際の描画範囲を計算
+    // boundingBox はテキスト原点からの相対座標(Points単位)、transform[4,5] が原点のピクセル座標
+    // transform の scale(a,d) が 1:1 の場合、Points値をそのままピクセルオフセットとして加算できる
+    if (child.text) {
+      const textBB = child.text.boundingBox || child.text.bounds;
+      const tf = child.text.transform; // [a, b, c, d, tx, ty]
+      if (textBB && tf && tf.length >= 6) {
+        const tx = tf[4];
+        const ty = tf[5];
+        node.bounds = {
+          top: Math.round(ty + textBB.top.value),
+          left: Math.round(tx + textBB.left.value),
+          bottom: Math.round(ty + textBB.bottom.value),
+          right: Math.round(tx + textBB.right.value),
+        };
+      }
+    }
 
     // テキストレイヤーのフォント情報を抽出
     if (child.text) {
