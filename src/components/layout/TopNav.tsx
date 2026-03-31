@@ -384,10 +384,10 @@ export function TopNav() {
         <button onClick={() => setJsonBrowserMode("check")} className="px-2 py-0.5 text-[10px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary rounded transition-colors" title="校正データJSONを読み込む">
           校正JSON
         </button>
-        {/* Indicators */}
-        {viewerStore.textContent.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-accent-tertiary flex-shrink-0" title="テキスト読込済" />}
-        {viewerStore.fontPresets.length > 0 && <span className="w-1.5 h-1.5 rounded-full bg-accent-secondary flex-shrink-0" title="作品情報読込済" />}
-        {viewerStore.checkData && <span className="w-1.5 h-1.5 rounded-full bg-warning flex-shrink-0" title="校正JSON読込済" />}
+        {/* Indicators — 選択時は塗り、非選択時はフチのみ */}
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${viewerStore.textContent.length > 0 ? "bg-accent-tertiary" : "border border-accent-tertiary/50"}`} title={viewerStore.textContent.length > 0 ? "テキスト読込済" : "テキスト未読込"} />
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${viewerStore.fontPresets.length > 0 ? "bg-accent-secondary" : "border border-accent-secondary/50"}`} title={viewerStore.fontPresets.length > 0 ? "作品情報読込済" : "作品情報未読込"} />
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${viewerStore.checkData ? "bg-warning" : "border border-warning/50"}`} title={viewerStore.checkData ? "校正JSON読込済" : "校正JSON未読込"} />
       </div>
 
       <div className="flex-1" />

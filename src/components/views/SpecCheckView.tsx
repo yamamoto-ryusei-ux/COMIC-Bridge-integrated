@@ -16,7 +16,8 @@ import { MetadataPanel } from "../metadata/MetadataPanel";
 import { FixGuidePanel } from "../spec-checker/FixGuidePanel";
 import { GuideSectionPanel } from "../spec-checker/GuideSectionPanel";
 import { SpecLayerGrid } from "../spec-checker/SpecLayerGrid";
-import { LayerSeparationPanel } from "../spec-checker/LayerSeparationPanel";
+// LayerSeparationPanel は隔離中 — 統合完了後に削除予定
+// import { LayerSeparationPanel } from "../spec-checker/LayerSeparationPanel";
 import { DropZone } from "../file-browser/DropZone";
 
 import { THUMBNAIL_SIZES, type ThumbnailSize, type PsdFile, type SpecCheckResult } from "../../types";
@@ -36,7 +37,7 @@ const DOT_MENU_TABS: { id: AppView; label: string }[] = [
   { id: "scanPsd", label: "スキャナー" },
   { id: "split", label: "見開き分割" },
   { id: "rename", label: "リネーム" },
-  { id: "kenban", label: "検版" },
+  // kenban（検版）は隔離中 — 統合ビューアーに移行完了後に削除予定
   { id: "progen", label: "ProGen" },
   { id: "unifiedViewer", label: "ビューアー" },
 ];
@@ -70,10 +71,24 @@ export function SpecCheckView() {
   const [previewLocked, setPreviewLocked] = useState(false);
   const [expandedFile, setExpandedFile] = useState<typeof activeFile>(null);
   const [showDotMenu, setShowDotMenu] = useState(false);
+  const dotMenuRef = useRef<HTMLDivElement>(null);
+
+  // ドットメニュー: 外部クリックで閉じる
+  useEffect(() => {
+    if (!showDotMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (dotMenuRef.current && !dotMenuRef.current.contains(e.target as Node)) {
+        setShowDotMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showDotMenu]);
   const [sortMode, setSortMode] = useState<"name" | "name-desc" | "size" | "dpi" | "status">("name");
   const setActiveView = useViewStore((s) => s.setActiveView);
   const [lockedFile, setLockedFile] = useState<typeof activeFile>(null);
   const [lockedTextFile, setLockedTextFile] = useState<{ name: string; path: string; content: string } | null>(null);
+  const expandedOverlayRef = useRef<HTMLDivElement>(null);
 
   // Selected text file
   const [selectedTextFile, setSelectedTextFile] = useState<{ name: string; path: string; content: string } | null>(null);
@@ -83,6 +98,7 @@ export function SpecCheckView() {
   const [folderContents, setFolderContents] = useState<{ folders: string[]; allFiles: string[] } | null>(null);
   const psdOnly = usePsdStore((s) => s.psdOnlyFilter);
   const setPsdOnly = usePsdStore((s) => s.setPsdOnlyFilter);
+  // singleFolderDrop は現在未使用（将来フォルダ表示フィルタで使用予定）
   const { loadFolder } = usePsdLoader();
 
   const guidePromptRef = useRef<HTMLDivElement>(null);
@@ -96,7 +112,6 @@ export function SpecCheckView() {
   usePageNumberCheck();
 
   usePhotoshopShortcut();
-
 
   // Load folder contents for explorer view (ALL files, not just PSD)
   const loadExplorerContents = useCallback(async (path: string) => {
@@ -122,6 +137,7 @@ export function SpecCheckView() {
     if (!currentFolderPath) return;
     const newPath = `${currentFolderPath}\\${folderName}`;
     setCurrentFolderPath(newPath);
+    usePsdStore.getState().setSingleFolderDrop(null); // アドレス移動でクリア
     await loadExplorerContents(newPath);
     try { await loadFolder(newPath); } catch { /* ignore */ }
   }, [currentFolderPath, loadFolder, loadExplorerContents, setCurrentFolderPath]);
@@ -303,6 +319,30 @@ export function SpecCheckView() {
     }
   }, [files, sortMode, checkResults]);
 
+  // Expanded preview: focus overlay for keyboard, navigate with arrow keys / Esc
+  useEffect(() => {
+    if (expandedFile && expandedOverlayRef.current) {
+      expandedOverlayRef.current.focus();
+    }
+  }, [expandedFile]);
+
+  const handleExpandedKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (!expandedFile) return;
+    if (e.key === "Escape") {
+      setExpandedFile(null);
+      return;
+    }
+    if (["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].includes(e.key)) {
+      e.preventDefault();
+      const fileIdx = sortedFiles.findIndex((f) => f.id === expandedFile.id);
+      if (fileIdx < 0) return;
+      const next = (e.key === "ArrowRight" || e.key === "ArrowDown") ? fileIdx + 1 : fileIdx - 1;
+      if (next >= 0 && next < sortedFiles.length) {
+        setExpandedFile(sortedFiles[next]);
+      }
+    }
+  }, [expandedFile, sortedFiles]);
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Main 3-column layout */}
@@ -433,7 +473,7 @@ export function SpecCheckView() {
               {([
                 { id: "thumbnails" as const, label: "プレビュー" },
                 { id: "layers" as const, label: "レイヤー構造" },
-                { id: "layerCheck" as const, label: "レイヤー分離確認" },
+                // layerCheck（レイヤー分離確認）は隔離中 — 統合完了後に削除予定
               ]).map((m) => (
                 <button
                   key={m.id}
@@ -450,7 +490,7 @@ export function SpecCheckView() {
             </div>
             <div className="flex-1" />
             {/* Dot menu (right end) */}
-            <div className="relative flex-shrink-0">
+            <div ref={dotMenuRef} className="relative flex-shrink-0">
               <button
                 onClick={() => setShowDotMenu(!showDotMenu)}
                 className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${
@@ -582,16 +622,21 @@ export function SpecCheckView() {
           {/* Expanded preview overlay */}
           {expandedFile && (
             <div
-              className="absolute inset-0 z-30 bg-[#1a1a1e] flex flex-col"
+              ref={expandedOverlayRef}
+              tabIndex={0}
+              className="absolute inset-0 z-30 bg-[#1a1a1e] flex flex-col outline-none"
               onClick={() => setExpandedFile(null)}
+              onKeyDown={handleExpandedKeyDown}
             >
               <div className="flex-shrink-0 h-7 bg-bg-secondary/90 border-b border-border/30 flex items-center px-3 gap-2">
+                {(() => { const idx = sortedFiles.findIndex((f) => f.id === expandedFile.id); return idx >= 0 ? <span className="text-[10px] text-text-muted">{idx + 1}/{sortedFiles.length}</span> : null; })()}
                 <span className="text-[11px] text-text-primary font-medium truncate flex-1">{expandedFile.fileName}</span>
                 {expandedFile.metadata && (
                   <span className="text-[10px] text-text-muted">
                     {expandedFile.metadata.width}×{expandedFile.metadata.height} {expandedFile.metadata.dpi}dpi
                   </span>
                 )}
+                <span className="text-[10px] text-text-muted">←→ ページ切替 / Esc 閉じる</span>
                 <button
                   onClick={(e) => { e.stopPropagation(); setExpandedFile(null); }}
                   className="w-5 h-5 flex items-center justify-center text-text-muted hover:text-text-primary rounded hover:bg-bg-tertiary"
@@ -601,8 +646,22 @@ export function SpecCheckView() {
                   </svg>
                 </button>
               </div>
-              <div className="flex-1 flex items-center justify-center p-4 overflow-auto" onClick={(e) => e.stopPropagation()}>
-                <FilePreviewImage file={expandedFile} />
+              <div className="flex-1 flex items-center justify-center p-4 overflow-auto">
+                <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+                  <FilePreviewImage file={expandedFile} />
+                  {/* Guide lines overlay */}
+                  {expandedFile.metadata?.hasGuides && expandedFile.metadata.guides.length > 0 && expandedFile.metadata.width > 0 && expandedFile.metadata.height > 0 && (
+                    <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox={`0 0 ${expandedFile.metadata.width} ${expandedFile.metadata.height}`} preserveAspectRatio="xMidYMid meet">
+                      {expandedFile.metadata.guides.map((g: { direction: string; position: number }, gi: number) =>
+                        g.direction === "horizontal" ? (
+                          <line key={gi} x1={0} y1={g.position} x2={expandedFile.metadata!.width} y2={g.position} stroke="#00d4ff" strokeWidth={8} opacity={0.6} />
+                        ) : (
+                          <line key={gi} x1={g.position} y1={0} x2={g.position} y2={expandedFile.metadata!.height} stroke="#ff6b00" strokeWidth={8} opacity={0.6} />
+                        ),
+                      )}
+                    </svg>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -627,13 +686,15 @@ export function SpecCheckView() {
                   ))}
                 </div>
               )}
-              {/* Non-PSD files (txt, json, etc.) */}
+              {/* Non-PSD files (txt, json, etc.) — 対応拡張子のみ表示 */}
               {folderContents && !psdOnly && (() => {
                 const SUPPORTED_BY_STORE = new Set([".psd", ".psb", ".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp", ".gif", ".pdf", ".eps"]);
+                const ALLOWED_EXTS = new Set([...SUPPORTED_BY_STORE, ".txt", ".json"]);
                 const nonPsdFiles = folderContents.allFiles.filter((f) => {
                   const d = f.lastIndexOf(".");
-                  if (d < 0) return true;
-                  return !SUPPORTED_BY_STORE.has(f.substring(d).toLowerCase());
+                  if (d < 0) return false; // 拡張子なしは非表示
+                  const ext = f.substring(d).toLowerCase();
+                  return ALLOWED_EXTS.has(ext) && !SUPPORTED_BY_STORE.has(ext);
                 });
                 if (nonPsdFiles.length === 0) return null;
                 return (
@@ -702,9 +763,7 @@ export function SpecCheckView() {
             </>
           )}
           {viewMode === "layers" && <SpecLayerGrid />}
-          {viewMode === "layerCheck" && (
-            <LayerSeparationPanel onOpenInPhotoshop={openFileInPhotoshop} />
-          )}
+          {/* layerCheck は隔離中 — コードを実行しない */}
 
           {/* Floating Action Buttons (offset right when preview open) */}
           <div className="absolute bottom-6 right-6 flex flex-row flex-wrap items-end justify-end gap-3 z-10">
@@ -1222,13 +1281,15 @@ function PsdFileListView({
           })}
         </tbody>
       </table>
-      {/* Non-PSD files (txt, json, etc.) */}
+      {/* Non-PSD files (txt, json only) — 対応拡張子のみ表示 */}
       {(() => {
         const SUPPORTED_BY_STORE = new Set([".psd", ".psb", ".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp", ".gif", ".pdf", ".eps"]);
+        const ALLOWED_EXTS = new Set([...SUPPORTED_BY_STORE, ".txt", ".json"]);
         const nonPsd = allFiles.filter((f) => {
           const d = f.lastIndexOf(".");
-          if (d < 0) return true;
-          return !SUPPORTED_BY_STORE.has(f.substring(d).toLowerCase());
+          if (d < 0) return false;
+          const ext = f.substring(d).toLowerCase();
+          return ALLOWED_EXTS.has(ext) && !SUPPORTED_BY_STORE.has(ext);
         });
         if (nonPsd.length === 0) return null;
         return (
@@ -1266,7 +1327,11 @@ function PsdFileListView({
 // ═══ File Preview Image ══════════════════════════════
 
 function FilePreviewImage({ file }: { file: PsdFile }) {
-  const { imageUrl: previewUrl, isLoading } = useHighResPreview(file.filePath, { maxSize: 600 });
+  const { imageUrl: previewUrl, isLoading } = useHighResPreview(file.filePath, {
+    maxSize: 600,
+    pdfPageIndex: file.pdfPageIndex,
+    pdfSourcePath: file.pdfSourcePath,
+  });
 
   return (
     <div className="flex-1 overflow-hidden flex items-center justify-center bg-[#1a1a1e] min-h-0">

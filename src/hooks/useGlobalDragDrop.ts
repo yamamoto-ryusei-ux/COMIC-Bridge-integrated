@@ -14,7 +14,7 @@ import { isSupportedFile } from "../types";
  * TIFF タブでincludeSubfolders有効時はサブフォルダも走査
  */
 export function useGlobalDragDrop() {
-  const { loadFiles, loadFolderWithSubfolders } = usePsdLoader();
+  const { loadFiles, loadFolder, loadFolderWithSubfolders } = usePsdLoader();
 
   useEffect(() => {
     const currentWindow = getCurrentWindow();
@@ -55,6 +55,7 @@ export function useGlobalDragDrop() {
           if (folderPaths.length > 0) {
             usePsdStore.getState().setDroppedFolderPaths(folderPaths);
             usePsdStore.getState().setCurrentFolderPath(folderPaths[0]);
+            usePsdStore.getState().setSingleFolderDrop(null);
           }
 
           // TIFFタブ: includeSubfolders有効 or ルートに画像なし（サブフォルダのみ）→自動サブフォルダ読み込み
@@ -82,6 +83,9 @@ export function useGlobalDragDrop() {
               }
             }
             await loadFiles(imageFiles);
+          } else if (folderPaths.length > 0) {
+            // フォルダのみでファイルがない場合 → loadFolderで更新（追加ではなく置き換え）
+            await loadFolder(folderPaths[0]);
           }
         }
       });
@@ -98,5 +102,5 @@ export function useGlobalDragDrop() {
       mounted = false;
       if (unlisten) unlisten();
     };
-  }, [loadFiles, loadFolderWithSubfolders]);
+  }, [loadFiles, loadFolder, loadFolderWithSubfolders]);
 }

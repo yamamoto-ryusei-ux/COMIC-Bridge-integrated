@@ -42,8 +42,9 @@ export interface FontPresetEntry {
   subName?: string; // Category
 }
 
-export type LeftTab = "files" | "layers" | "spec";
-export type RightTab = "text" | "proofread" | "diff";
+export type PanelTab = "files" | "layers" | "spec" | "text" | "proofread" | "diff";
+export type LeftTab = PanelTab;
+export type RightTab = PanelTab;
 
 interface UnifiedViewerState {
   // ─ Files ─

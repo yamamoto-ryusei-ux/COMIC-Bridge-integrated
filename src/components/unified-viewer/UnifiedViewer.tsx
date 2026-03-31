@@ -15,23 +15,18 @@ import {
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  useSortable,
   verticalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { open as dialogOpen, save as dialogSave } from "@tauri-apps/plugin-dialog";
 import { readFile } from "@tauri-apps/plugin-fs";
 import {
   useUnifiedViewerStore,
   type ViewerFile,
-  type TextPage,
-  type TextBlock,
   type FontPresetEntry,
 } from "../../store/unifiedViewerStore";
-import type { LayerNode } from "../../types";
+import type { PanelTab } from "../../store/unifiedViewerStore";
 import {
   type ProofreadingCheckItem,
   CATEGORY_COLORS,
@@ -41,99 +36,42 @@ import { detectPaperSize } from "../../lib/paperSize";
 import { JsonFileBrowser } from "../scanPsd/JsonFileBrowser";
 import { useScanPsdStore } from "../../store/scanPsdStore";
 import { usePsdStore } from "../../store/psdStore";
+import { useViewStore } from "../../store/viewStore";
 import {
   collectTextLayers,
   FONT_COLORS,
   MISSING_FONT_COLOR,
   type FontResolveInfo,
 } from "../../hooks/useFontResolver";
-import { normalizeTextForComparison } from "../../kenban-utils/textExtract";
+import {
+  normalizeTextForComparison,
+  computeLineSetDiff,
+  buildUnifiedDiff,
+} from "../../kenban-utils/textExtract";
+import type { UnifiedDiffEntry } from "../../kenban-utils/textExtract";
 
-// ─── Constants ──────────────────────────────────────────
-const ZOOM_STEPS = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0];
-const MAX_SIZE = 2000;
-const CHECK_JSON_BASE_PATH = "G:/共有ドライブ/CLLENN/編集部フォルダ/編集企画部/写植・校正用テキストログ";
-const CHECK_DATA_SUBFOLDER = "校正チェックデータ";
-const IMAGE_EXTS = new Set([
-  ".psd",".psb",".jpg",".jpeg",".png",".tif",".tiff",".bmp",".gif",".pdf",".eps",
-]);
+// ─── Separated modules ─────────────────────────────────
+import {
+  ALL_PANEL_TABS,
+  ZOOM_STEPS,
+  MAX_SIZE,
+  parseComicPotText,
+  isImageFile,
+  isPsdFile,
+  getTextPageNumbers,
+  type CacheEntry,
+} from "./utils";
+import {
+  ToolBtn,
+  PanelTabBtn,
+  LayerTreeView,
+  SortableBlockItem,
+  CheckJsonBrowser,
+  UnifiedDiffDisplay,
+} from "./UnifiedSubComponents";
+import { useViewerFileOps } from "./useViewerFileOps";
 
-// ─── COMIC-POT Parser ───────────────────────────────────
-function parseComicPotText(content: string): { header: string[]; pages: TextPage[] } {
-  const lines = content.split(/\r?\n/);
-  const header: string[] = [];
-  const pages: TextPage[] = [];
-  let currentPage: TextPage | null = null;
-  const pageRegex = /^<<(\d+)Page>>$/;
-  let blockLines: string[] = [];
-  let blockIndex = 0;
-  const flushBlock = () => {
-    if (blockLines.length > 0 && currentPage) {
-      currentPage.blocks.push({
-        id: `p${currentPage.pageNumber}-b${blockIndex}`,
-        originalIndex: blockIndex,
-        lines: [...blockLines],
-      });
-      blockIndex++;
-      blockLines = [];
-    }
-  };
-  for (const line of lines) {
-    const match = line.match(pageRegex);
-    if (match) {
-      flushBlock();
-      blockIndex = 0;
-      blockLines = [];
-      currentPage = { pageNumber: parseInt(match[1], 10), blocks: [] };
-      pages.push(currentPage);
-    } else if (currentPage) {
-      if (line.trim() === "") flushBlock();
-      else blockLines.push(line);
-    } else {
-      header.push(line);
-    }
-  }
-  flushBlock();
-  return { header, pages };
-}
-
-function serializeText(
-  header: string[],
-  pages: TextPage[],
-  fontPresets: FontPresetEntry[],
-): string {
-  const lines: string[] = [];
-  for (const h of header) lines.push(h);
-  for (const page of pages) {
-    lines.push(`<<${page.pageNumber}Page>>`);
-    for (const block of page.blocks) {
-      if (block.assignedFont) {
-        const fp = fontPresets.find((f) => f.font === block.assignedFont);
-        const sanitize = (s: string) => s.replace(/[()（）[\]]/g, "");
-        const nameInfo = fp
-          ? `(${sanitize(fp.name)}${fp.subName ? `(${sanitize(fp.subName)})` : ""})`
-          : "";
-        lines.push(`[font:${block.assignedFont}${nameInfo}]`);
-      }
-      for (const l of block.lines) lines.push(l);
-      lines.push("");
-    }
-  }
-  return lines.join("\r\n");
-}
-
-// ─── Helpers ────────────────────────────────────────────
-function isImageFile(name: string): boolean {
-  const ext = name.substring(name.lastIndexOf(".")).toLowerCase();
-  return IMAGE_EXTS.has(ext);
-}
-function isPsdFile(name: string): boolean {
-  const ext = name.substring(name.lastIndexOf(".")).toLowerCase();
-  return ext === ".psd" || ext === ".psb";
-}
-
-// ─── Cache ──────────────────────────────────────────────
-interface CacheEntry { url: string; w: number; h: number }
+// (utils, helpers, sub-components are imported from ./utils and ./UnifiedSubComponents)
 
 // ═════════════════════════════════════════════════════════
 // Main Component
@@ -141,19 +79,47 @@ interface CacheEntry { url: string; w: number; h: number }
 export function UnifiedViewer() {
   const store = useUnifiedViewerStore();
 
-  // Sync with psdStore: auto-load PSD files from main store if viewer has no files
+  // Sync with psdStore: メイン画面のPSDファイルを常にビューアーに反映
   const psdFiles = usePsdStore((s) => s.files);
-  useEffect(() => {
-    if (store.files.length === 0 && psdFiles.length > 0) {
-      const viewerFiles: ViewerFile[] = psdFiles.map((f) => ({
+  const activeView = useViewStore((s) => s.activeView);
+  const psdFilesSig = useMemo(() => psdFiles.map((f) => f.filePath).join("|"), [psdFiles]);
+
+  const doSync = useCallback(() => {
+    const latest = usePsdStore.getState().files;
+    if (latest.length === 0) return;
+    const viewerFiles: ViewerFile[] = latest.map((f) => {
+      const isPdf = f.sourceType === "pdf" || f.filePath.toLowerCase().endsWith(".pdf");
+      return {
         name: f.fileName,
         path: f.filePath,
-        sourceType: /\.(psd|psb)$/i.test(f.fileName) ? "psd" as const : f.filePath.toLowerCase().endsWith(".pdf") ? "pdf" as const : "image" as const,
+        sourceType: /\.(psd|psb)$/i.test(f.fileName) ? "psd" as const : isPdf ? "pdf" as const : "image" as const,
         metadata: f.metadata || undefined,
-      }));
-      store.setFiles(viewerFiles);
+        // PDF情報をマッピング（pdfPageIndex: 0-indexed → pdfPage: 1-indexed）
+        isPdf: isPdf && !!f.pdfSourcePath,
+        pdfPath: f.pdfSourcePath,
+        pdfPage: f.pdfPageIndex != null ? f.pdfPageIndex + 1 : undefined,
+      };
+    });
+    store.setFiles(viewerFiles);
+  }, []);
+
+  // ファイル変更時に同期
+  useEffect(() => { doSync(); }, [psdFilesSig]);
+  // ビューアータブに切り替えた時に強制同期 + 画像再読み込み
+  const loadImageRef = useRef<(i: number) => void>(() => {});
+  useEffect(() => {
+    if (activeView === "unifiedViewer") {
+      doSync();
+      cache.current.clear();
+      // Reactレンダー完了後にloadImageを直接呼ぶ
+      setTimeout(() => {
+        const st = useUnifiedViewerStore.getState();
+        if (st.files.length > 0 && st.currentFileIndex >= 0) {
+          loadImageRef.current(st.currentFileIndex);
+        }
+      }, 100);
     }
-  }, [psdFiles.length]);
+  }, [activeView]);
 
   // D&D sensors
   const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -186,13 +152,50 @@ export function UnifiedViewer() {
   const [highlightBounds, setHighlightBounds] = useState<{ top: number; left: number; bottom: number; right: number } | null>(null);
   const [activeFontFilter, setActiveFontFilter] = useState<string | null>(null);
 
-  // Text diff (テキスト照合)
-  const [textDiffResults, setTextDiffResults] = useState<{ psdText: string; loadedText: string; hasDiff: boolean } | null>(null);
+  // Text diff display mode: 一致ペアの表示 ("psd" = PSDレイヤーのみ, "text" = テキストのみ)
+  const [diffMatchDisplay, setDiffMatchDisplay] = useState<"psd" | "text">("text");
+  // 単ページ化モード
+  const [spreadMode, setSpreadMode] = useState(false); // 見開き分割ON/OFF
+  const [firstPageMode, setFirstPageMode] = useState<"single" | "spread" | "skip">("single");
+  // 互換用: 既存コードが参照する diffSplitMode
+  const diffSplitMode: "none" | "spread" | "spread-skip1" | "single1" = !spreadMode
+    ? "none"
+    : firstPageMode === "single" ? "single1"
+    : firstPageMode === "skip" ? "spread-skip1"
+    : "spread";
 
-  // Panel resize
-  const [leftWidth, setLeftWidth] = useState(240);
-  const [rightWidth, setRightWidth] = useState(420);
+  // Text diff (テキスト照合)
+  const [textDiffResults, setTextDiffResults] = useState<{
+    psdText: string;
+    loadedText: string;
+    hasDiff: boolean;
+    unifiedEntries: UnifiedDiffEntry[];
+    /** PSD各レイヤーのテキスト（漫画読み順） */
+    psdLayerTexts: { layerName: string; text: string; fonts: string[] }[];
+    /** COMIC-POT各ブロックのテキスト */
+    loadedBlocks: { text: string; assignedFont?: string }[];
+    /** PSDレイヤー→テキストブロックの対応 (indexベース) */
+    linkMap: Map<number, number>;
+  } | null>(null);
+
+  // Panel resize — default widths per tab
+  const TAB_WIDTHS: Record<PanelTab, number> = {
+    files: 200, layers: 260, spec: 280,
+    text: 420, proofread: 380, diff: 400,
+  };
+  const [leftWidth, setLeftWidth] = useState(TAB_WIDTHS[store.leftTab]);
+  const [rightWidth, setRightWidth] = useState(TAB_WIDTHS[store.rightTab]);
   const [resizingSide, setResizingSide] = useState<"left" | "right" | null>(null);
+  const [leftManualResize, setLeftManualResize] = useState(false);
+  const [rightManualResize, setRightManualResize] = useState(false);
+
+  // Auto-resize on tab change (unless manually resized)
+  useEffect(() => {
+    if (!leftManualResize) setLeftWidth(TAB_WIDTHS[store.leftTab]);
+  }, [store.leftTab]);
+  useEffect(() => {
+    if (!rightManualResize) setRightWidth(TAB_WIDTHS[store.rightTab]);
+  }, [store.rightTab]);
 
   // Refs
   const cache = useRef(new Map<string, CacheEntry>());
@@ -276,10 +279,14 @@ export function UnifiedViewer() {
   // ═══ Image loading ═══
   const loadImage = useCallback(
     async (i: number) => {
-      if (i < 0 || i >= files.length) return;
+      // 常にstoreから最新のfilesを取得（クロージャの古い参照問題を回避）
+      const latestFiles = useUnifiedViewerStore.getState().files;
+      if (i < 0 || i >= latestFiles.length) return;
       setLoading(true);
-      const f = files[i];
-      const cached = cache.current.get(f.path);
+      const f = latestFiles[i];
+      // キャッシュキー: PDFはページ番号も含める
+      const cacheKey = f.pdfPage ? `${f.path}#p${f.pdfPage}` : f.path;
+      const cached = cache.current.get(cacheKey);
       if (cached) {
         setImgUrl(cached.url);
         setDims({ w: cached.w, h: cached.h });
@@ -289,7 +296,12 @@ export function UnifiedViewer() {
       try {
         let e: CacheEntry | null = null;
         if (f.isPdf && f.pdfPath && f.pdfPage) {
+          // ページ分割済みPDF
           e = await renderPdfPage(f.pdfPath, f.pdfPage);
+        } else if (f.sourceType === "pdf" || f.path.toLowerCase().endsWith(".pdf")) {
+          // ファイル単位PDF（ページ1を表示）
+          const pdfPath = f.pdfPath || f.path;
+          e = await renderPdfPage(pdfPath, f.pdfPage || 1);
         } else {
           // Use standard get_high_res_preview command
           const r = await invoke<any>("get_high_res_preview", {
@@ -304,7 +316,7 @@ export function UnifiedViewer() {
             };
         }
         if (e) {
-          cache.current.set(f.path, e);
+          cache.current.set(cacheKey, e);
           setImgUrl(e.url);
           setDims({ w: e.w, h: e.h });
         }
@@ -313,7 +325,7 @@ export function UnifiedViewer() {
       }
       setLoading(false);
     },
-    [files, renderPdfPage],
+    [renderPdfPage],
   );
 
   // Prefetch ±2
@@ -321,15 +333,19 @@ export function UnifiedViewer() {
     if (idx < 0 || files.length === 0) return;
     for (const off of [1, -1, 2, -2]) {
       const ni = idx + off;
-      if (ni < 0 || ni >= files.length || cache.current.has(files[ni].path)) continue;
+      if (ni < 0 || ni >= files.length) continue;
       const f = files[ni];
+      const ck = f.pdfPage ? `${f.path}#p${f.pdfPage}` : f.path;
+      if (cache.current.has(ck)) continue;
       if (f.isPdf && f.pdfPath && f.pdfPage)
-        renderPdfPage(f.pdfPath, f.pdfPage).then((e) => e && cache.current.set(f.path, e));
+        renderPdfPage(f.pdfPath, f.pdfPage).then((e) => e && cache.current.set(ck, e));
+      else if (f.sourceType === "pdf" || f.path.toLowerCase().endsWith(".pdf"))
+        renderPdfPage(f.pdfPath || f.path, f.pdfPage || 1).then((e) => e && cache.current.set(ck, e));
       else
         invoke<any>("get_high_res_preview", { filePath: f.path, maxSize: MAX_SIZE })
           .then((r: any) => {
             if (r.file_path)
-              cache.current.set(f.path, {
+              cache.current.set(ck, {
                 url: convertFileSrc(r.file_path),
                 w: r.original_width || 0,
                 h: r.original_height || 0,
@@ -339,9 +355,14 @@ export function UnifiedViewer() {
     }
   }, [idx, files, renderPdfPage]);
 
+  // loadImageの最新参照を保持（setTimeout内から呼ぶため）
+  useEffect(() => { loadImageRef.current = loadImage; }, [loadImage]);
+
+  // ファイル変更時に画像を読み込み
+  const filesSig = useMemo(() => files.map((f) => f.path).join("|"), [files]);
   useEffect(() => {
     if (idx >= 0 && files.length > 0) loadImage(idx);
-  }, [idx, loadImage, files.length]);
+  }, [idx, loadImage, filesSig]);
 
   // Load PSD metadata when file changes
   useEffect(() => {
@@ -353,151 +374,6 @@ export function UnifiedViewer() {
       })
       .catch(() => {});
   }, [idx, cur]);
-
-  // ═══ File open ═══
-  const openFolder = useCallback(async () => {
-    const folderPath = await dialogOpen({ directory: true, multiple: false });
-    if (!folderPath) return;
-    try {
-      const fileList = await invoke<string[]>("list_folder_files", {
-        folderPath,
-        recursive: false,
-      });
-      const raw: ViewerFile[] = fileList
-        .filter((p) => isImageFile(p.substring(p.lastIndexOf("\\") + 1)))
-        .map((p) => ({
-          name: p.substring(p.lastIndexOf("\\") + 1),
-          path: p,
-          sourceType: isPsdFile(p) ? "psd" as const : p.toLowerCase().endsWith(".pdf") ? "pdf" as const : "image" as const,
-        }));
-      const expanded = await expandPdf(raw);
-      store.setFiles(expanded);
-      cache.current.clear();
-      setZoom(0);
-      store.setLeftTab("files");
-    } catch { /* ignore */ }
-  }, [expandPdf]);
-
-  const openTextFile = useCallback(async () => {
-    const path = await dialogOpen({
-      filters: [{ name: "テキスト", extensions: ["txt"] }],
-      multiple: false,
-    });
-    if (!path) return;
-    try {
-      const bytes = await readFile(path as string);
-      const content = new TextDecoder("utf-8").decode(bytes);
-      store.setTextContent(content);
-      store.setTextFilePath(path as string);
-      const { header, pages } = parseComicPotText(content);
-      store.setTextHeader(header);
-      store.setTextPages(pages);
-      store.setIsDirty(false);
-      parseChunks(content);
-      store.setRightTab("text");
-    } catch { /* ignore */ }
-  }, []);
-
-  // JSON file selection via JsonFileBrowser
-  const handleJsonFileSelect = useCallback(async (filePath: string) => {
-    try {
-      const content = await invoke<string>("read_text_file", { filePath });
-      const data = JSON.parse(content);
-
-      if (jsonBrowserMode === "check") {
-        // Proofreading JSON
-        const allItems: ProofreadingCheckItem[] = [];
-        const parse = (src: any, fallbackKind: "correctness" | "proposal") => {
-          // src can be: array directly, or { items: [...] }
-          const arr = Array.isArray(src) ? src : Array.isArray(src?.items) ? src.items : null;
-          if (!arr) return;
-          for (const item of arr)
-            allItems.push({
-              picked: false,
-              category: item.category || "",
-              page: item.page || "",
-              excerpt: item.excerpt || "",
-              content: item.content || item.text || "",
-              checkKind: item.checkKind || fallbackKind,
-            });
-        };
-        if (data.checks) {
-          parse(data.checks.simple, "correctness");
-          parse(data.checks.variation, "proposal");
-        } else if (Array.isArray(data)) {
-          parse(data, "correctness");
-        }
-        const correctnessItems = allItems.filter((i) => i.checkKind === "correctness");
-        const proposalItems = allItems.filter((i) => i.checkKind === "proposal");
-        store.setCheckData({
-          title: data.work || "",
-          fileName: filePath.substring(filePath.lastIndexOf("\\") + 1),
-          filePath,
-          allItems,
-          correctnessItems,
-          proposalItems,
-        });
-        store.setRightTab("proofread");
-        store.setCheckTabMode(correctnessItems.length > 0 ? "correctness" : "proposal");
-      } else {
-        // Preset JSON — extract font presets
-        // フォールバック: data.presetData.presets → data.presets → data.presetSets → data 自体
-        const presets: FontPresetEntry[] = [];
-        const presetsObj = data?.presetData?.presets ?? data?.presets ?? data?.presetSets ?? data;
-        if (typeof presetsObj === "object" && presetsObj !== null) {
-          if (Array.isArray(presetsObj)) {
-            // 配列形式: [{font, name, subName}, ...]
-            for (const p of presetsObj)
-              if (p?.font || p?.postScriptName)
-                presets.push({
-                  font: p.font || p.postScriptName,
-                  name: p.name || p.displayName || p.font || "",
-                  subName: p.subName || p.category || "",
-                });
-          } else {
-            // オブジェクト形式: { "セット名": [{font, name, subName}, ...], ... }
-            for (const [, arr] of Object.entries(presetsObj)) {
-              if (!Array.isArray(arr)) continue;
-              for (const p of arr as any[])
-                if (p?.font || p?.postScriptName)
-                  presets.push({
-                    font: p.font || p.postScriptName,
-                    name: p.name || p.displayName || "",
-                    subName: p.subName || "",
-                  });
-            }
-          }
-        }
-        if (presets.length > 0) {
-          store.setFontPresets(presets);
-          store.setPresetJsonPath(filePath);
-        }
-      }
-    } catch { /* ignore */ }
-    setJsonBrowserMode(null);
-  }, [jsonBrowserMode]);
-
-  const handleSave = useCallback(async () => {
-    if (!store.textFilePath || !store.textContent) return;
-    try {
-      await invoke("write_text_file", { filePath: store.textFilePath, content: store.textContent });
-      store.setIsDirty(false);
-    } catch { /* ignore */ }
-  }, [store.textFilePath, store.textContent]);
-
-  const handleSaveAs = useCallback(async () => {
-    const path = await dialogSave({
-      filters: [{ name: "テキスト", extensions: ["txt"] }],
-    });
-    if (!path) return;
-    const content = serializeText(store.textHeader, store.textPages, store.fontPresets);
-    try {
-      await invoke("write_text_file", { filePath: path, content });
-      store.setTextFilePath(path);
-      store.setTextContent(content);
-      store.setIsDirty(false);
-    } catch { /* ignore */ }
-  }, [store.textHeader, store.textPages, store.fontPresets]);
 
   // ═══ Block D&D reorder ═══
   const handleBlockReorder = useCallback(
@@ -544,6 +420,16 @@ export function UnifiedViewer() {
     if (buf.length) result.push({ text: buf.join("\n"), page });
     setChunks(result);
   }, []);
+
+  // ═══ File operations (extracted to useViewerFileOps) ═══
+  const { openFolder, openTextFile, handleJsonFileSelect, handleSave, handleSaveAs } = useViewerFileOps({
+    expandPdf,
+    parseChunks,
+    cache,
+    setZoom,
+    jsonBrowserMode,
+    setJsonBrowserMode,
+  });
 
   const syncToPage = useCallback(
     (pageNum: number) => {
@@ -714,17 +600,70 @@ export function UnifiedViewer() {
     return () => { unlisten?.(); };
   }, [expandPdf, parseChunks]);
 
-  // ═══ Zoom / Nav ═══
-  const goPrev = useCallback(() => {
-    if (idx > 0) store.setCurrentFileIndex(idx - 1);
-  }, [idx]);
-  const goNext = useCallback(() => {
-    if (idx < files.length - 1) store.setCurrentFileIndex(idx + 1);
-  }, [idx, files.length]);
+  // ═══ Zoom ═══
   const zoomIn = useCallback(() => setZoom((z) => Math.min(z + 1, ZOOM_STEPS.length)), []);
   const zoomOut = useCallback(() => setZoom((z) => Math.max(z - 1, 0)), []);
   const zoomFit = useCallback(() => setZoom(0), []);
   const zoomLabel = zoom === 0 ? "Fit" : `${Math.round(ZOOM_STEPS[zoom - 1] * 100)}%`;
+
+  // 単ページ化: 論理ページカウンター（全ファイル×前後をフラットに管理）
+  const [splitReadOrder, setSplitReadOrder] = useState<"right-first" | "left-first">("left-first");
+  const [logicalPage, setLogicalPage] = useState(0);
+
+  // spreadMode変更時にリセット
+  useEffect(() => { setLogicalPage(0); }, [spreadMode, firstPageMode]);
+
+  // logicalPage → (fileIdx, side) の変換
+  const resolveLogicalPage = useCallback((lp: number): { fileIdx: number; side: "full" | "right" | "left" } => {
+    if (!spreadMode) return { fileIdx: lp, side: "full" };
+    let remain = lp;
+    for (let fi = 0; fi < files.length; fi++) {
+      const isSingle = firstPageMode === "single" && fi === 0;
+      const isSkip = firstPageMode === "skip" && fi === 0;
+      if (isSingle) {
+        if (remain === 0) return { fileIdx: fi, side: "full" };
+        remain -= 1;
+      } else if (isSkip) {
+        // 左半分スキップ → 右半分のみ（readOrder=left-firstなら left=skip, right=表示）
+        if (remain === 0) return { fileIdx: fi, side: splitReadOrder === "left-first" ? "right" : "left" };
+        remain -= 1;
+      } else {
+        // 見開き: 2ページ
+        if (remain === 0) return { fileIdx: fi, side: splitReadOrder === "left-first" ? "left" : "right" };
+        if (remain === 1) return { fileIdx: fi, side: splitReadOrder === "left-first" ? "right" : "left" };
+        remain -= 2;
+      }
+    }
+    return { fileIdx: files.length - 1, side: "full" };
+  }, [spreadMode, firstPageMode, files.length, splitReadOrder]);
+
+  // 最大論理ページ数
+  const maxLogicalPage = useMemo(() => {
+    if (!spreadMode) return files.length;
+    let count = 0;
+    for (let fi = 0; fi < files.length; fi++) {
+      const isSingle = firstPageMode === "single" && fi === 0;
+      const isSkip = firstPageMode === "skip" && fi === 0;
+      count += isSingle ? 1 : isSkip ? 1 : 2;
+    }
+    return count;
+  }, [spreadMode, firstPageMode, files.length]);
+
+  // 現在の表示状態
+  const resolved = resolveLogicalPage(logicalPage);
+  const splitViewSide = resolved.side;
+
+  // idx同期 + 画像読み込み（logicalPageが変わったらfileIdxを更新し画像を読み込む）
+  useEffect(() => {
+    const targetIdx = resolved.fileIdx;
+    if (targetIdx >= 0 && targetIdx < files.length) {
+      if (targetIdx !== idx) {
+        store.setCurrentFileIndex(targetIdx);
+      }
+      // loadImageRefで直接呼ぶ（useEffectチェーンを避ける）
+      loadImageRef.current(targetIdx);
+    }
+  }, [logicalPage]);
 
   const imgStyle: React.CSSProperties =
     zoom === 0
@@ -734,6 +673,58 @@ export function UnifiedViewer() {
             ? `${imgRef.current.naturalWidth * ZOOM_STEPS[zoom - 1]}px`
             : "auto",
         };
+  // 半分表示用: imgをラップするdivのスタイル (splitViewSide !== "full" 時のみ適用)
+  const splitWrapStyle: React.CSSProperties | null = splitViewSide !== "full" ? {
+    overflow: "hidden",
+    width: "50%",
+    maxHeight: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: splitViewSide === "right" ? "flex-start" : "flex-end",
+  } : null;
+  // 半分表示時のimg追加スタイル
+  const splitImgExtra: React.CSSProperties | null = splitViewSide !== "full" ? {
+    width: "200%",
+    maxWidth: "none",
+    maxHeight: "100%",
+    objectFit: "contain" as const,
+    marginLeft: splitViewSide === "left" ? "-100%" : undefined,
+  } : null;
+
+  // ═══ Nav ═══
+  const goPrev = useCallback(() => {
+    if (spreadMode) {
+      if (logicalPage > 0) setLogicalPage(logicalPage - 1);
+    } else {
+      if (idx > 0) store.setCurrentFileIndex(idx - 1);
+    }
+  }, [spreadMode, logicalPage, idx]);
+
+  const goNext = useCallback(() => {
+    if (spreadMode) {
+      if (logicalPage < maxLogicalPage - 1) setLogicalPage(logicalPage + 1);
+    } else {
+      if (idx < files.length - 1) store.setCurrentFileIndex(idx + 1);
+    }
+  }, [spreadMode, logicalPage, maxLogicalPage, idx, files.length]);
+
+  /** テキストページ番号でナビゲート */
+  const navigateToTextPage = useCallback((textPageNum: number) => {
+    if (!spreadMode) {
+      store.setCurrentFileIndex(Math.min(textPageNum - 1, files.length - 1));
+      return;
+    }
+    // logicalPageを探す
+    for (let lp = 0; lp < maxLogicalPage; lp++) {
+      const r = resolveLogicalPage(lp);
+      const pns = getTextPageNumbers(r.fileIdx, diffSplitMode);
+      if (pns.length === 1 && pns[0] === textPageNum) { setLogicalPage(lp); return; }
+      if (pns.length === 2) {
+        if (r.side === "left" && pns[0] === textPageNum) { setLogicalPage(lp); return; }
+        if (r.side === "right" && pns[1] === textPageNum) { setLogicalPage(lp); return; }
+      }
+    }
+  }, [spreadMode, maxLogicalPage, resolveLogicalPage, diffSplitMode, files.length]);
 
   // Keyboard
   useEffect(() => {
@@ -795,10 +786,11 @@ export function UnifiedViewer() {
   useEffect(() => {
     if (!resizingSide) return;
     const mv = (e: MouseEvent) => {
-      if (resizingSide === "left") setLeftWidth(Math.max(180, Math.min(500, e.clientX)));
+      if (resizingSide === "left") { setLeftWidth(Math.max(180, Math.min(500, e.clientX))); setLeftManualResize(true); }
       else {
         const r = window.innerWidth - e.clientX;
         setRightWidth(Math.max(280, Math.min(700, r)));
+        setRightManualResize(true);
       }
     };
     const up = () => setResizingSide(null);
@@ -820,6 +812,53 @@ export function UnifiedViewer() {
     }
     return [...set];
   }, [textLayers]);
+
+  // All fonts across ALL loaded files → Map<fontName, fileIndexes[]>
+  const allFilesFontMap = useMemo(() => {
+    const map = new Map<string, number[]>();
+    files.forEach((f, fi) => {
+      if (!f.metadata?.layerTree) return;
+      const tls = collectTextLayers(f.metadata.layerTree);
+      for (const tl of tls) {
+        if (tl.textInfo) {
+          for (const font of tl.textInfo.fonts) {
+            const arr = map.get(font) || [];
+            if (!arr.includes(fi)) arr.push(fi);
+            map.set(font, arr);
+          }
+        }
+      }
+    });
+    return map;
+  }, [files]);
+
+  // Track click index per font for cycling through pages
+  const fontClickIdx = useRef(new Map<string, number>());
+
+  // Per-file text diff status: Map<fileIndex, "match" | "diff" | "no-text">
+  const fileDiffStatusMap = useMemo(() => {
+    const map = new Map<number, "match" | "diff" | "no-text">();
+    if (store.textContent.length === 0) return map;
+    files.forEach((f, fi) => {
+      if (!f.metadata?.layerTree) return;
+      const tls = collectTextLayers(f.metadata.layerTree).filter((tl) => tl.textInfo?.text);
+      if (tls.length === 0) return;
+      const psdText = tls.map((tl) => tl.textInfo!.text.trim()).filter(Boolean).join("\n\n");
+      const pageNums = getTextPageNumbers(fi, diffSplitMode);
+      if (pageNums.length === 0) return; // 1P除外
+      const parts: string[] = [];
+      for (const pn of pageNums) {
+        const page = store.textPages.find((p) => p.pageNumber === pn);
+        if (page) parts.push(page.blocks.map((b) => b.lines.join("\n")).join("\n\n"));
+      }
+      if (parts.length === 0) { map.set(fi, "no-text"); return; }
+      const loadedText = parts.join("\n\n");
+      const normPsd = normalizeTextForComparison(psdText);
+      const normLoaded = normalizeTextForComparison(loadedText);
+      map.set(fi, normPsd === normLoaded ? "match" : "diff");
+    });
+    return map;
+  }, [files, store.textContent, store.textPages, diffSplitMode]);
 
   // Font color map (stable color per font)
   const fontColorMap = useMemo(() => {
@@ -848,34 +887,112 @@ export function UnifiedViewer() {
     return fontColorMap.get(ps) || FONT_COLORS[0];
   }, [fontResolveMap, fontColorMap, fontResolved]);
 
-  // Text diff: PSD text vs loaded COMIC-POT text
+  // Text diff: PSD text vs loaded COMIC-POT text (KENBAN版 LCS文字レベルdiff)
   useEffect(() => {
     if (textLayers.length === 0 || store.textContent.length === 0) {
       setTextDiffResults(null);
       return;
     }
-    // Extract PSD text (from current file's text layers)
-    const psdText = textLayers
+    // Extract PSD text — 漫画読み順ソート（上→下、右→左）
+    const canvasH = metadata?.height || 1;
+    const rowThreshold = canvasH * 0.08;
+    const sortedLayers = [...textLayers]
       .filter((tl) => tl.textInfo?.text)
+      .sort((a, b) => {
+        const ay = a.bounds?.top ?? 0;
+        const by = b.bounds?.top ?? 0;
+        const ax = a.bounds?.left ?? 0;
+        const bx = b.bounds?.left ?? 0;
+        const rowA = Math.floor(ay / rowThreshold);
+        const rowB = Math.floor(by / rowThreshold);
+        if (rowA !== rowB) return rowA - rowB; // 上→下
+        return bx - ax; // 右→左
+      });
+    const psdText = sortedLayers
       .map((tl) => tl.textInfo!.text.trim())
       .filter(Boolean)
       .join("\n\n");
-    // Extract current page text from COMIC-POT
-    const pageNum = idx + 1;
-    const page = store.textPages.find((p) => p.pageNumber === pageNum);
-    const loadedText = page
-      ? page.blocks.map((b) => b.lines.join("\n")).join("\n\n")
-      : "";
+    // Extract current page text from COMIC-POT（単ページ化対応）
+    const textPageNums = getTextPageNumbers(idx, diffSplitMode);
+    const loadedParts: string[] = [];
+    const loadedBlocksArr: { text: string; assignedFont?: string }[] = [];
+    for (const pn of textPageNums) {
+      const page = store.textPages.find((p) => p.pageNumber === pn);
+      if (page) {
+        loadedParts.push(page.blocks.map((b) => b.lines.join("\n")).join("\n\n"));
+        loadedBlocksArr.push(...page.blocks.map((b) => ({ text: b.lines.join("\n"), assignedFont: b.assignedFont })));
+      }
+    }
+    const loadedText = loadedParts.join("\n\n");
     if (!psdText || !loadedText) { setTextDiffResults(null); return; }
-    // 比較は正規化テキストで行うが、表示は元テキストを使う（文字化け防止）
-    const normPsd = normalizeTextForComparison(psdText);
-    const normLoaded = normalizeTextForComparison(loadedText);
+
+    // レイヤー情報を保存
+    const psdLayerTexts = sortedLayers.map((tl) => ({
+      layerName: tl.layerName,
+      text: tl.textInfo!.text.trim(),
+      fonts: tl.textInfo?.fonts || [],
+    }));
+    const loadedBlocks = loadedBlocksArr;
+
+    // PSDレイヤー↔テキストブロックのリンクマッピング（正規化テキストで照合）
+    const linkMap = new Map<number, number>();
+    const usedBlocks = new Set<number>();
+    // Pass 1: 完全一致
+    for (let pi = 0; pi < psdLayerTexts.length; pi++) {
+      const normP = normalizeTextForComparison(psdLayerTexts[pi].text);
+      for (let bi = 0; bi < loadedBlocks.length; bi++) {
+        if (usedBlocks.has(bi)) continue;
+        const normB = normalizeTextForComparison(loadedBlocks[bi].text);
+        if (normP === normB) {
+          linkMap.set(pi, bi);
+          usedBlocks.add(bi);
+          break;
+        }
+      }
+    }
+    // Pass 2: 順番ベースの未マッチ割当
+    let nextBlock = 0;
+    for (let pi = 0; pi < psdLayerTexts.length; pi++) {
+      if (linkMap.has(pi)) continue;
+      while (nextBlock < loadedBlocks.length && usedBlocks.has(nextBlock)) nextBlock++;
+      if (nextBlock < loadedBlocks.length) {
+        linkMap.set(pi, nextBlock);
+        usedBlocks.add(nextBlock);
+        nextBlock++;
+      }
+    }
+
+    // hasDiff: ペアごとの一致判定（全ペア一致なら一致）
+    let hasDiff = false;
+    for (let pi = 0; pi < psdLayerTexts.length; pi++) {
+      const bi = linkMap.get(pi);
+      if (bi === undefined) { hasDiff = true; break; }
+      const normP = normalizeTextForComparison(psdLayerTexts[pi].text);
+      const normB = normalizeTextForComparison(loadedBlocks[bi].text);
+      if (normP !== normB) { hasDiff = true; break; }
+    }
+    // テキストにのみ存在するブロックがあれば差異
+    if (!hasDiff) {
+      for (let bi = 0; bi < loadedBlocks.length; bi++) {
+        if (![...linkMap.values()].includes(bi)) { hasDiff = true; break; }
+      }
+    }
+    // KENBAN版 LCS文字レベルdiff（差異時のみ計算）
+    let unifiedEntries: UnifiedDiffEntry[] = [];
+    if (hasDiff) {
+      const { psd: psdParts, memo: memoParts } = computeLineSetDiff(psdText, loadedText);
+      unifiedEntries = buildUnifiedDiff(psdParts, memoParts);
+    }
     setTextDiffResults({
       psdText: psdText.trim(),
       loadedText: loadedText.trim(),
-      hasDiff: normPsd !== normLoaded,
+      hasDiff,
+      unifiedEntries,
+      psdLayerTexts,
+      loadedBlocks,
+      linkMap,
     });
-  }, [textLayers, store.textContent, store.textPages, idx]);
+  }, [textLayers, store.textContent, store.textPages, idx, metadata, diffSplitMode]);
   const checkData = store.checkData;
   const activeCheckItems = useMemo(() => {
     if (!checkData) return [];
@@ -893,450 +1010,265 @@ export function UnifiedViewer() {
   );
 
   // ═══════════════════════════════════════════════════════
-  // RENDER
+  // Shared panel content renderer
   // ═══════════════════════════════════════════════════════
-  return (
-    <div
-      ref={containerRef}
-      className="flex flex-col h-full w-full bg-bg-primary"
-      style={{ userSelect: resizingSide ? "none" : undefined }}
-    >
-      {/* ─── Top toolbar ─── */}
-      <div className="flex-shrink-0 h-7 bg-bg-secondary border-b border-border flex items-center px-2 gap-1 text-xs">
-        <ToolBtn onClick={handleSave} disabled={!store.isDirty || !store.textFilePath} title="上書き保存">
-          保存
-        </ToolBtn>
-        <ToolBtn onClick={handleSaveAs} disabled={!store.textContent} title="名前を付けて保存">
-          別名保存
-        </ToolBtn>
-        <div className="w-px h-4 bg-border mx-0.5" />
-        <button
-          onClick={() => setPageSync((v) => !v)}
-          className={`px-2 py-1 rounded transition-colors ${
-            pageSync ? "text-accent bg-accent/10 font-semibold" : "text-text-muted hover:text-text-primary hover:bg-bg-tertiary"
-          }`}
-          title={pageSync ? "ページ連動 ON" : "ページ連動 OFF"}
-        >
-          連動{pageSync ? " ON" : ""}
-        </button>
-        <div className="flex-1" />
-        {cur && <span className="text-text-muted truncate max-w-[200px]" title={cur.name}>{cur.name}</span>}
-        {dims.w > 0 && <span className="text-text-muted/50 ml-1">{dims.w}×{dims.h}</span>}
-      </div>
-
-      {/* ─── Main 3-column area ─── */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* ═══ LEFT SIDEBAR ═══ */}
-        <div className="flex flex-col overflow-hidden bg-bg-secondary border-r border-border" style={{ width: leftWidth }}>
-          {/* Left tabs */}
-          <div className="flex-shrink-0 h-7 bg-bg-tertiary/50 border-b border-border/50 flex items-center px-1 gap-0.5 text-[11px]">
-            <PanelTabBtn active={store.leftTab === "files"} onClick={() => store.setLeftTab("files")}>
-              ファイル
-            </PanelTabBtn>
-            <PanelTabBtn active={store.leftTab === "layers"} onClick={() => store.setLeftTab("layers")}>
-              レイヤー
-            </PanelTabBtn>
-            <PanelTabBtn active={store.leftTab === "spec"} onClick={() => store.setLeftTab("spec")}>
-              写植仕様
-            </PanelTabBtn>
-          </div>
-
-          {/* Left content */}
-          <div className="flex-1 overflow-auto">
-            {store.leftTab === "files" ? (
-              /* File list */
-              <div className="select-none">
-                {files.length === 0 ? (
-                  <div className="flex flex-col items-center gap-3 text-text-muted p-6 text-center">
-                    <svg className="w-10 h-10 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <p className="text-[11px]">D&D or フォルダを開く</p>
-                    <button onClick={openFolder} className="px-3 py-1.5 text-[11px] font-medium text-white bg-gradient-to-r from-accent to-accent-secondary rounded-lg">
-                      フォルダを開く
-                    </button>
-                  </div>
-                ) : (
-                  files.map((f, i) => (
-                    <div
-                      key={`${f.path}-${i}`}
-                      className={`px-2 py-1 text-[11px] cursor-pointer truncate transition-colors ${
-                        i === idx ? "bg-accent/15 text-accent font-medium" : "text-text-secondary hover:bg-bg-tertiary"
-                      }`}
-                      onClick={() => store.setCurrentFileIndex(i)}
-                      title={f.name}
-                    >
-                      <span className="mr-1 opacity-40">{i + 1}.</span>
-                      {f.isPdf && <span className="text-error/60 mr-0.5">PDF</span>}
-                      {f.sourceType === "psd" && <span className="text-accent-secondary/60 mr-0.5">PSD</span>}
-                      {f.name}
-                    </div>
-                  ))
-                )}
-              </div>
-            ) : store.leftTab === "layers" ? (
-              /* Layer tree */
-              <div className="p-2">
-                {layerTree.length === 0 ? (
-                  <p className="text-[11px] text-text-muted text-center py-4">
-                    {cur ? (isPsdFile(cur.name) ? "レイヤー読み込み中..." : "PSDファイルではありません") : "ファイルを選択してください"}
-                  </p>
-                ) : (
-                  <LayerTreeView nodes={layerTree} />
-                )}
+  const renderTabContent = useCallback((tab: PanelTab) => {
+    switch (tab) {
+      case "files":
+        return (
+          <div className="select-none">
+            {files.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 text-text-muted p-6 text-center">
+                <svg className="w-10 h-10 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <p className="text-[11px]">D&amp;D or フォルダを開く</p>
+                <button onClick={openFolder} className="px-3 py-1.5 text-[11px] font-medium text-white bg-gradient-to-r from-accent to-accent-secondary rounded-lg">
+                  フォルダを開く
+                </button>
               </div>
             ) : (
-              /* Spec info (写植仕様) — DTPビューアー風 */
-              <div className="select-none">
-                {/* Font summary */}
-                {postScriptNames.length > 0 && (
-                  <div className="px-2 py-1.5 border-b border-border/30">
-                    <div className="text-[10px] text-text-muted mb-1">使用フォント ({postScriptNames.length}種)</div>
-                    <div className="flex flex-wrap gap-1">
-                      {postScriptNames.map((ps) => (
-                        <button
-                          key={ps}
-                          className={`text-[10px] px-1.5 py-0.5 rounded-full text-white transition-opacity ${
-                            activeFontFilter === ps ? "ring-1 ring-white/50" : activeFontFilter ? "opacity-30" : ""
-                          }`}
-                          style={{ backgroundColor: getFontColor(ps) }}
-                          onClick={() => setActiveFontFilter(activeFontFilter === ps ? null : ps)}
-                          title={getFontLabel(ps)}
-                        >
-                          {getFontLabel(ps).substring(0, 12)}
-                        </button>
-                      ))}
-                    </div>
+              files.map((f, i) => {
+                const diffStatus = fileDiffStatusMap.get(i);
+                return (
+                  <div
+                    key={`${f.path}-${i}`}
+                    className={`px-2 py-1 text-[11px] cursor-pointer truncate transition-colors flex items-center gap-1 ${
+                      i === idx ? "bg-accent/15 text-accent font-medium" : "text-text-secondary hover:bg-bg-tertiary"
+                    }`}
+                    onClick={() => store.setCurrentFileIndex(i)}
+                    title={f.name}
+                  >
+                    <span className="opacity-40 flex-shrink-0">{i + 1}.</span>
+                    {f.isPdf && <span className="text-error/60 flex-shrink-0">PDF</span>}
+                    {f.sourceType === "psd" && <span className="text-accent-secondary/60 flex-shrink-0">PSD</span>}
+                    <span className="truncate">{f.name}</span>
+                    {diffStatus === "match" && (
+                      <span className="ml-auto flex-shrink-0 text-success" title="テキスト一致">✓</span>
+                    )}
+                    {diffStatus === "diff" && (
+                      <span className="ml-auto flex-shrink-0 text-warning" title="テキスト差異あり">⚠</span>
+                    )}
                   </div>
-                )}
-                {/* Text layers list */}
-                {textLayers.length === 0 ? (
-                  <p className="text-[11px] text-text-muted text-center py-4">テキストレイヤーがありません</p>
-                ) : (
-                  <div className="divide-y divide-border/20">
-                    {textLayers
-                      .filter((tl) => !activeFontFilter || (tl.textInfo?.fonts || []).includes(activeFontFilter))
-                      .map((tl, i) => {
-                        const mainFont = tl.textInfo?.fonts[0];
-                        const color = mainFont ? getFontColor(mainFont) : "#888";
-                        const isHighlighted = highlightBounds && tl.bounds &&
-                          tl.bounds.top === highlightBounds.top && tl.bounds.left === highlightBounds.left;
-                        return (
-                          <div
-                            key={`${tl.layerName}-${i}`}
-                            className={`px-2 py-1.5 cursor-pointer hover:bg-bg-tertiary/60 transition-colors ${
-                              isHighlighted ? "bg-accent/10" : ""
-                            }`}
-                            onClick={() => {
-                              setHighlightBounds(tl.bounds || null);
-                              if (tl.textInfo?.fonts[0]) setActiveFontFilter(tl.textInfo.fonts[0]);
-                            }}
-                          >
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                              <span className="text-[11px] text-text-primary truncate font-medium">{tl.layerName}</span>
+                );
+              })
+            )}
+          </div>
+        );
+      case "layers":
+        return (
+          <div className="p-2">
+            {layerTree.length === 0 ? (
+              <p className="text-[11px] text-text-muted text-center py-4">
+                {cur ? (isPsdFile(cur.name) ? "レイヤー読み込み中..." : "PSDファイルではありません") : "ファイルを選択してください"}
+              </p>
+            ) : (
+              <LayerTreeView nodes={layerTree} />
+            )}
+          </div>
+        );
+      case "spec":
+        return (
+          <div className="select-none">
+            {postScriptNames.length > 0 && (
+              <div className="px-2 py-1.5 border-b border-border/30">
+                <div className="text-[10px] text-text-muted mb-1">使用フォント ({postScriptNames.length}種)</div>
+                <div className="flex flex-wrap gap-1">
+                  {postScriptNames.map((ps) => (
+                    <button
+                      key={ps}
+                      className={`text-[10px] px-1.5 py-0.5 rounded-full text-white transition-opacity ${
+                        activeFontFilter === ps ? "ring-1 ring-white/50" : activeFontFilter ? "opacity-30" : ""
+                      }`}
+                      style={{ backgroundColor: getFontColor(ps) }}
+                      onClick={() => setActiveFontFilter(activeFontFilter === ps ? null : ps)}
+                      title={getFontLabel(ps)}
+                    >
+                      {getFontLabel(ps).substring(0, 12)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {textLayers.length === 0 ? (
+              <p className="text-[11px] text-text-muted text-center py-4">テキストレイヤーがありません</p>
+            ) : (
+              <div className="divide-y divide-border/20">
+                {textLayers
+                  .filter((tl) => !activeFontFilter || (tl.textInfo?.fonts || []).includes(activeFontFilter))
+                  .map((tl, i) => {
+                    const mainFont = tl.textInfo?.fonts[0];
+                    const color = mainFont ? getFontColor(mainFont) : "#888";
+                    const isHighlighted = highlightBounds && tl.bounds &&
+                      tl.bounds.top === highlightBounds.top && tl.bounds.left === highlightBounds.left;
+                    return (
+                      <div
+                        key={`${tl.layerName}-${i}`}
+                        className={`px-2 py-1.5 cursor-pointer hover:bg-bg-tertiary/60 transition-colors ${
+                          isHighlighted ? "bg-accent/10" : ""
+                        }`}
+                        onClick={() => {
+                          setHighlightBounds(tl.bounds || null);
+                          if (tl.textInfo?.fonts[0]) setActiveFontFilter(tl.textInfo.fonts[0]);
+                        }}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                          <span className="text-[11px] text-text-primary truncate font-medium">{tl.layerName}</span>
+                        </div>
+                        {tl.textInfo && (
+                          <div className="ml-3.5 mt-0.5">
+                            <div className="text-[10px] text-text-secondary truncate" style={{ color }}>
+                              {tl.textInfo.fonts.map((f) => getFontLabel(f)).join(", ")}
                             </div>
-                            {tl.textInfo && (
-                              <div className="ml-3.5 mt-0.5">
-                                <div className="text-[10px] text-text-secondary truncate" style={{ color }}>
-                                  {tl.textInfo.fonts.map((f) => getFontLabel(f)).join(", ")}
-                                </div>
-                                {tl.textInfo.fontSizes.length > 0 && (
-                                  <span className="text-[10px] text-text-muted">{tl.textInfo.fontSizes.join("/")}pt</span>
-                                )}
-                                {tl.textInfo.text && (
-                                  <div className="text-[10px] text-text-muted/60 truncate mt-0.5">
-                                    {tl.textInfo.text.replace(/\n/g, " ").substring(0, 30)}
-                                  </div>
-                                )}
+                            {tl.textInfo.fontSizes.length > 0 && (
+                              <span className="text-[10px] text-text-muted">{tl.textInfo.fontSizes.join("/")}pt</span>
+                            )}
+                            {tl.textInfo.text && (
+                              <div className="text-[10px] text-text-muted/60 truncate mt-0.5">
+                                {tl.textInfo.text.replace(/\n/g, " ").substring(0, 30)}
                               </div>
                             )}
                           </div>
-                        );
-                      })}
-                  </div>
-                )}
-                {/* Font presets */}
-                {store.fontPresets.length > 0 && (
-                  <div className="border-t border-border/30 px-2 py-1.5">
-                    <div className="text-[10px] text-text-muted mb-1">フォントプリセット ({store.fontPresets.length})</div>
-                    <div className="flex flex-wrap gap-1">
-                      {store.fontPresets.map((fp, i) => (
-                        <button
-                          key={i}
-                          className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors truncate max-w-full"
-                          onClick={() => {
-                            const sel = store.selectedBlockIds;
-                            if (sel.size > 0) store.assignFontToBlocks([...sel], fp.font);
-                          }}
-                          title={`${fp.font}\n${fp.name}${fp.subName ? ` (${fp.subName})` : ""}`}
-                        >
-                          {fp.name || fp.font}{fp.subName ? <span className="opacity-60 ml-0.5">({fp.subName})</span> : null}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {/* Text diff indicator */}
-                {textDiffResults && (
-                  <div className={`px-2 py-1.5 border-t border-border/30 ${textDiffResults.hasDiff ? "bg-warning/10" : "bg-success/10"}`}>
-                    <div className={`text-[10px] font-medium ${textDiffResults.hasDiff ? "text-warning" : "text-success"}`}>
-                      テキスト照合: {textDiffResults.hasDiff ? "差異あり" : "一致"}
-                    </div>
-                  </div>
-                )}
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+            {store.fontPresets.length > 0 && (
+              <div className="border-t border-border/30 px-2 py-1.5">
+                <div className="text-[10px] text-text-muted mb-1">フォントプリセット ({store.fontPresets.length})</div>
+                <div className="flex flex-wrap gap-1">
+                  {store.fontPresets.map((fp, i) => (
+                    <button
+                      key={i}
+                      className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors truncate max-w-full"
+                      onClick={() => {
+                        const sel = store.selectedBlockIds;
+                        if (sel.size > 0) store.assignFontToBlocks([...sel], fp.font);
+                      }}
+                      title={`${fp.font}\n${fp.name}${fp.subName ? ` (${fp.subName})` : ""}`}
+                    >
+                      {fp.name || fp.font}{fp.subName ? <span className="opacity-60 ml-0.5">({fp.subName})</span> : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {textDiffResults && (
+              <div className={`px-2 py-1.5 border-t border-border/30 ${textDiffResults.hasDiff ? "bg-warning/10" : "bg-success/10"}`}>
+                <div className={`text-[10px] font-medium ${textDiffResults.hasDiff ? "text-warning" : "text-success"}`}>
+                  テキスト照合: {textDiffResults.hasDiff ? "差異あり" : "一致"}
+                </div>
               </div>
             )}
           </div>
-        </div>
-
-        {/* Left resize handle */}
-        <div
-          className={`w-1 flex-shrink-0 cursor-col-resize hover:bg-accent/30 transition-colors ${
-            resizingSide === "left" ? "bg-accent/50" : "bg-transparent"
-          }`}
-          onMouseDown={(e) => { e.preventDefault(); setResizingSide("left"); }}
-        />
-
-        {/* ═══ CENTER: Image viewer ═══ */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          {/* Center nav bar */}
-          <div className="flex-shrink-0 h-6 bg-bg-tertiary/30 border-b border-border/30 flex items-center px-2 gap-1 text-[11px]">
-            <button onClick={goPrev} disabled={idx <= 0} className="px-1 text-text-secondary hover:text-text-primary disabled:opacity-30">◀</button>
-            <span className="text-text-muted tabular-nums min-w-[40px] text-center">
-              {files.length > 0 ? `${idx + 1}/${files.length}` : "—"}
-            </span>
-            <button onClick={goNext} disabled={idx >= files.length - 1} className="px-1 text-text-secondary hover:text-text-primary disabled:opacity-30">▶</button>
-            <div className="w-px h-3 bg-border mx-1" />
-            <button onClick={zoomOut} disabled={zoom <= 0} className="px-0.5 text-text-secondary disabled:opacity-30">−</button>
-            <button onClick={zoomFit} className="px-1 text-text-muted hover:text-text-primary rounded tabular-nums">{zoomLabel}</button>
-            <button onClick={zoomIn} disabled={zoom >= ZOOM_STEPS.length} className="px-0.5 text-text-secondary disabled:opacity-30">+</button>
-            <div className="flex-1" />
-            {metadata && (
-              <span className="text-text-muted/50">
-                {metadata.dpi}dpi {metadata.colorMode}
-                {(() => {
-                  const ps = detectPaperSize(metadata.width, metadata.height, metadata.dpi);
-                  return ps ? ` (${ps})` : "";
-                })()}
-              </span>
-            )}
-          </div>
-
-          {/* Image area */}
-          <div
-            ref={canvasRef}
-            className={`flex-1 overflow-auto flex items-center justify-center bg-[#1a1a1e] ${
-              zoom > 0 ? (dragging ? "cursor-grabbing" : "cursor-grab") : ""
-            } ${dragOver ? "ring-2 ring-inset ring-accent/50" : ""}`}
-            onMouseDown={onCanvasMouseDown}
-            style={{ userSelect: "none" }}
-          >
-            {files.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 text-text-muted p-8 text-center">
-                <svg className="w-12 h-12 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <p className="text-xs">画像フォルダを開く or D&amp;D</p>
+        );
+      case "text":
+        return (
+          <div className="flex flex-col h-full">
+            {/* Mode toggle */}
+            <div className="flex-shrink-0 px-2 py-1 border-b border-border/30 flex items-center gap-1.5">
+              <div className="flex bg-bg-tertiary rounded overflow-hidden text-[10px]">
+                <button onClick={() => store.setEditMode("select")} className={`px-2 py-0.5 transition-colors ${store.editMode === "select" ? "bg-accent text-white" : "text-text-secondary hover:text-text-primary"}`}>選択</button>
+                <button onClick={() => store.setEditMode("edit")} className={`px-2 py-0.5 transition-colors ${store.editMode === "edit" ? "bg-accent text-white" : "text-text-secondary hover:text-text-primary"}`}>編集</button>
               </div>
-            ) : loading && !imgUrl ? (
-              <div className="text-text-muted">
-                <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                  <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </div>
-            ) : imgUrl ? (
-              <div className="relative w-full h-full flex items-center justify-center">
-                <img ref={imgRef} src={imgUrl} alt={cur?.name || ""} style={imgStyle} draggable={false} className="block" />
-                {/* Layer bounds highlight overlay */}
-                {highlightBounds && dims.w > 0 && imgRef.current && (
-                  <svg
-                    className="absolute inset-0 pointer-events-none"
-                    viewBox={`0 0 ${dims.w} ${dims.h}`}
-                    style={{ width: "100%", height: "100%" }}
-                    preserveAspectRatio="xMidYMid meet"
-                  >
-                    <rect
-                      x={highlightBounds.left}
-                      y={highlightBounds.top}
-                      width={highlightBounds.right - highlightBounds.left}
-                      height={highlightBounds.bottom - highlightBounds.top}
-                      fill="rgba(255,90,138,0.15)"
-                      stroke="#ff5a8a"
-                      strokeWidth={Math.max(2, dims.w / 500)}
-                      rx={2}
-                    />
-                  </svg>
-                )}
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        {/* Right resize handle */}
-        <div
-          className={`w-1 flex-shrink-0 cursor-col-resize hover:bg-accent/30 transition-colors ${
-            resizingSide === "right" ? "bg-accent/50" : "bg-transparent"
-          }`}
-          onMouseDown={(e) => { e.preventDefault(); setResizingSide("right"); }}
-        />
-
-        {/* ═══ RIGHT PANEL ═══ */}
-        <div className="flex flex-col overflow-hidden bg-bg-secondary border-l border-border" style={{ width: rightWidth }}>
-          {/* Right tabs */}
-          <div className="flex-shrink-0 h-7 bg-bg-tertiary/50 border-b border-border/50 flex items-center px-1 gap-1 text-[11px]">
-            <PanelTabBtn active={store.rightTab === "text"} onClick={() => store.setRightTab("text")}>
-              テキスト
-            </PanelTabBtn>
-            <PanelTabBtn
-              active={store.rightTab === "proofread"}
-              onClick={() => store.setRightTab("proofread")}
-              badge={checkData?.allItems.length || undefined}
-            >
-              校正JSON
-            </PanelTabBtn>
-            <PanelTabBtn
-              active={store.rightTab === "diff"}
-              onClick={() => store.setRightTab("diff")}
-              badge={textDiffResults?.hasDiff ? 1 : undefined}
-            >
-              テキスト照合
-            </PanelTabBtn>
-            <div className="flex-1" />
-            {store.rightTab === "text" && (
-              <div className="flex bg-bg-tertiary rounded overflow-hidden">
-                <button
-                  onClick={() => store.setEditMode("select")}
-                  className={`px-2 py-0.5 transition-colors ${
-                    store.editMode === "select" ? "bg-accent text-white" : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  選択
-                </button>
-                <button
-                  onClick={() => store.setEditMode("edit")}
-                  className={`px-2 py-0.5 transition-colors ${
-                    store.editMode === "edit" ? "bg-accent text-white" : "text-text-secondary hover:text-text-primary"
-                  }`}
-                >
-                  編集
-                </button>
-              </div>
-            )}
-            {store.rightTab === "proofread" && (
-              <div className="flex gap-0.5">
-                {(["correctness", "proposal", "both"] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => store.setCheckTabMode(m)}
-                    className={`px-1.5 py-0.5 rounded transition-colors ${
-                      store.checkTabMode === m ? "bg-accent/15 text-accent" : "text-text-muted hover:text-text-secondary"
-                    }`}
-                  >
-                    {m === "correctness" ? "正誤" : m === "proposal" ? "提案" : "全て"}
-                  </button>
-                ))}
-              </div>
-            )}
-            {store.isDirty && <span className="text-warning text-[10px]">未保存</span>}
-          </div>
-
-          {/* Font preset pills (写植確認風) */}
-          {store.rightTab === "text" && store.fontPresets.length > 0 && store.editMode === "select" && (
-            <div className="flex-shrink-0 px-2 py-1 border-b border-border/30 flex flex-wrap gap-1 bg-bg-tertiary/30">
-              {store.fontPresets.map((fp, i) => (
-                <button
-                  key={i}
-                  className="text-[10px] px-1.5 py-0.5 rounded-full text-white transition-opacity hover:opacity-80"
-                  style={{ backgroundColor: getFontColor(fp.font) }}
-                  onClick={() => {
-                    const sel = store.selectedBlockIds;
-                    if (sel.size > 0) {
-                      store.assignFontToBlocks([...sel], fp.font);
-                      store.setSelectedBlockIds(new Set());
-                    }
-                  }}
-                  title={`${getFontLabel(fp.font)}${fp.subName ? ` (${fp.subName})` : ""}\nクリック: 選択中ブロックに割当`}
-                >
-                  {fp.name || getFontLabel(fp.font)}{fp.subName ? <span className="opacity-70 ml-0.5">({fp.subName})</span> : null}
-                </button>
-              ))}
               {store.selectedBlockIds.size > 0 && (
-                <button
-                  className="text-[10px] px-1.5 py-0.5 rounded-full bg-bg-tertiary text-text-muted hover:text-error"
-                  onClick={() => {
-                    const pages = store.textPages.map((p) => ({
-                      ...p,
-                      blocks: p.blocks.map((b) =>
-                        store.selectedBlockIds.has(b.id) ? { ...b, assignedFont: undefined } : b,
-                      ),
-                    }));
-                    store.setTextPages(pages);
-                    store.setIsDirty(true);
-                    store.setSelectedBlockIds(new Set());
-                  }}
-                >
-                  ✕ 解除
-                </button>
+                <>
+                  <button
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary text-text-muted hover:text-error flex-shrink-0"
+                    onClick={() => {
+                      const pages = store.textPages.map((p) => ({
+                        ...p,
+                        blocks: p.blocks.map((b) =>
+                          store.selectedBlockIds.has(b.id) ? { ...b, assignedFont: undefined } : b,
+                        ),
+                      }));
+                      store.setTextPages(pages);
+                      store.setIsDirty(true);
+                      store.setSelectedBlockIds(new Set());
+                    }}
+                  >
+                    ✕解除
+                  </button>
+                  <span className="text-[10px] text-text-muted flex-shrink-0">{store.selectedBlockIds.size}選択中</span>
+                </>
               )}
             </div>
-          )}
-
-          {/* Right content */}
-          <div className="flex-1 overflow-auto">
-            {store.rightTab === "diff" ? (
-              /* テキスト照合パネル */
-              <div className="p-3 space-y-3">
-                {!textDiffResults ? (
-                  <div className="flex flex-col items-center justify-center h-full gap-2 text-text-muted p-4 text-center">
-                    <p className="text-xs">
-                      {!cur
-                        ? "ファイルを選択してください"
-                        : textLayers.length === 0 && !cur.metadata
-                          ? "メタデータを読み込み中..."
-                          : textLayers.length === 0
-                            ? "このファイルにはテキストレイヤーがありません"
-                            : store.textContent.length === 0
-                              ? "テキストファイルを読み込んでください"
-                              : "照合データがありません"}
-                    </p>
+            {/* フォント情報 — 全ファイル使用フォント + JSONプリセット(ドロップダウン) */}
+            {(allFilesFontMap.size > 0 || store.fontPresets.length > 0) && (
+              <div className="flex-shrink-0 px-2 py-1.5 border-b border-border/30 space-y-1.5">
+                {/* 全ファイル使用フォント — クリックで対象ページ移動 */}
+                {allFilesFontMap.size > 0 && (
+                  <div>
+                    <div className="text-[9px] text-text-muted/60 mb-0.5">使用フォント ({allFilesFontMap.size}種 / 全{files.length}ファイル)</div>
+                    <div className="flex flex-wrap gap-1">
+                      {[...allFilesFontMap.entries()].map(([ps, fileIdxs]) => {
+                        const isActive = activeFontFilter === ps;
+                        const isCurrent = fileIdxs.includes(idx);
+                        return (
+                          <button
+                            key={ps}
+                            className={`text-[10px] px-1.5 py-0.5 rounded-full text-white transition-all ${
+                              isActive ? "ring-1 ring-white/60 scale-105" : activeFontFilter ? "opacity-30" : ""
+                            } ${isCurrent ? "" : "opacity-70"}`}
+                            style={{ backgroundColor: getFontColor(ps) }}
+                            onClick={() => {
+                              if (isActive) {
+                                // Cycle through pages containing this font
+                                const prev = fontClickIdx.current.get(ps) ?? -1;
+                                const next = (prev + 1) % fileIdxs.length;
+                                fontClickIdx.current.set(ps, next);
+                                store.setCurrentFileIndex(fileIdxs[next]);
+                              } else {
+                                setActiveFontFilter(ps);
+                                fontClickIdx.current.set(ps, fileIdxs.indexOf(idx) >= 0 ? fileIdxs.indexOf(idx) : 0);
+                                if (!fileIdxs.includes(idx)) store.setCurrentFileIndex(fileIdxs[0]);
+                              }
+                            }}
+                            onDoubleClick={() => setActiveFontFilter(null)}
+                            title={`${getFontLabel(ps)}\n${fileIdxs.length}ファイルで使用 (p.${fileIdxs.map((i) => i + 1).join(",")})\nクリック: ページ移動 / ダブルクリック: フィルタ解除`}
+                          >
+                            {getFontLabel(ps)}
+                            <span className="ml-0.5 opacity-60 text-[9px]">({fileIdxs.length})</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                ) : (
-                  <>
-                    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${
-                      textDiffResults.hasDiff ? "bg-warning/10 ring-1 ring-warning/30" : "bg-success/10 ring-1 ring-success/30"
-                    }`}>
-                      <span className={`text-sm font-medium ${textDiffResults.hasDiff ? "text-warning" : "text-success"}`}>
-                        {textDiffResults.hasDiff ? "差異あり" : "一致"}
-                      </span>
-                      <span className="text-[10px] text-text-muted">
-                        p.{idx + 1} — PSD: {textLayers.length}テキストレイヤー
-                      </span>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-medium text-text-muted mb-1">PSDテキスト</div>
-                      <div className="text-xs font-mono bg-bg-tertiary rounded p-2 whitespace-pre-wrap text-text-primary max-h-[200px] overflow-auto">
-                        {textDiffResults.psdText || <span className="text-text-muted/40">(テキストなし)</span>}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="text-[10px] font-medium text-text-muted mb-1">読み込みテキスト</div>
-                      <div className="text-xs font-mono bg-bg-tertiary rounded p-2 whitespace-pre-wrap text-text-primary max-h-[200px] overflow-auto">
-                        {textDiffResults.loadedText || <span className="text-text-muted/40">(テキストなし)</span>}
-                      </div>
-                    </div>
-                    {textDiffResults.hasDiff && (
-                      <div>
-                        <div className="text-[10px] font-medium text-warning mb-1">差異箇所</div>
-                        <TextDiffView psdText={textDiffResults.psdText} loadedText={textDiffResults.loadedText} />
-                      </div>
-                    )}
-                  </>
+                )}
+                {/* 作品情報JSONプリセット — ドロップダウン */}
+                {store.fontPresets.length > 0 && store.editMode === "select" && (
+                  <div>
+                    <div className="text-[9px] text-text-muted/60 mb-0.5">プリセットフォント</div>
+                    <select
+                      className="w-full text-[10px] bg-bg-primary border border-border/40 rounded px-1.5 py-0.5 text-text-primary outline-none"
+                      value=""
+                      onChange={(e) => {
+                        const font = e.target.value;
+                        if (!font) return;
+                        const sel = store.selectedBlockIds;
+                        if (sel.size > 0) {
+                          store.assignFontToBlocks([...sel], font);
+                          store.setSelectedBlockIds(new Set());
+                        }
+                      }}
+                    >
+                      <option value="">フォント割当を選択 ({store.fontPresets.length})</option>
+                      {store.fontPresets.map((fp, i) => (
+                        <option key={i} value={fp.font}>
+                          {fp.name || getFontLabel(fp.font)}{fp.subName ? ` (${fp.subName})` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 )}
               </div>
-            ) : store.rightTab === "text" ? (
-              /* Text editor — 写植確認風 */
-              store.textContent.length === 0 ? (
+            )}
+            {/* Text content */}
+            <div className="flex-1 overflow-auto">
+              {store.textContent.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full gap-2 text-text-muted p-4 text-center">
                   <p className="text-xs">テキストファイルを開く or .txt をD&amp;D</p>
                   <button onClick={openTextFile} className="px-3 py-1.5 text-[11px] font-medium text-white bg-gradient-to-r from-accent to-accent-secondary rounded-lg">
@@ -1356,7 +1288,6 @@ export function UnifiedViewer() {
                   spellCheck={false}
                 />
               ) : (
-                /* 選択モード: ページ区切り + ブロック選択 + フォント指定バッジ */
                 <div className="p-2">
                   {store.textPages.length > 0 ? (
                     store.textPages.map((page) => {
@@ -1364,20 +1295,18 @@ export function UnifiedViewer() {
                       const hasReorder = page.blocks.some((b, i) => b.originalIndex !== i);
                       return (
                         <div key={page.pageNumber} className="mb-2">
-                          {/* Page header */}
                           <div
                             className={`flex items-center gap-2 text-[10px] font-mono border-t border-border/40 pt-1 mt-1 mb-1 cursor-pointer ${
                               isActivePage ? "text-accent font-medium" : "text-text-muted/60"
                             }`}
                             onClick={() => {
-                              if (pageSync) store.setCurrentFileIndex(Math.min(page.pageNumber - 1, files.length - 1));
+                              if (pageSync) navigateToTextPage(page.pageNumber);
                             }}
                           >
                             <span>&lt;&lt;{page.pageNumber}Page&gt;&gt;</span>
                             {isActivePage && <span className="text-accent text-[9px]">●</span>}
                             {hasReorder && <span className="text-warning text-[9px]">順序変更</span>}
                           </div>
-                          {/* Blocks with D&D reorder */}
                           <DndContext
                             sensors={dndSensors}
                             collisionDetection={closestCenter}
@@ -1406,7 +1335,7 @@ export function UnifiedViewer() {
                                       const curIdx = ids.indexOf(block.id);
                                       if (lastIdx >= 0) {
                                         const [from, to] = lastIdx < curIdx ? [lastIdx, curIdx] : [curIdx, lastIdx];
-                                        for (let i = from; i <= to; i++) sel.add(ids[i]);
+                                        for (let k = from; k <= to; k++) sel.add(ids[k]);
                                       } else {
                                         sel.add(block.id);
                                       }
@@ -1415,7 +1344,7 @@ export function UnifiedViewer() {
                                       sel.add(block.id);
                                     }
                                     store.setSelectedBlockIds(sel);
-                                    if (pageSync) store.setCurrentFileIndex(Math.min(page.pageNumber - 1, files.length - 1));
+                                    if (pageSync) navigateToTextPage(page.pageNumber);
                                   }}
                                 />
                               ))}
@@ -1425,7 +1354,6 @@ export function UnifiedViewer() {
                       );
                     })
                   ) : (
-                    /* Fallback: chunks mode (when no COMIC-POT pages parsed) */
                     chunks.map((c, ci) => (
                       <div key={ci}>
                         {(ci === 0 || chunks[ci - 1]?.page !== c.page) && c.page > 0 && (
@@ -1439,7 +1367,7 @@ export function UnifiedViewer() {
                           }`}
                           onClick={() => {
                             setSelectedChunk(ci);
-                            if (pageSync && c.page > 0) store.setCurrentFileIndex(Math.min(c.page - 1, files.length - 1));
+                            if (pageSync && c.page > 0) navigateToTextPage(c.page);
                           }}
                         >
                           {c.text.trim() || <span className="text-text-muted/40 italic">（空）</span>}
@@ -1448,10 +1376,146 @@ export function UnifiedViewer() {
                     ))
                   )}
                 </div>
-              )
+              )}
+            </div>
+          </div>
+        );
+      case "diff":
+        return (
+          <div className="flex flex-col h-full">
+            {!textDiffResults ? (
+              <div className="flex flex-col items-center justify-center h-full gap-2 text-text-muted p-4 text-center">
+                <p className="text-xs">
+                  {!cur
+                    ? "ファイルを選択してください"
+                    : textLayers.length === 0 && !cur.metadata
+                      ? "メタデータを読み込み中..."
+                      : textLayers.length === 0
+                        ? "このファイルにはテキストレイヤーがありません"
+                        : store.textContent.length === 0
+                          ? "テキストファイルを読み込んでください"
+                          : "照合データがありません"}
+                </p>
+              </div>
             ) : (
-              /* Proofreading panel */
-              filteredCheckItems.length === 0 ? (
+              <>
+                {/* ステータスバー + 設定 */}
+                <div className={`flex-shrink-0 flex items-center gap-2 px-3 py-1.5 border-b border-border/30 ${
+                  textDiffResults.hasDiff ? "bg-warning/10" : "bg-success/10"
+                }`}>
+                  <span className={`text-[11px] font-medium ${textDiffResults.hasDiff ? "text-warning" : "text-success"}`}>
+                    {textDiffResults.hasDiff ? "差異あり" : "一致"}
+                  </span>
+                  <span className="text-[10px] text-text-muted">
+                    p.{idx + 1} — PSD: {textDiffResults.psdLayerTexts.length}レイヤー / テキスト: {textDiffResults.loadedBlocks.length}ブロック
+                  </span>
+                  <div className="flex-1" />
+                  <span className="text-[9px] text-text-muted/50">一致:</span>
+                  <div className="flex bg-bg-tertiary rounded overflow-hidden text-[9px]">
+                    <button onClick={() => setDiffMatchDisplay("psd")} className={`px-1.5 py-0.5 transition-colors ${diffMatchDisplay === "psd" ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"}`}>PSD</button>
+                    <button onClick={() => setDiffMatchDisplay("text")} className={`px-1.5 py-0.5 transition-colors ${diffMatchDisplay === "text" ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"}`}>テキスト</button>
+                  </div>
+                </div>
+                {/* 単ページ化は中央ナビバーに統合済み */}
+
+                {/* レイヤー↔テキスト対応リスト + 差分表示 */}
+                <div className="flex-1 overflow-auto">
+                  <div className="divide-y divide-border/20">
+                    {textDiffResults.psdLayerTexts.map((layer, pi) => {
+                      const bi = textDiffResults.linkMap.get(pi);
+                      const block = bi !== undefined ? textDiffResults.loadedBlocks[bi] : null;
+                      const normL = normalizeTextForComparison(layer.text);
+                      const normB = block ? normalizeTextForComparison(block.text) : "";
+                      const isMatch = block ? normL === normB : false;
+                      const linkColor = FONT_COLORS[pi % FONT_COLORS.length];
+                      return (
+                        <div key={pi} className={`${isMatch ? "" : "bg-warning/5"}`}>
+                          {/* ペアヘッダー — 差異時のみ表示 */}
+                          {!isMatch && (
+                            <div className="flex items-center gap-1.5 px-2 py-1 bg-bg-tertiary/30">
+                              <span className="w-4 h-4 rounded-full text-[9px] text-white flex items-center justify-center font-bold flex-shrink-0" style={{ backgroundColor: linkColor }}>
+                                {pi + 1}
+                              </span>
+                              <span className="text-[10px] text-text-primary font-medium truncate">{layer.layerName}</span>
+                              <span className="text-[9px] text-text-muted/50">→</span>
+                              {block ? (
+                                <span className="text-[10px] text-text-muted">ブロック {bi! + 1}</span>
+                              ) : (
+                                <span className="text-[10px] text-error">対応なし</span>
+                              )}
+                              <div className="flex-1" />
+                              <span className="text-[9px] text-warning font-medium">差異</span>
+                            </div>
+                          )}
+                          {/* コンテンツ: 差異あり→2カラム、一致→1カラム（切替） */}
+                          {isMatch ? (
+                            <div className="px-2 py-1 text-[10px] font-mono whitespace-pre-wrap break-all text-text-secondary">
+                              {diffMatchDisplay === "psd" ? layer.text : (block?.text ?? "")}
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-0">
+                              <div className="px-2 py-1 text-[10px] font-mono whitespace-pre-wrap break-all text-text-secondary border-r border-border/20">
+                                <div className="text-[9px] text-text-muted/40 mb-0.5">PSD</div>
+                                {layer.text}
+                              </div>
+                              <div className="px-2 py-1 text-[10px] font-mono whitespace-pre-wrap break-all text-text-secondary">
+                                <div className="text-[9px] text-text-muted/40 mb-0.5">テキスト</div>
+                                {block ? block.text : <span className="text-text-muted/30 italic">—</span>}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {/* テキストにのみ存在するブロック（PSD対応なし） */}
+                    {textDiffResults.loadedBlocks.map((block, bi) => {
+                      const isLinked = [...textDiffResults.linkMap.values()].includes(bi);
+                      if (isLinked) return null;
+                      return (
+                        <div key={`extra-${bi}`} className="bg-success/5">
+                          <div className="flex items-center gap-1.5 px-2 py-1 bg-bg-tertiary/30">
+                            <span className="w-4 h-4 rounded-full text-[9px] bg-success/60 text-white flex items-center justify-center font-bold flex-shrink-0">+</span>
+                            <span className="text-[10px] text-success">テキストのみ — ブロック {bi + 1}</span>
+                          </div>
+                          <div className="px-2 py-1 text-[10px] font-mono whitespace-pre-wrap break-all text-success">
+                            {block.text}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* 文字レベル差分詳細 */}
+                  {textDiffResults.hasDiff && textDiffResults.unifiedEntries.length > 0 && (
+                    <div className="p-3 border-t border-border/30">
+                      <div className="text-[10px] font-medium text-warning mb-1.5">文字レベル差分</div>
+                      <UnifiedDiffDisplay entries={textDiffResults.unifiedEntries} />
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        );
+      case "proofread":
+        return (
+          <div className="flex flex-col h-full">
+            {/* Check mode toggle inside content */}
+            <div className="flex-shrink-0 px-2 py-1 border-b border-border/30 flex items-center gap-0.5 text-[10px]">
+              {(["correctness", "proposal", "both"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => store.setCheckTabMode(m)}
+                  className={`px-1.5 py-0.5 rounded transition-colors ${
+                    store.checkTabMode === m ? "bg-accent/15 text-accent" : "text-text-muted hover:text-text-secondary"
+                  }`}
+                >
+                  {m === "correctness" ? "正誤" : m === "proposal" ? "提案" : "全て"}
+                </button>
+              ))}
+            </div>
+            <div className="flex-1 overflow-auto">
+              {filteredCheckItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full gap-2 text-text-muted p-4 text-center">
                   <p className="text-xs">
                     {!checkData ? "校正チェックJSONを読み込んでください" : "該当する項目がありません"}
@@ -1488,15 +1552,12 @@ export function UnifiedViewer() {
                         onClick={() => {
                           if (pageSync && item.page) {
                             const pn = parseInt(item.page, 10);
-                            if (!isNaN(pn) && pn > 0) store.setCurrentFileIndex(Math.min(pn - 1, files.length - 1));
+                            if (!isNaN(pn) && pn > 0) navigateToTextPage(pn);
                           }
                         }}
                       >
                         <div className="flex items-center gap-2 mb-0.5">
-                          <span
-                            className="px-1.5 py-0.5 rounded text-[10px] font-medium text-white"
-                            style={{ backgroundColor: color }}
-                          >
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium text-white" style={{ backgroundColor: color }}>
                             {item.category || "—"}
                           </span>
                           {item.page && <span className="text-text-muted/60 text-[10px]">p.{item.page}</span>}
@@ -1510,8 +1571,221 @@ export function UnifiedViewer() {
                     );
                   })}
                 </div>
-              )
+              )}
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [files, idx, cur, layerTree, textLayers, postScriptNames, allFilesFontMap, activeFontFilter, highlightBounds, store.fontPresets, store.textContent, store.editMode, store.textPages, store.selectedBlockIds, store.checkTabMode, textDiffResults, diffMatchDisplay, diffSplitMode, fileDiffStatusMap, checkData, filteredCheckItems, activeCheckItems, categories, checkFilterCategory, chunks, selectedChunk, pageSync, navigateToTextPage, fontResolveMap, fontResolved]);
+
+  // ═══════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════
+  return (
+    <div
+      ref={containerRef}
+      className="flex flex-col h-full w-full bg-bg-primary"
+      style={{ userSelect: resizingSide ? "none" : undefined }}
+    >
+      {/* ─── Top toolbar ─── */}
+      <div className="flex-shrink-0 h-7 bg-bg-secondary border-b border-border flex items-center px-2 gap-1 text-xs">
+        <ToolBtn onClick={handleSave} disabled={!store.isDirty || !store.textFilePath} title="上書き保存">
+          保存
+        </ToolBtn>
+        <ToolBtn onClick={handleSaveAs} disabled={!store.textContent} title="名前を付けて保存">
+          別名保存
+        </ToolBtn>
+        <div className="w-px h-4 bg-border mx-0.5" />
+        <button
+          onClick={() => setPageSync((v) => !v)}
+          className={`px-2 py-1 rounded transition-colors ${
+            pageSync ? "text-accent bg-accent/10 font-semibold" : "text-text-muted hover:text-text-primary hover:bg-bg-tertiary"
+          }`}
+          title={pageSync ? "ページ連動 ON" : "ページ連動 OFF"}
+        >
+          連動{pageSync ? " ON" : ""}
+        </button>
+        <div className="flex-1" />
+        {cur && <span className="text-text-muted truncate max-w-[200px]" title={cur.name}>{cur.name}</span>}
+        {dims.w > 0 && <span className="text-text-muted/50 ml-1">{dims.w}×{dims.h}</span>}
+      </div>
+
+      {/* ─── Tab selector bar (outside resize area) ─── */}
+      <div className="flex-shrink-0 h-7 bg-bg-tertiary/50 border-b border-border/50 flex items-center text-[10px]">
+        {/* Left panel tabs */}
+        <div className="flex items-center gap-0.5 px-1 border-r border-border/30">
+          <span className="text-text-muted/40 text-[9px] mr-0.5">L</span>
+          {ALL_PANEL_TABS.map((t) => (
+            <PanelTabBtn key={t.id} active={store.leftTab === t.id} onClick={() => { store.setLeftTab(t.id); setLeftManualResize(false); }}>
+              {t.label}
+            </PanelTabBtn>
+          ))}
+        </div>
+        <div className="flex-1" />
+        {/* Right panel tabs */}
+        <div className="flex items-center gap-0.5 px-1 border-l border-border/30">
+          {ALL_PANEL_TABS.map((t) => (
+            <PanelTabBtn
+              key={t.id}
+              active={store.rightTab === t.id}
+              onClick={() => { store.setRightTab(t.id); setRightManualResize(false); }}
+              badge={t.id === "proofread" ? (checkData?.allItems.length || undefined) : t.id === "diff" ? (textDiffResults?.hasDiff ? 1 : undefined) : undefined}
+            >
+              {t.label}
+            </PanelTabBtn>
+          ))}
+          <span className="text-text-muted/40 text-[9px] ml-0.5">R</span>
+          {store.isDirty && <span className="text-warning text-[10px] ml-1">未保存</span>}
+        </div>
+      </div>
+
+      {/* ─── Main 3-column area ─── */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* ═══ LEFT SIDEBAR ═══ */}
+        <div className="flex flex-col overflow-hidden bg-bg-secondary border-r border-border" style={{ width: leftWidth }}>
+          {/* Left content — shared renderer */}
+          <div className="flex-1 overflow-auto">
+            {renderTabContent(store.leftTab)}
+          </div>
+        </div>
+
+        {/* Left resize handle */}
+        <div
+          className={`w-1 flex-shrink-0 cursor-col-resize hover:bg-accent/30 transition-colors ${
+            resizingSide === "left" ? "bg-accent/50" : "bg-transparent"
+          }`}
+          onMouseDown={(e) => { e.preventDefault(); setResizingSide("left"); }}
+        />
+
+        {/* ═══ CENTER: Image viewer ═══ */}
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          {/* Center nav bar */}
+          <div className="flex-shrink-0 h-6 bg-bg-tertiary/30 border-b border-border/30 flex items-center px-2 gap-1 text-[11px]">
+            <button onClick={goPrev} disabled={idx <= 0} className="px-1 text-text-secondary hover:text-text-primary disabled:opacity-30">◀</button>
+            <span className="text-text-muted tabular-nums min-w-[40px] text-center">
+              {files.length > 0 ? `${idx + 1}/${files.length}` : "—"}
+            </span>
+            <button onClick={goNext} disabled={idx >= files.length - 1} className="px-1 text-text-secondary hover:text-text-primary disabled:opacity-30">▶</button>
+            <div className="w-px h-3 bg-border mx-1" />
+            <button onClick={zoomOut} disabled={zoom <= 0} className="px-0.5 text-text-secondary disabled:opacity-30">−</button>
+            <button onClick={zoomFit} className="px-1 text-text-muted hover:text-text-primary rounded tabular-nums">{zoomLabel}</button>
+            <button onClick={zoomIn} disabled={zoom >= ZOOM_STEPS.length} className="px-0.5 text-text-secondary disabled:opacity-30">+</button>
+            <div className="w-px h-3 bg-border mx-1" />
+            {/* 単ページ化（見開き分割） */}
+            <button
+              onClick={() => setSpreadMode((v) => !v)}
+              className={`text-[9px] px-1.5 py-0 rounded transition-colors ${spreadMode ? "bg-orange-600 text-white" : "bg-bg-tertiary text-text-muted hover:text-text-primary"}`}
+              title="見開きPDFを単ページに分割"
+            >
+              単ページ化
+            </button>
+            {spreadMode && (
+              <>
+                <select
+                  className="text-[9px] bg-bg-primary border border-border/40 rounded px-1 py-0 text-text-muted outline-none"
+                  value={firstPageMode}
+                  onChange={(e) => setFirstPageMode(e.target.value as typeof firstPageMode)}
+                >
+                  <option value="single">1P単独</option>
+                  <option value="spread">1Pも見開き</option>
+                  <option value="skip">1P除外</option>
+                </select>
+                <button
+                  onClick={() => setSplitReadOrder((v) => v === "right-first" ? "left-first" : "right-first")}
+                  className="text-[9px] px-1.5 py-0 rounded bg-bg-tertiary text-text-muted hover:text-text-primary transition-colors"
+                  title={`読み順: ${splitReadOrder === "right-first" ? "右→左（漫画）" : "左→右（通常）"}`}
+                >
+                  {splitReadOrder === "right-first" ? "右→左" : "左→右"}
+                </button>
+                <span className="text-[9px] text-accent/70 tabular-nums">
+                  {logicalPage + 1}/{maxLogicalPage} ({splitViewSide === "full" ? "全体" : splitViewSide === "left" ? "左" : "右"})
+                </span>
+              </>
             )}
+            <div className="flex-1" />
+            {metadata && (
+              <span className="text-text-muted/50">
+                {metadata.dpi}dpi {metadata.colorMode}
+                {(() => {
+                  const ps = detectPaperSize(metadata.width, metadata.height, metadata.dpi);
+                  return ps ? ` (${ps})` : "";
+                })()}
+              </span>
+            )}
+          </div>
+
+          {/* Image area */}
+          <div
+            ref={canvasRef}
+            className={`flex-1 overflow-auto flex items-center justify-center bg-[#1a1a1e] ${
+              zoom > 0 ? (dragging ? "cursor-grabbing" : "cursor-grab") : ""
+            } ${dragOver ? "ring-2 ring-inset ring-accent/50" : ""}`}
+            onMouseDown={onCanvasMouseDown}
+            style={{ userSelect: "none" }}
+          >
+            {files.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 text-text-muted p-8 text-center">
+                <svg className="w-12 h-12 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <p className="text-xs">画像フォルダを開く or D&amp;D</p>
+              </div>
+            ) : loading && !imgUrl ? (
+              <div className="text-text-muted">
+                <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </div>
+            ) : imgUrl ? (
+              <div className="relative w-full h-full flex items-center justify-center">
+                {splitWrapStyle ? (
+                  <div style={splitWrapStyle}>
+                    <img ref={imgRef} src={imgUrl} alt={cur?.name || ""} style={{ ...imgStyle, ...splitImgExtra }} draggable={false} className="block" />
+                  </div>
+                ) : (
+                  <img ref={imgRef} src={imgUrl} alt={cur?.name || ""} style={imgStyle} draggable={false} className="block" />
+                )}
+                {/* Layer bounds highlight overlay */}
+                {highlightBounds && dims.w > 0 && imgRef.current && (
+                  <svg
+                    className="absolute inset-0 pointer-events-none"
+                    viewBox={`0 0 ${dims.w} ${dims.h}`}
+                    style={{ width: "100%", height: "100%" }}
+                    preserveAspectRatio="xMidYMid meet"
+                  >
+                    <rect
+                      x={highlightBounds.left}
+                      y={highlightBounds.top}
+                      width={highlightBounds.right - highlightBounds.left}
+                      height={highlightBounds.bottom - highlightBounds.top}
+                      fill="rgba(255,90,138,0.15)"
+                      stroke="#ff5a8a"
+                      strokeWidth={Math.max(2, dims.w / 500)}
+                      rx={2}
+                    />
+                  </svg>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Right resize handle */}
+        <div
+          className={`w-1 flex-shrink-0 cursor-col-resize hover:bg-accent/30 transition-colors ${
+            resizingSide === "right" ? "bg-accent/50" : "bg-transparent"
+          }`}
+          onMouseDown={(e) => { e.preventDefault(); setResizingSide("right"); }}
+        />
+
+        {/* ═══ RIGHT PANEL ═══ */}
+        <div className="flex flex-col overflow-hidden bg-bg-secondary border-l border-border" style={{ width: rightWidth }}>
+          {/* Right content — shared renderer */}
+          <div className="flex-1 overflow-auto">
+            {renderTabContent(store.rightTab)}
           </div>
         </div>
       </div>
@@ -1564,354 +1838,7 @@ export function UnifiedViewer() {
   );
 }
 
-// ═══ Sub-components ════════════════════════════════════
+// (CheckJsonBrowser is now in ./UnifiedSubComponents.tsx)
+// Re-export for backward compatibility (TopNav imports it from here)
+export { CheckJsonBrowser } from "./UnifiedSubComponents";
 
-/**
- * 校正JSON専用ブラウザ
- * basePath → レーベル一覧 → タイトル一覧 → 「校正チェックデータ」自動選択 → JSONファイル一覧
- */
-export function CheckJsonBrowser({ onSelect, onCancel }: { onSelect: (path: string) => void; onCancel: () => void }) {
-  const [step, setStep] = useState<"label" | "title" | "files">("label");
-  const [labels, setLabels] = useState<string[]>([]);
-  const [titles, setTitles] = useState<string[]>([]);
-  const [jsonFiles, setJsonFiles] = useState<string[]>([]);
-  const [selectedLabel, setSelectedLabel] = useState("");
-  const [selectedTitle, setSelectedTitle] = useState("");
-  const [selectedFile, setSelectedFile] = useState<string | null>(null);
-  const [, setCurrentPath] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Step 1: Load labels
-  useEffect(() => {
-    setLoading(true);
-    invoke<{ folders: string[]; json_files: string[] }>("list_folder_contents", { folderPath: CHECK_JSON_BASE_PATH })
-      .then((r) => { setLabels(r.folders.sort()); setLoading(false); })
-      .catch(() => { setError(`パスにアクセスできません: ${CHECK_JSON_BASE_PATH}`); setLoading(false); });
-  }, []);
-
-  // Step 2: Load titles when label selected
-  const selectLabel = useCallback(async (label: string) => {
-    setSelectedLabel(label);
-    setLoading(true);
-    try {
-      const path = `${CHECK_JSON_BASE_PATH}/${label}`;
-      const r = await invoke<{ folders: string[]; json_files: string[] }>("list_folder_contents", { folderPath: path });
-      setTitles(r.folders.sort());
-      setStep("title");
-    } catch { setError("フォルダ読み込みエラー"); }
-    setLoading(false);
-  }, []);
-
-  // Step 3: Select title → auto-navigate to 校正チェックデータ → load JSON files
-  const selectTitle = useCallback(async (title: string) => {
-    setSelectedTitle(title);
-    setLoading(true);
-    const basePath = `${CHECK_JSON_BASE_PATH}/${selectedLabel}/${title}`;
-    try {
-      // 「校正チェックデータ」フォルダを自動選択
-      const checkPath = `${basePath}/${CHECK_DATA_SUBFOLDER}`;
-      let targetPath = basePath;
-      try {
-        const checkContents = await invoke<{ folders: string[]; json_files: string[] }>("list_folder_contents", { folderPath: checkPath });
-        if (checkContents.json_files.length > 0 || checkContents.folders.length > 0) {
-          targetPath = checkPath;
-        }
-      } catch {
-        // 「校正チェックデータ」がなければ直下を表示
-      }
-      const r = await invoke<{ folders: string[]; json_files: string[] }>("list_folder_contents", { folderPath: targetPath });
-      // サブフォルダも含めてJSONファイルを収集
-      let allJsons = r.json_files.map((f) => `${targetPath}/${f}`);
-      for (const sub of r.folders) {
-        try {
-          const subR = await invoke<{ folders: string[]; json_files: string[] }>("list_folder_contents", { folderPath: `${targetPath}/${sub}` });
-          allJsons.push(...subR.json_files.map((f) => `${targetPath}/${sub}/${f}`));
-        } catch { /* skip */ }
-      }
-      setJsonFiles(allJsons);
-      setCurrentPath(targetPath);
-      setStep("files");
-    } catch { setError("フォルダ読み込みエラー"); }
-    setLoading(false);
-  }, [selectedLabel]);
-
-  const goBack = () => {
-    if (step === "files") { setStep("title"); setJsonFiles([]); setSelectedFile(null); }
-    else if (step === "title") { setStep("label"); setTitles([]); }
-  };
-
-  if (error) return (
-    <div className="p-4 text-center">
-      <p className="text-xs text-error mb-2">{error}</p>
-      <button onClick={onCancel} className="text-xs text-text-muted hover:text-text-primary">閉じる</button>
-    </div>
-  );
-
-  if (loading) return (
-    <div className="p-4 flex items-center justify-center gap-2 text-text-muted text-xs">
-      <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-        <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-      </svg>
-      読み込み中...
-    </div>
-  );
-
-  return (
-    <div className="flex flex-col">
-      {/* Breadcrumb */}
-      <div className="px-3 py-1.5 bg-bg-tertiary/30 border-b border-border/30 flex items-center gap-1 text-[11px] text-text-muted">
-        {step !== "label" && (
-          <button onClick={goBack} className="hover:text-text-primary mr-1">◀</button>
-        )}
-        <span className="opacity-60">校正テキストログ</span>
-        {selectedLabel && <><span className="opacity-40">/</span><span>{selectedLabel}</span></>}
-        {selectedTitle && <><span className="opacity-40">/</span><span>{selectedTitle}</span></>}
-      </div>
-
-      {/* Content */}
-      <div className="max-h-[50vh] overflow-auto">
-        {step === "label" && (
-          labels.length === 0 ? (
-            <p className="p-4 text-xs text-text-muted text-center">レーベルフォルダがありません</p>
-          ) : (
-            labels.map((label) => (
-              <div
-                key={label}
-                className="px-3 py-2 text-xs cursor-pointer hover:bg-bg-tertiary transition-colors flex items-center gap-2"
-                onClick={() => selectLabel(label)}
-              >
-                <span className="text-accent-secondary">📁</span>
-                <span className="text-text-primary">{label}</span>
-              </div>
-            ))
-          )
-        )}
-
-        {step === "title" && (
-          titles.length === 0 ? (
-            <p className="p-4 text-xs text-text-muted text-center">タイトルフォルダがありません</p>
-          ) : (
-            titles.map((title) => (
-              <div
-                key={title}
-                className="px-3 py-2 text-xs cursor-pointer hover:bg-bg-tertiary transition-colors flex items-center gap-2"
-                onClick={() => selectTitle(title)}
-              >
-                <span className="text-accent-secondary">📁</span>
-                <span className="text-text-primary">{title}</span>
-              </div>
-            ))
-          )
-        )}
-
-        {step === "files" && (
-          jsonFiles.length === 0 ? (
-            <p className="p-4 text-xs text-text-muted text-center">JSONファイルがありません</p>
-          ) : (
-            jsonFiles.map((fp) => {
-              const name = fp.substring(fp.lastIndexOf("/") + 1);
-              const isSelected = selectedFile === fp;
-              return (
-                <div
-                  key={fp}
-                  className={`px-3 py-2 text-xs cursor-pointer transition-colors flex items-center gap-2 ${
-                    isSelected ? "bg-accent/10 text-accent" : "hover:bg-bg-tertiary text-text-secondary"
-                  }`}
-                  onClick={() => setSelectedFile(fp)}
-                  onDoubleClick={() => onSelect(fp)}
-                >
-                  <span className="opacity-60">📄</span>
-                  <span>{name}</span>
-                </div>
-              );
-            })
-          )
-        )}
-      </div>
-
-      {/* Actions */}
-      {step === "files" && (
-        <div className="px-3 py-2 border-t border-border/30 flex justify-end gap-2">
-          <button onClick={onCancel} className="px-3 py-1 text-xs text-text-muted hover:text-text-primary">キャンセル</button>
-          <button
-            onClick={() => selectedFile && onSelect(selectedFile)}
-            disabled={!selectedFile}
-            className="px-3 py-1 text-xs font-medium text-white bg-gradient-to-r from-accent to-accent-secondary rounded disabled:opacity-30"
-          >
-            選択
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ToolBtn({ children, onClick, disabled, title }: {
-  children: React.ReactNode; onClick: () => void; disabled?: boolean; title?: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className="px-2 py-1 text-text-secondary hover:text-text-primary hover:bg-bg-tertiary rounded transition-colors disabled:opacity-30 disabled:pointer-events-none"
-    >
-      {children}
-    </button>
-  );
-}
-
-function PanelTabBtn({ children, active, onClick, badge }: {
-  children: React.ReactNode; active: boolean; onClick: () => void; badge?: number;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-2 py-0.5 rounded transition-colors ${
-        active ? "bg-accent/15 text-accent font-medium" : "text-text-muted hover:text-text-secondary hover:bg-bg-tertiary/60"
-      }`}
-    >
-      {children}
-      {badge !== undefined && badge > 0 && (
-        <span className="ml-1 px-1 py-px rounded-full bg-accent/20 text-accent text-[9px] tabular-nums">{badge}</span>
-      )}
-    </button>
-  );
-}
-
-// Simple layer tree display
-function LayerTreeView({ nodes, depth = 0 }: { nodes: LayerNode[]; depth?: number }) {
-  return (
-    <>
-      {nodes.map((node) => (
-        <div key={node.id}>
-          <div
-            className={`flex items-center gap-1 py-0.5 text-[11px] ${
-              !node.visible ? "opacity-40" : ""
-            }`}
-            style={{ paddingLeft: depth * 12 + 4 }}
-          >
-            <span className={`w-3 text-center text-[9px] ${
-              node.type === "group" ? "text-accent-secondary" :
-              node.type === "text" ? "text-accent" :
-              "text-text-muted"
-            }`}>
-              {node.type === "group" ? "G" : node.type === "text" ? "T" : node.type === "adjustment" ? "A" : "L"}
-            </span>
-            <span className="truncate text-text-secondary">{node.name}</span>
-          </div>
-          {node.children && <LayerTreeView nodes={node.children} depth={depth + 1} />}
-        </div>
-      ))}
-    </>
-  );
-}
-
-/** D&D対応のテキストブロック */
-function SortableBlockItem({
-  block,
-  blockIdx,
-  isSelected,
-  fontColor,
-  fontLabel,
-  onClick,
-}: {
-  block: TextBlock;
-  blockIdx: number;
-  isSelected: boolean;
-  fontColor?: string;
-  fontLabel?: string;
-  onClick: (e: React.MouseEvent) => void;
-}) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: block.id,
-  });
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    borderLeft: fontColor ? `3px solid ${fontColor}` : undefined,
-  };
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`flex items-start gap-1 px-1 py-1.5 rounded text-sm font-mono whitespace-pre-wrap cursor-pointer transition-colors mb-0.5 ${
-        isSelected ? "bg-accent/8 ring-1 ring-accent/30" : "hover:bg-bg-tertiary/60"
-      }`}
-      onClick={onClick}
-    >
-      {/* Drag handle */}
-      <div
-        className="flex-shrink-0 mt-0.5 cursor-grab active:cursor-grabbing text-text-muted/30 hover:text-text-muted/60"
-        {...attributes}
-        {...listeners}
-      >
-        <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
-          <circle cx="3" cy="2" r="1.2" /><circle cx="7" cy="2" r="1.2" />
-          <circle cx="3" cy="7" r="1.2" /><circle cx="7" cy="7" r="1.2" />
-          <circle cx="3" cy="12" r="1.2" /><circle cx="7" cy="12" r="1.2" />
-        </svg>
-      </div>
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        {block.assignedFont && fontLabel && (
-          <div className="text-[9px] mb-0.5 flex items-center gap-1">
-            <span className="px-1 py-px rounded text-white" style={{ backgroundColor: fontColor }}>
-              {fontLabel}
-            </span>
-          </div>
-        )}
-        <div className="text-black">
-          {block.lines.join("\n") || <span className="text-text-muted/40 italic">（空）</span>}
-        </div>
-        {block.originalIndex !== blockIdx && (
-          <div className="text-[9px] text-warning mt-0.5">
-            {block.originalIndex + 1}→{blockIdx + 1}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** テキスト差分表示 — 行ごとに比較してハイライト */
-function TextDiffView({ psdText, loadedText }: { psdText: string; loadedText: string }) {
-  const psdLines = psdText.split("\n");
-  const loadedLines = loadedText.split("\n");
-  const maxLen = Math.max(psdLines.length, loadedLines.length);
-  const rows: { psd: string; loaded: string; match: boolean }[] = [];
-  for (let i = 0; i < maxLen; i++) {
-    const p = (psdLines[i] || "").trim();
-    const l = (loadedLines[i] || "").trim();
-    rows.push({ psd: p, loaded: l, match: p === l });
-  }
-  return (
-    <div className="text-[11px] font-mono border border-border/30 rounded overflow-hidden">
-      <div className="grid grid-cols-2 gap-0 bg-bg-tertiary/50 text-[9px] text-text-muted border-b border-border/30">
-        <div className="px-2 py-0.5">PSD</div>
-        <div className="px-2 py-0.5 border-l border-border/30">テキスト</div>
-      </div>
-      {rows.map((r, i) => (
-        <div
-          key={i}
-          className={`grid grid-cols-2 gap-0 ${
-            r.match ? "" : "bg-warning/5"
-          }`}
-        >
-          <div className={`px-2 py-0.5 whitespace-pre-wrap break-all ${
-            !r.match && r.psd ? "text-error bg-error/5" : "text-text-secondary"
-          }`}>
-            {r.psd || <span className="opacity-30">—</span>}
-          </div>
-          <div className={`px-2 py-0.5 whitespace-pre-wrap break-all border-l border-border/30 ${
-            !r.match && r.loaded ? "text-success bg-success/5" : "text-text-secondary"
-          }`}>
-            {r.loaded || <span className="opacity-30">—</span>}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}

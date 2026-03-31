@@ -52,7 +52,7 @@ export function useHandoff() {
         const data = await invoke<HandoffData | null>("check_handoff");
         if (!data || !data.document) return;
 
-        console.log("[useHandoff] Handoff detected:", data);
+        // Handoff detected
 
         const doc = data.document;
         const setActiveView = useViewStore.getState().setActiveView;
@@ -91,7 +91,7 @@ export function useHandoff() {
             bottom: Math.round(data.selection.bottom),
           });
 
-          console.log("[useHandoff] Crop bounds set from selection:", data.selection);
+          // Crop bounds set from selection
         }
       } catch (e) {
         // ハンドオフファイルがなければ何もしない（通常起動）

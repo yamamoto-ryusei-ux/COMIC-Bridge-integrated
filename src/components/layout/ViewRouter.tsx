@@ -9,7 +9,8 @@ import { RenameView } from "../views/RenameView";
 import { TiffView } from "../views/TiffView";
 import { ScanPsdView } from "../views/ScanPsdView";
 import { TypsettingView } from "../views/TypsettingView";
-import { KenbanView } from "../views/KenbanView";
+// KenbanView は隔離中 — 統合ビューアーに移行完了後に削除予定
+// import { KenbanView } from "../views/KenbanView";
 import { ProgenView } from "../views/ProgenView";
 import { UnifiedViewerView } from "../views/UnifiedViewerView";
 
@@ -17,12 +18,10 @@ export function ViewRouter() {
   const activeView = useViewStore((s) => s.activeView);
 
   // State-preserving mount for heavy tabs (once mounted, never unmount)
-  const [kenbanMounted, setKenbanMounted] = useState(false);
   const [progenMounted, setProgenMounted] = useState(false);
   const [unifiedViewerMounted, setUnifiedViewerMounted] = useState(false);
 
   useEffect(() => {
-    if (activeView === "kenban") setKenbanMounted(true);
     if (activeView === "progen") setProgenMounted(true);
     if (activeView === "unifiedViewer") setUnifiedViewerMounted(true);
   }, [activeView]);
@@ -40,12 +39,12 @@ export function ViewRouter() {
       {activeView === "tiff" && <TiffView />}
       {activeView === "scanPsd" && <ScanPsdView />}
 
-      {/* KENBAN: display toggle for state preservation */}
-      {kenbanMounted && (
+      {/* KENBAN: 隔離中 — 統合ビューアーに移行完了後に削除予定 */}
+      {/* kenbanMounted && (
         <div style={{ display: activeView === "kenban" ? "contents" : "none" }}>
           <KenbanView />
         </div>
-      )}
+      ) */}
 
       {/* ProGen: display toggle for state preservation */}
       {progenMounted && (

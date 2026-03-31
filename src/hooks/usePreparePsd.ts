@@ -94,7 +94,7 @@ export function usePreparePsd() {
       });
 
       if (targetFiles.length === 0) {
-        console.log("No files need processing");
+        // No files need processing
         return;
       }
 
@@ -181,7 +181,7 @@ export function usePreparePsd() {
 
         // Reload converted files from disk (Rust-native)
         if (successfulFiles.length > 0) {
-          console.log(`Reloading ${successfulFiles.length} processed files...`);
+          // Reload processed files
 
           try {
             const parseResults = await invoke<

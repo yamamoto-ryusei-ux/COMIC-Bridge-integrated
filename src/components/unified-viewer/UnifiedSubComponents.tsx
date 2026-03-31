@@ -1,0 +1,334 @@
+/**
+ * 統合ビューアー サブコンポーネント
+ */
+import React, { useState, useEffect, useCallback } from "react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { invoke } from "@tauri-apps/api/core";
+import type { LayerNode } from "../../types";
+import type { TextBlock } from "../../store/unifiedViewerStore";
+import type { UnifiedDiffEntry } from "../../kenban-utils/textExtract";
+import type { DiffPart } from "../../kenban-utils/kenbanTypes";
+import { CHECK_JSON_BASE_PATH, CHECK_DATA_SUBFOLDER } from "./utils";
+
+// ─── ToolBtn ────────────────────────────────────────────
+export function ToolBtn({ children, onClick, disabled, title }: {
+  children: React.ReactNode; onClick: () => void; disabled?: boolean; title?: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className="px-2 py-1 text-text-secondary hover:text-text-primary hover:bg-bg-tertiary rounded transition-colors disabled:opacity-30 disabled:pointer-events-none"
+    >
+      {children}
+    </button>
+  );
+}
+
+// ─── PanelTabBtn ────────────────────────────────────────
+export function PanelTabBtn({ children, active, onClick, badge }: {
+  children: React.ReactNode; active: boolean; onClick: () => void; badge?: number;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`px-2 py-0.5 rounded transition-colors ${
+        active ? "bg-accent/15 text-accent font-medium" : "text-text-muted hover:text-text-secondary hover:bg-bg-tertiary/60"
+      }`}
+    >
+      {children}
+      {badge !== undefined && badge > 0 && (
+        <span className="ml-1 px-1 py-px rounded-full bg-accent/20 text-accent text-[9px] tabular-nums">{badge}</span>
+      )}
+    </button>
+  );
+}
+
+// ─── LayerTreeView ──────────────────────────────────────
+export function LayerTreeView({ nodes, depth = 0 }: { nodes: LayerNode[]; depth?: number }) {
+  return (
+    <>
+      {nodes.map((node) => (
+        <div key={node.id}>
+          <div
+            className={`flex items-center gap-1 py-0.5 text-[11px] ${
+              !node.visible ? "opacity-40" : ""
+            }`}
+            style={{ paddingLeft: depth * 12 + 4 }}
+          >
+            <span className={`w-3 text-center text-[9px] ${
+              node.type === "group" ? "text-accent-secondary" :
+              node.type === "text" ? "text-accent" :
+              "text-text-muted"
+            }`}>
+              {node.type === "group" ? "G" : node.type === "text" ? "T" : node.type === "adjustment" ? "A" : "L"}
+            </span>
+            <span className="truncate text-text-secondary">{node.name}</span>
+          </div>
+          {node.children && <LayerTreeView nodes={node.children} depth={depth + 1} />}
+        </div>
+      ))}
+    </>
+  );
+}
+
+// ─── SortableBlockItem ──────────────────────────────────
+export function SortableBlockItem({
+  block,
+  blockIdx,
+  isSelected,
+  fontColor,
+  fontLabel,
+  onClick,
+}: {
+  block: TextBlock;
+  blockIdx: number;
+  isSelected: boolean;
+  fontColor?: string;
+  fontLabel?: string;
+  onClick: (e: React.MouseEvent) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: block.id,
+  });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    borderLeft: fontColor ? `3px solid ${fontColor}` : undefined,
+  };
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-start gap-1 px-1 py-1.5 rounded text-sm font-mono whitespace-pre-wrap cursor-pointer transition-colors mb-0.5 ${
+        isSelected ? "bg-accent/8 ring-1 ring-accent/30" : "hover:bg-bg-tertiary/60"
+      }`}
+      onClick={onClick}
+    >
+      <div
+        className="flex-shrink-0 mt-0.5 cursor-grab active:cursor-grabbing text-text-muted/30 hover:text-text-muted/60"
+        {...attributes}
+        {...listeners}
+      >
+        <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+          <circle cx="3" cy="2" r="1.2" /><circle cx="7" cy="2" r="1.2" />
+          <circle cx="3" cy="7" r="1.2" /><circle cx="7" cy="7" r="1.2" />
+          <circle cx="3" cy="12" r="1.2" /><circle cx="7" cy="12" r="1.2" />
+        </svg>
+      </div>
+      <div className="flex-1 min-w-0">
+        {block.assignedFont && fontLabel && (
+          <div className="text-[9px] mb-0.5 flex items-center gap-1">
+            <span className="px-1 py-px rounded text-white" style={{ backgroundColor: fontColor }}>
+              {fontLabel}
+            </span>
+          </div>
+        )}
+        <div className="text-black">
+          {block.lines.join("\n") || <span className="text-text-muted/40 italic">（空）</span>}
+        </div>
+        {block.originalIndex !== blockIdx && (
+          <div className="text-[9px] text-warning mt-0.5">
+            {block.originalIndex + 1}→{blockIdx + 1}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── UnifiedDiffDisplay ─────────────────────────────────
+export function UnifiedDiffDisplay({ entries }: { entries: UnifiedDiffEntry[] }) {
+  return (
+    <div className="text-[11px] font-mono border border-border/30 rounded overflow-hidden divide-y divide-border/20">
+      {entries.map((entry, i) => {
+        if (entry.type === "separator") {
+          return <div key={i} className="h-1 bg-border/20" />;
+        }
+        if (entry.type === "match") {
+          return (
+            <div key={i} className="px-2 py-0.5 text-text-secondary whitespace-pre-wrap break-all">
+              {entry.text}
+            </div>
+          );
+        }
+        if (entry.type === "linebreak") {
+          return (
+            <div key={i} className="px-2 py-0.5 bg-accent/5 text-text-muted whitespace-pre-wrap break-all">
+              <span className="text-[9px] text-accent mr-1">改行差異</span>
+              {entry.psdText}
+            </div>
+          );
+        }
+        return (
+          <div key={i} className="grid grid-cols-2 gap-0 bg-warning/5">
+            <div className="px-2 py-0.5 whitespace-pre-wrap break-all">
+              {entry.psdParts ? (
+                <DiffPartSpans parts={entry.psdParts} side="psd" />
+              ) : (
+                <span className="opacity-30">—</span>
+              )}
+            </div>
+            <div className="px-2 py-0.5 whitespace-pre-wrap break-all border-l border-border/30">
+              {entry.memoParts ? (
+                <DiffPartSpans parts={entry.memoParts} side="memo" />
+              ) : (
+                <span className="opacity-30">—</span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DiffPartSpans({ parts, side }: { parts: DiffPart[]; side: "psd" | "memo" }) {
+  return (
+    <>
+      {parts.map((p, i) => {
+        if (p.added) {
+          return side === "memo" ? (
+            <span key={i} className="bg-success/20 text-success font-medium">{p.value}</span>
+          ) : null;
+        }
+        if (p.removed) {
+          return side === "psd" ? (
+            <span key={i} className="bg-error/20 text-error line-through">{p.value}</span>
+          ) : null;
+        }
+        return <span key={i} className="text-text-secondary">{p.value}</span>;
+      })}
+    </>
+  );
+}
+
+// ─── CheckJsonBrowser ───────────────────────────────────
+export function CheckJsonBrowser({ onSelect, onCancel }: { onSelect: (path: string) => void; onCancel: () => void }) {
+  const [step, setStep] = useState<"label" | "title" | "files">("label");
+  const [labels, setLabels] = useState<string[]>([]);
+  const [titles, setTitles] = useState<string[]>([]);
+  const [jsonFiles, setJsonFiles] = useState<string[]>([]);
+  const [selectedLabel, setSelectedLabel] = useState("");
+  const [selectedTitle, setSelectedTitle] = useState("");
+  const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [, setCurrentPath] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    invoke<{ folders: string[]; json_files: string[] }>("list_folder_contents", { folderPath: CHECK_JSON_BASE_PATH })
+      .then((r) => { setLabels(r.folders.sort()); setLoading(false); })
+      .catch(() => { setError(`パスにアクセスできません: ${CHECK_JSON_BASE_PATH}`); setLoading(false); });
+  }, []);
+
+  const selectLabel = useCallback(async (label: string) => {
+    setSelectedLabel(label);
+    setLoading(true);
+    try {
+      const path = `${CHECK_JSON_BASE_PATH}/${label}`;
+      const r = await invoke<{ folders: string[]; json_files: string[] }>("list_folder_contents", { folderPath: path });
+      setTitles(r.folders.sort());
+      setStep("title");
+    } catch { setError("フォルダ読み込みエラー"); }
+    setLoading(false);
+  }, []);
+
+  const selectTitle = useCallback(async (title: string) => {
+    setSelectedTitle(title);
+    setLoading(true);
+    const basePath = `${CHECK_JSON_BASE_PATH}/${selectedLabel}/${title}`;
+    try {
+      const checkPath = `${basePath}/${CHECK_DATA_SUBFOLDER}`;
+      let targetPath = basePath;
+      try {
+        const checkContents = await invoke<{ folders: string[]; json_files: string[] }>("list_folder_contents", { folderPath: checkPath });
+        if (checkContents.json_files.length > 0 || checkContents.folders.length > 0) {
+          targetPath = checkPath;
+        }
+      } catch { /* skip */ }
+      const r = await invoke<{ folders: string[]; json_files: string[] }>("list_folder_contents", { folderPath: targetPath });
+      let allJsons = r.json_files.map((f) => `${targetPath}/${f}`);
+      for (const sub of r.folders) {
+        try {
+          const subR = await invoke<{ folders: string[]; json_files: string[] }>("list_folder_contents", { folderPath: `${targetPath}/${sub}` });
+          allJsons.push(...subR.json_files.map((f) => `${targetPath}/${sub}/${f}`));
+        } catch { /* skip */ }
+      }
+      setJsonFiles(allJsons);
+      setCurrentPath(targetPath);
+      setStep("files");
+    } catch { setError("フォルダ読み込みエラー"); }
+    setLoading(false);
+  }, [selectedLabel]);
+
+  const goBack = () => {
+    if (step === "files") { setStep("title"); setJsonFiles([]); setSelectedFile(null); }
+    else if (step === "title") { setStep("label"); setTitles([]); }
+  };
+
+  if (error) return (
+    <div className="p-4 text-center">
+      <p className="text-xs text-error mb-2">{error}</p>
+      <button onClick={onCancel} className="text-xs text-text-muted hover:text-text-primary">閉じる</button>
+    </div>
+  );
+  if (loading) return (
+    <div className="p-4 flex items-center justify-center gap-2 text-text-muted text-xs">
+      <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+      読み込み中...
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col">
+      <div className="px-3 py-1.5 bg-bg-tertiary/30 border-b border-border/30 flex items-center gap-1 text-[11px] text-text-muted">
+        {step !== "label" && (<button onClick={goBack} className="hover:text-text-primary mr-1">◀</button>)}
+        <span className="opacity-60">校正テキストログ</span>
+        {selectedLabel && <><span className="opacity-40">/</span><span>{selectedLabel}</span></>}
+        {selectedTitle && <><span className="opacity-40">/</span><span>{selectedTitle}</span></>}
+      </div>
+      <div className="max-h-[50vh] overflow-auto">
+        {step === "label" && (labels.length === 0 ? (
+          <p className="p-4 text-xs text-text-muted text-center">レーベルフォルダがありません</p>
+        ) : labels.map((label) => (
+          <div key={label} className="px-3 py-2 text-xs cursor-pointer hover:bg-bg-tertiary transition-colors flex items-center gap-2" onClick={() => selectLabel(label)}>
+            <span className="text-accent-secondary">📁</span><span className="text-text-primary">{label}</span>
+          </div>
+        )))}
+        {step === "title" && (titles.length === 0 ? (
+          <p className="p-4 text-xs text-text-muted text-center">タイトルフォルダがありません</p>
+        ) : titles.map((title) => (
+          <div key={title} className="px-3 py-2 text-xs cursor-pointer hover:bg-bg-tertiary transition-colors flex items-center gap-2" onClick={() => selectTitle(title)}>
+            <span className="text-accent-secondary">📁</span><span className="text-text-primary">{title}</span>
+          </div>
+        )))}
+        {step === "files" && (jsonFiles.length === 0 ? (
+          <p className="p-4 text-xs text-text-muted text-center">JSONファイルがありません</p>
+        ) : jsonFiles.map((fp) => {
+          const name = fp.substring(fp.lastIndexOf("/") + 1);
+          const isSelected = selectedFile === fp;
+          return (
+            <div key={fp} className={`px-3 py-2 text-xs cursor-pointer transition-colors flex items-center gap-2 ${isSelected ? "bg-accent/10 text-accent" : "hover:bg-bg-tertiary text-text-secondary"}`}
+              onClick={() => setSelectedFile(fp)} onDoubleClick={() => onSelect(fp)}>
+              <span className="opacity-60">📄</span><span>{name}</span>
+            </div>
+          );
+        }))}
+      </div>
+      {step === "files" && (
+        <div className="px-3 py-2 border-t border-border/30 flex justify-end gap-2">
+          <button onClick={onCancel} className="px-3 py-1 text-xs text-text-muted hover:text-text-primary">キャンセル</button>
+          <button onClick={() => selectedFile && onSelect(selectedFile)} disabled={!selectedFile}
+            className="px-3 py-1 text-xs font-medium text-white bg-gradient-to-r from-accent to-accent-secondary rounded disabled:opacity-30">選択</button>
+        </div>
+      )}
+    </div>
+  );
+}
