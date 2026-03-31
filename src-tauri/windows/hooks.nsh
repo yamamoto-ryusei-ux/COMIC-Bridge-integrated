@@ -1,13 +1,3 @@
-!macro NSIS_HOOK_PREINSTALL
-  ; --- 旧productName版をサイレントアンインストール ---
-  ; COMIC-Bridge_統合版 (旧名)
-  IfFileExists "$LOCALAPPDATA\COMIC-Bridge_統合版\uninstall.exe" 0 +2
-    ExecWait '"$LOCALAPPDATA\COMIC-Bridge_統合版\uninstall.exe" /S'
-  ; COMIC-Bridge (v2.2.0-2.2.2で誤って作成された版)
-  IfFileExists "$LOCALAPPDATA\COMIC-Bridge\uninstall.exe" 0 +2
-    ExecWait '"$LOCALAPPDATA\COMIC-Bridge\uninstall.exe" /S'
-!macroend
-
 !macro NSIS_HOOK_POSTINSTALL
   ; --- Step 1: Delete Windows icon cache files ---
   ; Local AppData icon caches (Windows 10/11)
