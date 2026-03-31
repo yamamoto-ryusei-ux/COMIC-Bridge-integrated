@@ -3,129 +3,76 @@ name: Release
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
 
 jobs:
-  build:
-    runs-on: windows-latest
+  release:
     permissions:
       contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'windows-latest'
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Setup Rust
+      - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri
+          workspaces: './src-tauri -> target'
 
-      - name: Install frontend dependencies
-        run: npm install --legacy-peer-deps
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
 
       - name: Download PDFium
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path src-tauri/resources/pdfium | Out-Null
-          Write-Host "Downloading PDFium from bblanchon/pdfium-binaries..."
           Invoke-WebRequest -Uri "https://github.com/bblanchon/pdfium-binaries/releases/latest/download/pdfium-win-x64.tgz" -OutFile pdfium.tgz
           tar -xzf pdfium.tgz
-          $dll = Get-ChildItem -Path . -Recurse -Filter "pdfium.dll" | Select-Object -First 1
+          $dll = Get-ChildItem -Recurse -Filter "pdfium.dll" | Select-Object -First 1
           if ($dll) {
             Copy-Item $dll.FullName src-tauri/resources/pdfium/pdfium.dll
-            Write-Host "PDFium DLL copied: $($dll.FullName), size: $($dll.Length) bytes"
+            Write-Host "PDFium DLL copied: $($dll.FullName)"
           } else {
-            Write-Error "pdfium.dll not found after extraction"
+            Write-Error "pdfium.dll not found"
             exit 1
           }
+          Remove-Item pdfium.tgz -Force
 
-      - name: Verify PDFium
-        shell: pwsh
-        run: |
-          if (Test-Path "src-tauri/resources/pdfium/pdfium.dll") {
-            $size = (Get-Item "src-tauri/resources/pdfium/pdfium.dll").Length
-            Write-Host "pdfium.dll exists, size: $size bytes"
-          } else {
-            Write-Error "pdfium.dll not found!"
-            exit 1
-          }
+      - name: Install frontend dependencies
+        run: npm install --legacy-peer-deps
 
-      - name: Build Tauri app
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        shell: pwsh
-        run: |
-          npm run tauri build 2>&1
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      - name: Find build artifacts
-        id: artifacts
-        shell: pwsh
-        run: |
-          $nsis = Get-ChildItem -Path "src-tauri/target/release/bundle/nsis" -Filter "*-setup.exe" | Select-Object -First 1
-          $sig = Get-ChildItem -Path "src-tauri/target/release/bundle/nsis" -Filter "*-setup.exe.sig" -ErrorAction SilentlyContinue | Select-Object -First 1
-          Write-Host "NSIS installer: $($nsis.FullName)"
-          echo "INSTALLER=$($nsis.FullName)" >> $env:GITHUB_OUTPUT
-          echo "INSTALLER_NAME=$($nsis.Name)" >> $env:GITHUB_OUTPUT
-          if ($sig) {
-            echo "SIG=$($sig.FullName)" >> $env:GITHUB_OUTPUT
-            echo "SIG_NAME=$($sig.Name)" >> $env:GITHUB_OUTPUT
-          }
-
-      - name: Generate latest.json for updater
-        shell: pwsh
-        run: |
-          $tag = "${{ github.ref_name }}"
-          $version = $tag -replace '^v', ''
-          $sigFile = Get-ChildItem -Path "src-tauri/target/release/bundle/nsis" -Filter "*-setup.exe.sig" -ErrorAction SilentlyContinue | Select-Object -First 1
-          $signature = ""
-          if ($sigFile) {
-            $signature = Get-Content $sigFile.FullName -Raw
-            $signature = $signature.Trim()
-          }
-          $installerName = "${{ steps.artifacts.outputs.INSTALLER_NAME }}"
-          $downloadUrl = "https://github.com/yamamoto-ryusei-ux/COMIC-Bridge-integrated/releases/download/${tag}/${installerName}"
-          $json = @{
-            version = $version
-            notes = "COMIC-Bridge 統合版 ${tag}"
-            pub_date = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
-            platforms = @{
-              "windows-x86_64" = @{
-                signature = $signature
-                url = $downloadUrl
-              }
-            }
-          } | ConvertTo-Json -Depth 4
-          $json | Out-File -FilePath "latest.json" -Encoding utf8
-          Write-Host "Generated latest.json:"
-          Get-Content latest.json
-
-      - name: Create GitHub Release
+      - name: Build the app
+        uses: tauri-apps/tauri-action@v0.5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        shell: pwsh
-        run: |
-          $tag = "${{ github.ref_name }}"
-          $installer = "${{ steps.artifacts.outputs.INSTALLER }}"
-          $sig = "${{ steps.artifacts.outputs.SIG }}"
-          $body = @"
-          COMIC-Bridge 統合版 $tag
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'COMIC-Bridge ${{ github.ref_name }}'
+          releaseBody: |
+            ## COMIC-Bridge ${{ github.ref_name }}
 
-          KENBAN（検版）とProGen（テキスト抽出・校正）を統合したデスクトップアプリケーション。
+            ### インストール方法
+            1. `.exe` をダウンロード
+            2. インストーラーを実行
 
-          ## インストール
-          ``.exe`` ファイルをダウンロードして実行してください。
-          "@
-          $assets = @($installer, "latest.json")
-          if ($sig) { $assets += $sig }
-          $assetArgs = ($assets | ForEach-Object { "`"$_`"" }) -join " "
-          gh release create $tag $assets --title "COMIC-Bridge 統合版 $tag" --notes $body
+            既存バージョンがインストール済みの場合は自動更新でもアップデート可能です。
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}
+          updaterJsonPreferNsis: true
+          includeUpdaterJson: true
