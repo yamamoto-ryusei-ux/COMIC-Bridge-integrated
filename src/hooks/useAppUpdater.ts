@@ -78,13 +78,19 @@ export function useAppUpdater() {
 
     setPhase("downloading");
     try {
-      await updateInfo.raw.downloadAndInstall();
-      setPhase("ready");
+      // downloadAndInstall はインストーラーを実行し、完了後にアプリを終了する
+      // onEvent コールバックで進捗を監視
+      await updateInfo.raw.downloadAndInstall((event) => {
+        if (event.event === "Started") {
+          setPhase("downloading");
+        } else if (event.event === "Finished") {
+          setPhase("ready");
+        }
+      });
 
-      // 1.5秒後に再起動
-      setTimeout(async () => {
-        await relaunch();
-      }, 1500);
+      // インストール完了 → 再起動
+      setPhase("ready");
+      await relaunch();
     } catch (e: any) {
       setError(e?.message || String(e));
       setPhase("error");
