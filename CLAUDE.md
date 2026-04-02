@@ -1190,6 +1190,13 @@ gh release view v1.x.x --json assets -q '.assets[].name'  # アセット確認
 - **ビルド時間**: CI完了まで約14〜16分
 - **タグの再作成**: タグが既にリモートにある場合は `git push origin :refs/tags/v1.x.x` で削除してから再作成
 - **リリースページ**: `https://github.com/yamamoto-ryusei-ux/COMIC-Bridge-integrated/releases/tag/v2.x.x`
+- **CI**: `tauri-apps/tauri-action@v0.5`を使用（`updaterJsonPreferNsis: true`, `includeUpdaterJson: true`でlatest.json自動生成）
+
+### 重要: アプリ識別子とproductName
+- **identifier**: `com.comic-bridge-integrated.app`（通常版`com.comic-bridge.app`と異なる。同一identifierだとWindowsレジストリで同一アプリ扱いになりショートカットが上書きされる）
+- **productName**: `COMIC-Bridge-Integrated`（ASCII文字のみ。日本語を含めるとリリースアセットファイル名が化けてlatest.jsonのURLと不一致になる）
+- **ウィンドウタイトル**: `COMIC-Bridge 統合版`（app.windows[0].titleで設定、日本語OK）
+- **これらの値を変更する場合**: identifier変更→別アプリとして認識（旧版と共存/上書き問題）。productName変更→インストール先フォルダが変わり自動更新が別アプリに向く
 
 ### 重要: 作業フォルダとgit操作について
 - **作業フォルダに直接gitをセットアップすること**。別フォルダにクローンしてファイルをコピーする方法は禁止（変更漏れ・新規ファイルの見落とし・コミット履歴の不整合が発生する）
