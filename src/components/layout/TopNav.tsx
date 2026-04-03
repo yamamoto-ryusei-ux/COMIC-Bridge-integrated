@@ -12,6 +12,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { ProofreadingCheckItem } from "../../types/typesettingCheck";
 import { JsonFileBrowser } from "../scanPsd/JsonFileBrowser";
 import { CheckJsonBrowser } from "../unified-viewer/UnifiedViewer";
+import { WorkflowBar } from "./WorkflowBar";
 
 // @ts-ignore: View tabs moved to SpecCheckView dot menu
 const _unused = [
@@ -367,6 +368,11 @@ export function TopNav() {
           COMIC-Bridge
         </span>
       </button>
+
+      <div className="w-px h-5 bg-border flex-shrink-0" />
+
+      {/* Workflow */}
+      <WorkflowBar />
 
       <div className="w-px h-5 bg-border flex-shrink-0" />
 
