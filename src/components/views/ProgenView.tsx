@@ -114,7 +114,7 @@ export function ProgenView() {
         src="/progen/index.html"
         className="w-full h-full border-0"
         title="ProGen"
-        sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"
+        /* sandbox不要: 同一オリジン + parent.__COMIC_BRIDGE__アクセスに必要 */
         onLoad={handleIframeLoad}
       />
     </div>

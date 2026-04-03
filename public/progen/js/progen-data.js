@@ -501,7 +501,7 @@ function updateTxtUploadStatus() {
 // COMIC-Bridgeの親ウィンドウからテキストを取得して state に反映
 function syncTextFromComicBridge() {
     try {
-        var bridge = window.parent && window.parent.__COMIC_BRIDGE__;
+        var bridge = window._getBridge ? window._getBridge() : null;
         if (!bridge) return;
         var content = bridge.getTextContent();
         var fileName = bridge.getTextFileName() || 'text.txt';

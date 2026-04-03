@@ -4,8 +4,14 @@
 // iframe内でも動作するように window.__TAURI__ のフォールバックを実装
 
 (function () {
-    // iframe内の場合はparentの__TAURI__にフォールバック
-    const TAURI = window.__TAURI__ || (window.parent && window.parent.__TAURI__);
+    // iframe内の場合はparent/topの__TAURI__にフォールバック
+    function findTauri() {
+        if (window.__TAURI__) return window.__TAURI__;
+        try { if (window.parent && window.parent.__TAURI__) return window.parent.__TAURI__; } catch (e) { /* cross-origin */ }
+        try { if (window.top && window.top.__TAURI__) return window.top.__TAURI__; } catch (e) { /* cross-origin */ }
+        return null;
+    }
+    const TAURI = findTauri();
     if (!TAURI) {
         console.error('[ProGen] Tauri API not available');
         return;
@@ -133,7 +139,21 @@
     // ===== COMIC-Bridge 統合版: 親windowブリッジ直接参照 =====
 
     function getBridge() {
-        try { return window.parent && window.parent.__COMIC_BRIDGE__; } catch (e) { return null; }
+        try {
+            // 同一オリジン: window.parent から直接参照
+            if (window.parent && window.parent !== window && window.parent.__COMIC_BRIDGE__) {
+                return window.parent.__COMIC_BRIDGE__;
+            }
+            // フォールバック: window.top
+            if (window.top && window.top !== window && window.top.__COMIC_BRIDGE__) {
+                return window.top.__COMIC_BRIDGE__;
+            }
+            // iframe外で実行されている場合: 自分自身
+            if (window.__COMIC_BRIDGE__) {
+                return window.__COMIC_BRIDGE__;
+            }
+        } catch (e) { /* cross-origin */ }
+        return null;
     }
 
     // state/JSON情報からレーベル名を取得してUIに設定
@@ -286,6 +306,9 @@
             forceNavigateToMode(mode);
         }
     }
+
+    // ブリッジ取得関数をグローバルに公開（他モジュールから利用可能）
+    window._getBridge = getBridge;
 
     // 親ウィンドウから呼ばれるコールバックを公開
     window.__comicBridgeOnModeReady = handleModeFromBridge;

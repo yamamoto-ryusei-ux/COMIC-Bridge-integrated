@@ -21,7 +21,7 @@ function closeSimpleCheckModal() {
 // COMIC-Bridge統合版: 親からテキスト同期
 function syncSimpleCheckFromBridge() {
     try {
-        var bridge = window.parent && window.parent.__COMIC_BRIDGE__;
+        var bridge = window._getBridge ? window._getBridge() : null;
         if (!bridge) return;
         var content = bridge.getTextContent();
         var fileName = bridge.getTextFileName() || 'text.txt';
