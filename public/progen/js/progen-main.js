@@ -166,31 +166,58 @@ if (proofreadingTxtDropZone) window.setupDropZone(proofreadingTxtDropZone, windo
 
     // 全処理を最終的に実行する共通関数
     function finalize() {
-        // 1) 画面を強制リセット（processLoadedJsonが勝手にmainWrapperを表示するので）
-        if (landing) landing.style.display = 'none';
-        if (mode === 'proofreading') {
-            if (main) main.style.display = 'none';
-        }
+        // processLoadedJsonのhideLandingScreen()が内部で200ms+350msのsetTimeoutを持つ
+        // その全てが完了した後（700ms後）に最終的な画面設定+テキスト注入を行う
 
-        // 2) テキスト再注入（processLoadedJson後に上書きされた分を修復）
+        // 即座にテキスト注入+レーベル設定（一旦設定）
         injectText();
-
-        // 3) レーベル設定
         applyLabel();
-
-        // 4) モード遷移
         navigateToMode();
 
-        // 5) 遅延でテキスト再注入+UI再更新（navigateToMode内部の非同期処理完了を待つ）
+        // processLoadedJsonの全タイマー完了後（700ms）に最終上書き
         setTimeout(function () {
+            // 画面を確実に正しい状態にする
+            if (landing) landing.style.display = 'none';
+            if (mode === 'proofreading') {
+                if (main) main.style.display = 'none';
+                if (proofreading) proofreading.style.display = 'flex';
+            } else {
+                if (main) main.style.display = 'flex';
+                if (proofreading) proofreading.style.display = 'none';
+            }
+
+            // テキスト最終注入
             injectText();
-            if (window.updateTxtUploadStatus) window.updateTxtUploadStatus();
-            if (window.generateXML) window.generateXML();
+
+            // レーベル最終設定
+            applyLabel();
+
+            // UI全更新
             if (mode === 'proofreading') {
                 if (window.renderProofreadingFileList) window.renderProofreadingFileList();
                 if (window.updateProofreadingPrompt) window.updateProofreadingPrompt();
+                if (window.updateProofreadingCheckItems) window.updateProofreadingCheckItems();
+                // 常用外漢字検出
+                try {
+                    if (window.state && window.state.proofreadingFiles && window.state.proofreadingFiles.length > 0
+                        && window.detectNonJoyoLinesWithPageInfo && window.showNonJoyoResultPopup) {
+                        var detected = window.detectNonJoyoLinesWithPageInfo(window.state.proofreadingFiles);
+                        window.state.proofreadingDetectedNonJoyoWords = detected;
+                        window.showNonJoyoResultPopup(detected, true);
+                    }
+                } catch (e) { /* ignore */ }
+            } else {
+                if (window.updateTxtUploadStatus) window.updateTxtUploadStatus();
+                if (window.renderTable) window.renderTable();
+                if (window.renderSymbolTable) window.renderSymbolTable();
+                if (window.generateXML) window.generateXML();
             }
-        }, 200);
+
+            // Geminiボタン有効化
+            var geminiBtn = document.getElementById('extractionGeminiBtn');
+            if (geminiBtn) geminiBtn.removeAttribute('disabled');
+            if (window.enableDataTypeToggle) window.enableDataTypeToggle();
+        }, 700);
     }
 
     // JSON読み込み → finalize
