@@ -49,12 +49,15 @@ window.init();
 window.initJsonFolderBrowser();
 window.initCalibrationFolderBrowser();
 
-// ドロップゾーンの初期化
-const txtUploadGroup = document.getElementById('txtUploadGroup');
-if (txtUploadGroup) window.setupDropZone(txtUploadGroup, window.loadManuscriptTxt);
-
-const txtManageDropZone = document.getElementById('txtManageDropZone');
-if (txtManageDropZone) window.setupDropZone(txtManageDropZone, window.addManuscriptTxt);
-
+// ドロップゾーンの初期化（COMIC-Bridge統合版: テキストD&Dは親アプリで管理）
 const proofreadingTxtDropZone = document.getElementById('proofreadingTxtDropZone');
 if (proofreadingTxtDropZone) window.setupDropZone(proofreadingTxtDropZone, window.addProofreadingTxt);
+
+// COMIC-Bridge統合: 初期化完了後にペンディングモードがあれば遷移
+try {
+    if (window.__comicBridgeOnModeReady) {
+        window.__comicBridgeOnModeReady();
+    }
+} catch (e) {
+    console.warn('[ProGen] Bridge init skipped:', e.message);
+}

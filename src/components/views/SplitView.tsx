@@ -9,7 +9,7 @@ export function SplitView() {
   const hasFiles = files.length > 0;
 
   if (!hasFiles) {
-    return <DropZone showPdf />;
+    return <DropZone />;
   }
 
   return (

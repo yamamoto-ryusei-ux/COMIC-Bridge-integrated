@@ -24,80 +24,47 @@ async function startWithSelectedLabel() {
 }
 
 // ランディング画面用: 校正プロンプトのTXT読み込み
-// [moved to state] landingProofreadingFiles
-// [moved to state] landingProofreadingContent
+// COMIC-Bridge統合版: ランディングのテキスト読み込みは親から自動取得
 function loadLandingProofreadingTxt(input) {
-    const files = Array.from(input.files);
-    if (files.length === 0) return;
-
-    let loadedCount = 0;
-    const fileInfos = [];
-
-    files.forEach((file, index) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            fileInfos[index] = {
-                name: file.name,
-                content: e.target.result,
-                size: file.size
-            };
-            loadedCount++;
-
-            if (loadedCount === files.length) {
-                // 既存のファイルに追加
-                state.landingProofreadingFiles = state.landingProofreadingFiles.concat(fileInfos);
-                state.landingProofreadingContent = state.landingProofreadingFiles.map(f => f.content).join('\n\n--- 次のファイル ---\n\n');
-
-                // ファイルリストを描画
-                renderLandingProofreadingFileList();
-
-                // ステータス更新
-                const statusEl = document.getElementById('landingProofreadingStatus');
-                statusEl.textContent = `${state.landingProofreadingFiles.length}件のファイルを読み込み済み`;
-                statusEl.style.color = '#27ae60';
-
-                // クリアボタンを表示
-                document.getElementById('landingProofreadingClearBtn').style.display = 'inline-block';
-            }
-        };
-        reader.readAsText(file);
-    });
-
-    input.value = '';
+    syncLandingProofreadingFromBridge();
+    renderLandingProofreadingFileList();
 }
 
-// ランディング画面: ファイルリスト描画
+function syncLandingProofreadingFromBridge() {
+    try {
+        var bridge = window.parent && window.parent.__COMIC_BRIDGE__;
+        if (!bridge) return;
+        var content = bridge.getTextContent();
+        var fileName = bridge.getTextFileName() || 'text.txt';
+        if (content) {
+            state.landingProofreadingFiles = [{ name: fileName, content: content, size: new Blob([content]).size }];
+            state.landingProofreadingContent = content;
+        } else {
+            state.landingProofreadingFiles = [];
+            state.landingProofreadingContent = '';
+        }
+    } catch (e) { /* cross-origin */ }
+}
+
 function renderLandingProofreadingFileList() {
-    const listEl = document.getElementById('landingProofreadingFileList');
-    if (state.landingProofreadingFiles.length === 0) {
-        listEl.innerHTML = '';
-        return;
-    }
+    var statusEl = document.getElementById('landingProofreadingStatus');
+    var clearBtn = document.getElementById('landingProofreadingClearBtn');
+    var listEl = document.getElementById('landingProofreadingFileList');
+    if (clearBtn) clearBtn.style.display = 'none'; // 不要
 
-    let html = '';
-    state.landingProofreadingFiles.forEach((file, index) => {
-        const sizeStr = formatFileSize(file.size);
-        html += `
-            <div class="landing-file-item">
-                <span class="landing-file-item-icon">📄</span>
-                <span class="landing-file-item-name">${escapeHtml(file.name)}</span>
-                <span class="landing-file-item-size">${sizeStr}</span>
-            </div>
-        `;
-    });
-    listEl.innerHTML = html;
+    if (state.landingProofreadingFiles.length > 0) {
+        if (statusEl) { statusEl.textContent = '✓ ' + state.landingProofreadingFiles[0].name; statusEl.style.color = '#27ae60'; }
+        if (listEl) listEl.innerHTML = '';
+    } else {
+        if (statusEl) { statusEl.textContent = 'テキスト未読込'; statusEl.style.color = '#888'; }
+        if (listEl) listEl.innerHTML = '';
+    }
 }
 
-// ランディング画面: ファイルクリア
 function clearLandingProofreadingFiles() {
     state.landingProofreadingFiles = [];
     state.landingProofreadingContent = '';
-
-    // UI更新
-    document.getElementById('landingProofreadingFileList').innerHTML = '';
-    document.getElementById('landingProofreadingStatus').textContent = 'ファイルが選択されていません';
-    document.getElementById('landingProofreadingStatus').style.color = '#888';
-    document.getElementById('landingProofreadingClearBtn').style.display = 'none';
+    renderLandingProofreadingFileList();
 }
 
 // ランディング画面から詳細チェックを開始

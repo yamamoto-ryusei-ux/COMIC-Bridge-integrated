@@ -483,16 +483,45 @@ function clearAllManuscriptTxt() {
 
 // セリフTXTステータス表示の更新
 function updateTxtUploadStatus() {
-    const statusEl = document.getElementById('txtUploadStatus');
-    const manageBtn = document.getElementById('txtManageBtn');
+    // COMIC-Bridge統合版: 親アプリのテキストを自動同期（エラー無視）
+    try { syncTextFromComicBridge(); } catch (e) { /* ignore */ }
 
-    if (state.manuscriptTxtFiles.length === 0) {
-        statusEl.textContent = '';
-        if (manageBtn) manageBtn.style.display = 'none';
-    } else {
-        statusEl.textContent = '✓';
+    var statusEl = document.getElementById('txtBridgeStatus') || document.getElementById('txtUploadStatus');
+    if (!statusEl) return;
+
+    if (state.manuscriptTxtFiles.length > 0) {
+        var f = state.manuscriptTxtFiles[0];
+        statusEl.textContent = '✓ ' + f.name;
         statusEl.style.color = '#27ae60';
-        if (manageBtn) manageBtn.style.display = 'inline-block';
+    } else {
+        statusEl.textContent = '';
+    }
+}
+
+// COMIC-Bridgeの親ウィンドウからテキストを取得して state に反映
+function syncTextFromComicBridge() {
+    try {
+        var bridge = window.parent && window.parent.__COMIC_BRIDGE__;
+        if (!bridge) return;
+        var content = bridge.getTextContent();
+        var fileName = bridge.getTextFileName() || 'text.txt';
+        if (content) {
+            // 既に同じ内容なら更新しない
+            if (state.manuscriptTxtFiles.length === 1
+                && state.manuscriptTxtFiles[0].content === content
+                && state.manuscriptTxtFiles[0].name === fileName) return;
+            state.manuscriptTxtFiles = [{
+                name: fileName,
+                content: content,
+                size: new Blob([content]).size
+            }];
+            state.txtGuideDismissed = true;
+        } else {
+            if (state.manuscriptTxtFiles.length === 0) return;
+            state.manuscriptTxtFiles = [];
+        }
+    } catch (e) {
+        // cross-origin error: 無視
     }
 }
 
@@ -563,12 +592,8 @@ function onDataTypeChange() {
         }
     } else {
         if (txtUploadGroup) txtUploadGroup.style.display = '';
-        // TXTを使用するモードの場合、ガイドを表示
-        if (state.manuscriptTxtFiles.length === 0 && !state.txtGuideDismissed) {
-            showTxtGuide();
-        } else {
-            hideTxtGuide();
-        }
+        // COMIC-Bridge統合版: テキストガイドは表示しない（親から自動同期）
+        try { syncTextFromComicBridge(); } catch (e) { /* ignore */ }
     }
 
     generateXML();
@@ -796,4 +821,4 @@ function _isElementVisible(el) {
 export { loadMasterRule, detectNonJoyoWords, detectNonJoyoLinesWithPageInfo, loadManuscriptTxt, addManuscriptTxt, updateNonJoyoDetection, showNonJoyoResultPopup, updateNonJoyoSelection, toggleAllNonJoyoCheckboxes, updateNonJoyoSelectAllCheckbox, getSelectedNonJoyoLines, closeNonJoyoResultModal, confirmNonJoyoSelection, cancelNonJoyoSelection, removeManuscriptTxt, clearAllManuscriptTxt, updateTxtUploadStatus, openTxtManageModal, closeTxtManageModal, renderTxtFileList, formatFileSize, onDataTypeChange, toggleDataTypeDropdown, selectDataType, enableDataTypeToggle, disableDataTypeToggle, onOutputFormatVolumeChange, onOutputFormatStartPageChange, onOutputFormatSortModeChange, unlockExtractionGeminiButton, showExtractionGeminiPopup, closeExtractionGeminiPopup, showTxtGuide, hideTxtGuide, dismissTxtGuide, setupDropZone };
 
 // Expose to window for inline HTML handlers
-Object.assign(window, { categories, numberSubRules, numberBaseOptions, loadMasterRule, detectNonJoyoWords, detectNonJoyoLinesWithPageInfo, loadManuscriptTxt, addManuscriptTxt, updateNonJoyoDetection, showNonJoyoResultPopup, updateNonJoyoSelection, toggleAllNonJoyoCheckboxes, updateNonJoyoSelectAllCheckbox, getSelectedNonJoyoLines, closeNonJoyoResultModal, confirmNonJoyoSelection, cancelNonJoyoSelection, removeManuscriptTxt, clearAllManuscriptTxt, updateTxtUploadStatus, openTxtManageModal, closeTxtManageModal, renderTxtFileList, formatFileSize, onDataTypeChange, toggleDataTypeDropdown, selectDataType, enableDataTypeToggle, disableDataTypeToggle, onOutputFormatVolumeChange, onOutputFormatStartPageChange, onOutputFormatSortModeChange, unlockExtractionGeminiButton, showExtractionGeminiPopup, closeExtractionGeminiPopup, showTxtGuide, hideTxtGuide, dismissTxtGuide, setupDropZone });
+Object.assign(window, { categories, numberSubRules, numberBaseOptions, loadMasterRule, detectNonJoyoWords, detectNonJoyoLinesWithPageInfo, loadManuscriptTxt, addManuscriptTxt, updateNonJoyoDetection, showNonJoyoResultPopup, updateNonJoyoSelection, toggleAllNonJoyoCheckboxes, updateNonJoyoSelectAllCheckbox, getSelectedNonJoyoLines, closeNonJoyoResultModal, confirmNonJoyoSelection, cancelNonJoyoSelection, removeManuscriptTxt, clearAllManuscriptTxt, updateTxtUploadStatus, syncTextFromComicBridge, openTxtManageModal, closeTxtManageModal, renderTxtFileList, formatFileSize, onDataTypeChange, toggleDataTypeDropdown, selectDataType, enableDataTypeToggle, disableDataTypeToggle, onOutputFormatVolumeChange, onOutputFormatStartPageChange, onOutputFormatSortModeChange, unlockExtractionGeminiButton, showExtractionGeminiPopup, closeExtractionGeminiPopup, showTxtGuide, hideTxtGuide, dismissTxtGuide, setupDropZone });

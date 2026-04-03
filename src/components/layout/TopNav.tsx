@@ -341,12 +341,9 @@ export function TopNav() {
       <button
         className="flex items-center gap-2 mr-2 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
         onClick={() => {
-          const currentView = useViewStore.getState().activeView;
-          if (currentView === "specCheck") {
-            // Already on home — reset to initial state
-            usePsdStore.getState().clearFiles();
-            usePsdStore.getState().setCurrentFolderPath(null);
-          }
+          usePsdStore.getState().clearFiles();
+          usePsdStore.getState().setCurrentFolderPath(null);
+          usePsdStore.getState().setContentLocked(false);
           setActiveView("specCheck");
         }}
         title="ホーム"
@@ -373,21 +370,50 @@ export function TopNav() {
 
       <div className="w-px h-5 bg-border flex-shrink-0" />
 
-      {/* Data load buttons */}
-      <div className="flex items-center gap-1 flex-shrink-0">
-        <button onClick={handleOpenText} className="px-2 py-0.5 text-[10px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary rounded transition-colors" title="テキストファイルを読み込む">
-          テキスト
-        </button>
-        <button onClick={() => setJsonBrowserMode("preset")} className="px-2 py-0.5 text-[10px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary rounded transition-colors" title="作品情報JSONを読み込む">
-          作品情報
-        </button>
-        <button onClick={() => setJsonBrowserMode("check")} className="px-2 py-0.5 text-[10px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary rounded transition-colors" title="校正データJSONを読み込む">
-          校正JSON
-        </button>
-        {/* Indicators — 選択時は塗り、非選択時はフチのみ */}
-        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${viewerStore.textContent.length > 0 ? "bg-accent-tertiary" : "border border-accent-tertiary/50"}`} title={viewerStore.textContent.length > 0 ? "テキスト読込済" : "テキスト未読込"} />
-        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${viewerStore.fontPresets.length > 0 ? "bg-accent-secondary" : "border border-accent-secondary/50"}`} title={viewerStore.fontPresets.length > 0 ? "作品情報読込済" : "作品情報未読込"} />
-        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${viewerStore.checkData ? "bg-warning" : "border border-warning/50"}`} title={viewerStore.checkData ? "校正JSON読込済" : "校正JSON未読込"} />
+      {/* Data load buttons — loaded items show × to clear */}
+      <div className="flex items-center gap-0.5 flex-shrink-0">
+        {/* テキスト */}
+        <DataLoadButton
+          loaded={viewerStore.textContent.length > 0}
+          label="テキスト"
+          loadTitle="テキストファイルを読み込む"
+          clearTitle="テキストをクリア"
+          colorClass="text-accent-tertiary hover:bg-accent-tertiary/15"
+          borderClass="border-accent-tertiary/50"
+          onLoad={handleOpenText}
+          onClear={() => {
+            const vs = useUnifiedViewerStore.getState();
+            vs.setTextContent(""); vs.setTextFilePath(null);
+            vs.setTextHeader([]); vs.setTextPages([]); vs.setIsDirty(false);
+          }}
+        />
+        {/* 作品情報 */}
+        <DataLoadButton
+          loaded={viewerStore.fontPresets.length > 0}
+          label="作品情報"
+          loadTitle="作品情報JSONを読み込む"
+          clearTitle="作品情報をクリア"
+          colorClass="text-accent-secondary hover:bg-accent-secondary/15"
+          borderClass="border-accent-secondary/50"
+          onLoad={() => setJsonBrowserMode("preset")}
+          onClear={() => {
+            const vs = useUnifiedViewerStore.getState();
+            vs.setFontPresets([]); vs.setPresetJsonPath(null);
+          }}
+        />
+        {/* 校正JSON */}
+        <DataLoadButton
+          loaded={!!viewerStore.checkData}
+          label="校正JSON"
+          loadTitle="校正データJSONを読み込む"
+          clearTitle="校正JSONをクリア"
+          colorClass="text-warning hover:bg-warning/15"
+          borderClass="border-warning/50"
+          onLoad={() => setJsonBrowserMode("check")}
+          onClear={() => {
+            useUnifiedViewerStore.getState().setCheckData(null);
+          }}
+        />
       </div>
 
       <div className="flex-1" />
@@ -605,5 +631,42 @@ export function TopNav() {
           document.body,
         )}
     </nav>
+  );
+}
+
+// ─── Data Load Button with Clear (×) ───
+function DataLoadButton({ loaded, label, loadTitle, clearTitle, colorClass, borderClass, onLoad, onClear }: {
+  loaded: boolean;
+  label: string;
+  loadTitle: string;
+  clearTitle: string;
+  colorClass: string;   // e.g. "text-accent-tertiary hover:bg-accent-tertiary/15"
+  borderClass: string;  // e.g. "border-accent-tertiary/50"
+  onLoad: () => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-0">
+      <button
+        onClick={onLoad}
+        className="px-2 py-0.5 text-[10px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary rounded-l transition-colors"
+        title={loadTitle}
+      >
+        {label}
+      </button>
+      {loaded ? (
+        <button
+          onClick={onClear}
+          className={`w-4 h-4 flex items-center justify-center rounded-r transition-colors ${colorClass}`}
+          title={clearTitle}
+        >
+          <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      ) : (
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 mr-1 border ${borderClass}`} />
+      )}
+    </div>
   );
 }

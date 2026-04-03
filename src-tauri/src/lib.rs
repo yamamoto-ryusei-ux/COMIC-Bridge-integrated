@@ -42,6 +42,7 @@ pub fn run() {
             commands::write_text_file,
             commands::write_binary_file,
             commands::delete_file,
+            commands::duplicate_files,
             commands::path_exists,
             commands::run_photoshop_replace,
             commands::run_photoshop_rename,
@@ -72,6 +73,7 @@ pub fn run() {
             commands::stop_file_watcher,
             commands::invalidate_file_cache,
             commands::check_handoff,
+            commands::get_file_times,
             // KENBAN commands
             kenban::kenban_parse_psd,
             kenban::kenban_open_file_with_default_app,

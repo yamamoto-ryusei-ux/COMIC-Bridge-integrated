@@ -1,4 +1,5 @@
 import { useMemo, useEffect, useState, useRef, useCallback } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { usePsdStore } from "../../store/psdStore";
 import { useSpecStore } from "../../store/specStore";
 import { useGuideStore } from "../../store/guideStore";
@@ -23,24 +24,17 @@ import { DropZone } from "../file-browser/DropZone";
 import { THUMBNAIL_SIZES, type ThumbnailSize, type PsdFile, type SpecCheckResult } from "../../types";
 import { invoke } from "@tauri-apps/api/core";
 import { TextExtractButton } from "../common/TextExtractButton";
+import { useTextExtract } from "../../hooks/useTextExtract";
 import { useHighResPreview } from "../../hooks/useHighResPreview";
 import { detectPaperSize } from "../../lib/paperSize";
 import { useViewStore, type AppView } from "../../store/viewStore";
 import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
+// useScanPsdStore は SpecScanJsonDialog 内で使用
+// JsonFileBrowser / PresetJsonData は JSON登録（SpecScanJsonDialog）に統合済み
+import { SpecScanJsonDialog } from "../spec-checker/SpecScanJsonDialog";
+import { FileContextMenu } from "../common/FileContextMenu";
 
-const DOT_MENU_TABS: { id: AppView; label: string }[] = [
-  { id: "layers", label: "レイヤー制御" },
-  { id: "typesetting", label: "写植関連" },
-  { id: "replace", label: "差替え" },
-  { id: "compose", label: "合成" },
-  { id: "tiff", label: "TIFF化" },
-  { id: "scanPsd", label: "スキャナー" },
-  { id: "split", label: "見開き分割" },
-  { id: "rename", label: "リネーム" },
-  // kenban（検版）は隔離中 — 統合ビューアーに移行完了後に削除予定
-  { id: "progen", label: "ProGen" },
-  { id: "unifiedViewer", label: "ビューアー" },
-];
+// DOT_MENU_TABSはGlobalAddressBarに移動済み
 
 export function SpecCheckView() {
   const files = usePsdStore((state) => state.files);
@@ -68,24 +62,36 @@ export function SpecCheckView() {
   const setViewMode = usePsdStore((s) => s.setSpecViewMode);
   const [tachimiError, setTachimiError] = useState<string | null>(null);
   const [showPreviewPanel, setShowPreviewPanel] = useState(true);
+  const [rightPanelMode, setRightPanelMode] = useState<"preview" | "create" | "action">("preview");
+  const [showScanJsonInPanel, setShowScanJsonInPanel] = useState(false);
+  const [showTextExtractInPanel, setShowTextExtractInPanel] = useState(false);
+  const textExtract = useTextExtract();
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
   const [previewLocked, setPreviewLocked] = useState(false);
-  const [expandedFile, setExpandedFile] = useState<typeof activeFile>(null);
-  const [showDotMenu, setShowDotMenu] = useState(false);
-  const dotMenuRef = useRef<HTMLDivElement>(null);
 
-  // ドットメニュー: 外部クリックで閉じる
+  // Tauri D&D オーバーレイ
   useEffect(() => {
-    if (!showDotMenu) return;
-    const handler = (e: MouseEvent) => {
-      if (dotMenuRef.current && !dotMenuRef.current.contains(e.target as Node)) {
-        setShowDotMenu(false);
+    const win = getCurrentWindow();
+    let unlisten: (() => void) | undefined;
+    let timer: ReturnType<typeof setTimeout>;
+    win.onDragDropEvent((e) => {
+      if (e.payload.type === "enter" || e.payload.type === "over") {
+        clearTimeout(timer);
+        setIsDragOver(true);
+      } else {
+        // leave / drop
+        timer = setTimeout(() => setIsDragOver(false), 100);
       }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [showDotMenu]);
-  const [sortMode, setSortMode] = useState<"name" | "name-desc" | "size" | "dpi" | "status">("name");
-  const setActiveView = useViewStore((s) => s.setActiveView);
+    }).then((fn) => { unlisten = fn; });
+    return () => { unlisten?.(); clearTimeout(timer); };
+  }, []);
+  const [expandedFile, setExpandedFile] = useState<typeof activeFile>(null);
+  // ドットメニューはGlobalAddressBarに移動済み
+  const [sortKey, setSortKey] = useState<"name" | "modified" | "type">("name");
+  const [sortAsc, setSortAsc] = useState(true);
+  // sortMode removed — sortKey + sortAsc used directly
+  // setActiveViewはGlobalAddressBarに移動済み
   const [lockedFile, setLockedFile] = useState<typeof activeFile>(null);
   const [lockedTextFile, setLockedTextFile] = useState<{ name: string; path: string; content: string } | null>(null);
   const expandedOverlayRef = useRef<HTMLDivElement>(null);
@@ -96,8 +102,9 @@ export function SpecCheckView() {
   // Address bar & explorer
   const currentFolderPath = usePsdStore((state) => state.currentFolderPath);
   const [folderContents, setFolderContents] = useState<{ folders: string[]; allFiles: string[] } | null>(null);
-  const psdOnly = usePsdStore((s) => s.psdOnlyFilter);
-  const setPsdOnly = usePsdStore((s) => s.setPsdOnlyFilter);
+  // psdOnly removed — fileTypeFilter used directly
+  const fileTypeFilter = usePsdStore((s) => s.fileTypeFilter);
+  // setPsdOnlyはfileTypeFilterドロップダウンに統合済み
   // singleFolderDrop は現在未使用（将来フォルダ表示フィルタで使用予定）
   const { loadFolder } = usePsdLoader();
 
@@ -330,36 +337,42 @@ export function SpecCheckView() {
   // Sorted files
   const sortedFiles = useMemo(() => {
     const sorted = [...files];
-    switch (sortMode) {
+    const dir = sortAsc ? 1 : -1;
+    switch (sortKey) {
       case "name":
-        return sorted; // already natural-sorted by loader
-      case "name-desc":
-        return sorted.reverse();
-      case "size":
-        return sorted.sort((a, b) => {
-          const aw = a.metadata?.width || 0;
-          const bw = b.metadata?.width || 0;
-          return bw - aw;
-        });
-      case "dpi":
-        return sorted.sort((a, b) => (b.metadata?.dpi || 0) - (a.metadata?.dpi || 0));
-      case "status": {
-        const getOrder = (f: typeof files[0]) => {
-          const r = checkResults.get(f.id);
-          if (!r) return 2; // unchecked
-          return r.passed ? 1 : 0; // NG first, then OK
-        };
-        return sorted.sort((a, b) => getOrder(a) - getOrder(b));
+        return sortAsc ? sorted : sorted.reverse();
+      case "modified":
+        return sorted.sort((a, b) => dir * ((a.modifiedTime || 0) - (b.modifiedTime || 0)));
+      case "type": {
+        const getExt = (f: typeof files[0]) => f.fileName.substring(f.fileName.lastIndexOf(".")).toLowerCase();
+        return sorted.sort((a, b) => dir * getExt(a).localeCompare(getExt(b)));
       }
       default:
         return sorted;
     }
-  }, [files, sortMode, checkResults]);
+  }, [files, sortKey, sortAsc]);
+
+  // ファイルフィルタ適用
+  const filteredFiles = useMemo(() => {
+    if (fileTypeFilter === "all") return sortedFiles;
+    return sortedFiles.filter((f) => {
+      const ext = f.fileName.substring(f.fileName.lastIndexOf(".")).toLowerCase();
+      switch (fileTypeFilter) {
+        case "psd": return ext === ".psd" || ext === ".psb";
+        case "pdf": return ext === ".pdf";
+        case "image": return [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp", ".gif", ".eps"].includes(ext);
+        case "text": return ext === ".txt" || ext === ".json";
+        default: return true;
+      }
+    });
+  }, [sortedFiles, fileTypeFilter]);
 
   // Expanded preview: focus overlay for keyboard, navigate with arrow keys / Esc
   useEffect(() => {
-    if (expandedFile && expandedOverlayRef.current) {
-      expandedOverlayRef.current.focus();
+    if (expandedFile) {
+      if (expandedOverlayRef.current) expandedOverlayRef.current.focus();
+      // 右プレビューも連動
+      usePsdStore.getState().selectFile(expandedFile.id);
     }
   }, [expandedFile]);
 
@@ -455,6 +468,13 @@ export function SpecCheckView() {
                   )}
                 </div>
 
+                {/* ファイル階層ツリー（ファイル名の下、情報の上） */}
+                {currentFolderPath && <FolderBreadcrumbTree currentPath={currentFolderPath} onNavigate={(path) => {
+                  usePsdStore.getState().setContentLocked(false);
+                  usePsdStore.getState().setCurrentFolderPath(path);
+                  loadFolder(path).catch(() => {});
+                }} />}
+
                 {/* Content */}
                 <div className="flex-1 overflow-auto">
                   {(() => {
@@ -526,35 +546,7 @@ export function SpecCheckView() {
               ))}
             </div>
             <div className="flex-1" />
-            {/* Dot menu (right end) */}
-            <div ref={dotMenuRef} className="relative flex-shrink-0">
-              <button
-                onClick={() => setShowDotMenu(!showDotMenu)}
-                className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${
-                  showDotMenu ? "text-accent bg-accent/10" : "text-text-muted hover:text-text-primary hover:bg-bg-tertiary"
-                }`}
-                title="ツール"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
-                  <circle cx="3" cy="3" r="1.3" /><circle cx="8" cy="3" r="1.3" /><circle cx="13" cy="3" r="1.3" />
-                  <circle cx="3" cy="8" r="1.3" /><circle cx="8" cy="8" r="1.3" /><circle cx="13" cy="8" r="1.3" />
-                  <circle cx="3" cy="13" r="1.3" /><circle cx="8" cy="13" r="1.3" /><circle cx="13" cy="13" r="1.3" />
-                </svg>
-              </button>
-              {showDotMenu && (
-                <div className="absolute right-0 top-full mt-1 z-50 bg-bg-secondary border border-border rounded-lg shadow-xl py-1 min-w-[140px]">
-                  {DOT_MENU_TABS.map((tab) => (
-                    <button
-                      key={tab.id}
-                      className="w-full text-left px-3 py-1.5 text-[11px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors"
-                      onClick={() => { setActiveView(tab.id); setShowDotMenu(false); }}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {/* ドットメニューはGlobalAddressBarに移動済み */}
           </div>
 
           {/* Bar 2: Spec selection + Size dropdown */}
@@ -635,25 +627,40 @@ export function SpecCheckView() {
                 ))}
               </select>
             )}
-            {/* Sort dropdown */}
+            {/* Sort: key dropdown + asc/desc button */}
             <select
               className="bg-bg-tertiary border border-border/50 rounded text-[10px] py-0.5 px-1.5 text-text-primary outline-none flex-shrink-0"
-              value={sortMode}
-              onChange={(e) => setSortMode(e.target.value as typeof sortMode)}
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as typeof sortKey)}
             >
-              <option value="name">名前 ↑</option>
-              <option value="name-desc">名前 ↓</option>
-              <option value="size">サイズ順</option>
-              <option value="dpi">DPI順</option>
-              <option value="status">チェック結果順</option>
+              <option value="name">名前</option>
+              <option value="modified">更新日</option>
+              <option value="type">種類</option>
             </select>
             <button
-              onClick={() => setPsdOnly(!psdOnly)}
-              className={`px-1.5 py-0.5 text-[10px] rounded transition-colors flex-shrink-0 ${psdOnly ? "text-accent-secondary bg-accent-secondary/10 font-medium" : "text-text-muted hover:text-text-primary hover:bg-bg-tertiary"}`}
-              title={psdOnly ? "全ファイル表示" : "PSDのみ表示"}
+              onClick={() => setSortAsc(!sortAsc)}
+              className="w-6 h-6 flex items-center justify-center text-text-muted hover:text-text-primary rounded hover:bg-bg-tertiary flex-shrink-0"
+              title={sortAsc ? "昇順 → 降順" : "降順 → 昇順"}
             >
-              PSD
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                {sortAsc ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                )}
+              </svg>
             </button>
+            <select
+              className="bg-bg-tertiary border border-border/50 rounded text-[10px] py-0.5 px-1 text-text-primary outline-none flex-shrink-0"
+              value={fileTypeFilter}
+              onChange={(e) => usePsdStore.getState().setFileTypeFilter(e.target.value as any)}
+            >
+              <option value="all">全て</option>
+              <option value="psd">PSD</option>
+              <option value="pdf">PDF</option>
+              <option value="image">画像</option>
+              <option value="text">テキスト</option>
+            </select>
             <PdfModeButton />
           </div>
 
@@ -670,7 +677,27 @@ export function SpecCheckView() {
           )}
 
           {/* Content area */}
-          <div className="flex-1 overflow-hidden relative" data-preview-grid>
+          <div
+            className="flex-1 overflow-hidden relative"
+            data-preview-grid
+            onContextMenu={(e) => {
+              e.preventDefault();
+              // Select the file under cursor if clicking on a thumbnail row
+              setContextMenu({ x: e.clientX, y: e.clientY });
+            }}
+          >
+          {/* D&D overlay */}
+          {isDragOver && (
+            <div className="absolute inset-0 z-50 bg-black/60 flex flex-col items-center justify-center pointer-events-none">
+              <div className="w-20 h-20 rounded-3xl bg-white/10 flex items-center justify-center mb-4">
+                <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+              </div>
+              <p className="text-white text-lg font-display font-bold">ドラッグして読み込み</p>
+              <p className="text-white/60 text-sm mt-1">ファイルまたはフォルダをドロップ</p>
+            </div>
+          )}
           {/* Expanded preview overlay */}
           {expandedFile && (
             <div
@@ -738,8 +765,8 @@ export function SpecCheckView() {
                   ))}
                 </div>
               )}
-              {/* Non-PSD files (txt, json, etc.) — 対応拡張子のみ表示 */}
-              {folderContents && !psdOnly && (() => {
+              {/* Non-PSD files (txt, json, etc.) — 全て or テキストフィルタ時に表示 */}
+              {folderContents && (fileTypeFilter === "all" || fileTypeFilter === "text") && (() => {
                 const SUPPORTED_BY_STORE = new Set([".psd", ".psb", ".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp", ".gif", ".pdf", ".eps"]);
                 const ALLOWED_EXTS = new Set([...SUPPORTED_BY_STORE, ".txt", ".json"]);
                 const nonPsdFiles = folderContents.allFiles.filter((f) => {
@@ -774,20 +801,30 @@ export function SpecCheckView() {
               {!hasFiles && !folderContents && <DropZone />}
               {hasFiles && (
                 <PreviewGrid
-                  fileFilter={psdOnly ? ((name) => /\.(psd|psb)$/i.test(name)) : undefined}
-                  fileSorter={sortMode !== "name" ? ((arr) => {
+                  fileFilter={fileTypeFilter !== "all" ? ((name: string) => {
+                    const ext = name.substring(name.lastIndexOf(".")).toLowerCase();
+                    switch (fileTypeFilter) {
+                      case "psd": return ext === ".psd" || ext === ".psb";
+                      case "pdf": return ext === ".pdf";
+                      case "image": return [".jpg",".jpeg",".png",".tif",".tiff",".bmp",".gif",".eps"].includes(ext);
+                      case "text": return ext === ".txt" || ext === ".json";
+                      default: return true;
+                    }
+                  }) : undefined}
+                  fileSorter={(arr) => {
                     const sorted = [...arr];
-                    switch (sortMode) {
-                      case "name-desc": return sorted.reverse();
-                      case "size": return sorted.sort((a: any, b: any) => (b.metadata?.width || 0) - (a.metadata?.width || 0));
-                      case "dpi": return sorted.sort((a: any, b: any) => (b.metadata?.dpi || 0) - (a.metadata?.dpi || 0));
-                      case "status": return sorted.sort((a: any, b: any) => {
-                        const getOrd = (f: any) => { const r = checkResults.get(f.id); if (!r) return 2; return r.passed ? 1 : 0; };
-                        return getOrd(a) - getOrd(b);
+                    const dir = sortAsc ? 1 : -1;
+                    switch (sortKey) {
+                      case "name": return sortAsc ? sorted : sorted.reverse();
+                      case "modified": return sorted.sort((a: any, b: any) => dir * ((a.modifiedTime || 0) - (b.modifiedTime || 0)));
+                      case "type": return sorted.sort((a: any, b: any) => {
+                        const ea = a.fileName.substring(a.fileName.lastIndexOf(".")).toLowerCase();
+                        const eb = b.fileName.substring(b.fileName.lastIndexOf(".")).toLowerCase();
+                        return dir * ea.localeCompare(eb);
                       });
                       default: return sorted;
                     }
-                  }) : undefined}
+                  }}
                   onDoubleClickFile={(id) => {
                     const f = files.find((ff) => ff.id === id);
                     if (f) setExpandedFile(f);
@@ -799,11 +836,11 @@ export function SpecCheckView() {
           {viewMode === "list" && (
             <>
               <PsdFileListView
-                files={psdOnly ? sortedFiles.filter((f) => /\.(psd|psb)$/i.test(f.fileName)) : sortedFiles}
+                files={filteredFiles}
                 selectedFileIds={selectedFileIds}
                 checkResults={checkResults}
                 folders={folderContents?.folders || []}
-                allFiles={psdOnly ? [] : (folderContents?.allFiles || [])}
+                allFiles={fileTypeFilter !== "all" ? [] : (folderContents?.allFiles || [])}
                 onEnterFolder={handleEnterFolder}
                 onSelectFile={(id) => { usePsdStore.getState().selectFile(id); setSelectedTextFile(null); }}
                 onOpenFile={(id) => {
@@ -989,7 +1026,25 @@ export function SpecCheckView() {
           const previewFile = previewLocked ? lockedFile : activeFile;
           const previewText = previewLocked ? lockedTextFile : selectedTextFile;
           return (
-          <div className="w-[320px] flex-shrink-0 border-l border-border flex flex-col overflow-hidden bg-bg-secondary">
+          <div className="w-[320px] flex-shrink-0 border-l border-border flex flex-col overflow-hidden bg-bg-secondary relative">
+            {/* Mode tabs */}
+            <div className="flex-shrink-0 flex border-b border-border/50 text-[10px]">
+              {([
+                { id: "preview" as const, label: "プレビュー" },
+                { id: "create" as const, label: "作成" },
+                { id: "action" as const, label: "アクション" },
+              ]).map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => setRightPanelMode(m.id)}
+                  className={`flex-1 py-1.5 transition-colors ${
+                    rightPanelMode === m.id ? "text-accent font-medium border-b-2 border-accent" : "text-text-muted hover:text-text-secondary"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
             {/* Preview header */}
             <div className="flex-shrink-0 h-8 border-b border-border/50 flex items-center px-2 gap-1">
               <span className="text-[11px] text-text-primary font-medium truncate flex-1">
@@ -1089,57 +1144,9 @@ export function SpecCheckView() {
                 ファイルを選択
               </div>
             )}
-            {/* Metadata summary */}
-            {previewFile?.metadata && (
-              <div className="flex-shrink-0 px-3 py-2 border-t border-border/30 text-[10px] text-text-muted space-y-0.5">
-                <div className="flex justify-between">
-                  <span>サイズ</span>
-                  <span className="text-text-secondary font-mono">{previewFile.metadata.width} × {previewFile.metadata.height}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>DPI</span>
-                  <span className="text-text-secondary font-mono">{previewFile.metadata.dpi}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>カラー</span>
-                  <span className="text-text-secondary">{previewFile.metadata.colorMode} / {previewFile.metadata.bitsPerChannel}bit</span>
-                </div>
-                {(() => {
-                  const ps = detectPaperSize(previewFile.metadata.width, previewFile.metadata.height, previewFile.metadata.dpi);
-                  return ps ? (
-                    <div className="flex justify-between">
-                      <span>用紙</span>
-                      <span className="text-accent-secondary font-medium">{ps}</span>
-                    </div>
-                  ) : null;
-                })()}
-                {previewFile.metadata.hasAlphaChannels && (
-                  <div className="flex justify-between">
-                    <span>αチャンネル</span>
-                    <span className={previewFile.metadata.hasOnlyTransparency ? "text-warning" : "text-error"}>
-                      {previewFile.metadata.alphaChannelCount}ch
-                    </span>
-                  </div>
-                )}
-                {previewFile.metadata.hasGuides && (
-                  <div className="flex justify-between">
-                    <span>ガイド</span>
-                    <span className="text-guide-v">{previewFile.metadata.guides.length}本</span>
-                  </div>
-                )}
-                {/* Check result */}
-                {(() => {
-                  const result = checkResults.get(previewFile.id);
-                  return result ? (
-                    <div className="flex justify-between pt-1 border-t border-border/20">
-                      <span>チェック</span>
-                      <span className={result.passed ? "text-success font-medium" : "text-error font-medium"}>
-                        {result.passed ? "OK" : "NG"}
-                      </span>
-                    </div>
-                  ) : null;
-                })()}
-              </div>
+            {/* File Properties Panel */}
+            {previewFile && (
+              <FilePropertiesPanel file={previewFile} checkResult={checkResults.get(previewFile.id)} />
             )}
             {/* Text file info */}
             {!previewFile && previewText && (
@@ -1158,6 +1165,168 @@ export function SpecCheckView() {
                 </div>
               </div>
             )}
+            {/* === 作成モード === */}
+            {rightPanelMode === "create" && (
+              <div className="flex-1 overflow-auto p-3 space-y-2">
+                <button
+                  onClick={() => {
+                    const vs = useViewStore.getState();
+                    vs.setActiveView("scanPsd");
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-[11px] rounded-lg bg-bg-tertiary hover:bg-accent/10 hover:text-accent transition-colors"
+                >
+                  <span className="text-lg">📊</span>
+                  <div className="text-left"><div className="font-medium">スキャナーモード</div><div className="text-[9px] text-text-muted">PSDスキャン・プリセット管理</div></div>
+                </button>
+                <button
+                  onClick={() => setShowTextExtractInPanel(true)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-[11px] rounded-lg bg-bg-tertiary hover:bg-accent/10 hover:text-accent transition-colors"
+                >
+                  <span className="text-lg">📝</span>
+                  <div className="text-left"><div className="font-medium">テキスト抽出</div><div className="text-[9px] text-text-muted">PSDテキストレイヤーを抽出</div></div>
+                </button>
+                <button
+                  onClick={() => setShowScanJsonInPanel(true)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-[11px] rounded-lg bg-bg-tertiary hover:bg-accent/10 hover:text-accent transition-colors"
+                >
+                  <span className="text-lg">📋</span>
+                  <div className="text-left"><div className="font-medium">JSON登録</div><div className="text-[9px] text-text-muted">PSDスキャン→フォント/サイズをJSONに登録</div></div>
+                </button>
+              </div>
+            )}
+            {/* JSON登録（SpecScanJsonDialog）— 右パネル内表示 */}
+            {showScanJsonInPanel && (
+              <div className="absolute inset-0 z-40 bg-white flex flex-col overflow-hidden">
+                <SpecScanJsonDialog onClose={() => setShowScanJsonInPanel(false)} inline />
+              </div>
+            )}
+            {/* テキスト抽出 — 右パネル内表示 */}
+            {showTextExtractInPanel && (
+              <div className="absolute inset-0 z-40 bg-white flex flex-col overflow-hidden">
+                <div className="flex-shrink-0 flex items-center justify-between px-3 py-2 border-b border-border/50 bg-bg-tertiary">
+                  <span className="text-xs font-bold text-text-primary">テキスト抽出</span>
+                  <button
+                    onClick={() => { setShowTextExtractInPanel(false); textExtract.setResult(null); }}
+                    className="w-5 h-5 flex items-center justify-center rounded hover:bg-bg-primary text-text-muted hover:text-text-primary transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex-1 overflow-auto p-3 space-y-3">
+                  {/* 対象ファイル数 */}
+                  <div className="text-xs text-text-secondary">
+                    対象PSDファイル: <span className="font-bold text-accent-secondary">{textExtract.psdFiles.length}</span> 件
+                  </div>
+
+                  {textExtract.psdFiles.length === 0 ? (
+                    <div className="text-xs text-text-muted py-4 text-center">テキストレイヤーを含むPSDファイルがありません</div>
+                  ) : (
+                    <>
+                      {/* レイヤー順序 */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-text-muted font-medium">レイヤー順序</label>
+                        <div className="flex rounded-lg border border-border overflow-hidden">
+                          <button
+                            className={`flex-1 px-2 py-1.5 text-[10px] font-medium transition-colors ${
+                              textExtract.sortMode === "bottomToTop"
+                                ? "bg-accent/10 text-accent border-r border-border"
+                                : "text-text-secondary hover:bg-bg-tertiary border-r border-border"
+                            }`}
+                            onClick={() => textExtract.setSortMode("bottomToTop")}
+                          >
+                            下→上
+                          </button>
+                          <button
+                            className={`flex-1 px-2 py-1.5 text-[10px] font-medium transition-colors ${
+                              textExtract.sortMode === "topToBottom"
+                                ? "bg-accent/10 text-accent"
+                                : "text-text-secondary hover:bg-bg-tertiary"
+                            }`}
+                            onClick={() => textExtract.setSortMode("topToBottom")}
+                          >
+                            上→下
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* 非表示レイヤー */}
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <div
+                          role="checkbox"
+                          aria-checked={textExtract.includeHidden}
+                          tabIndex={0}
+                          className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${
+                            textExtract.includeHidden ? "bg-accent border-accent" : "border-border hover:border-accent/50"
+                          }`}
+                          onClick={() => textExtract.setIncludeHidden(!textExtract.includeHidden)}
+                          onKeyDown={(e) => {
+                            if (e.key === " " || e.key === "Enter") textExtract.setIncludeHidden(!textExtract.includeHidden);
+                          }}
+                        >
+                          {textExtract.includeHidden && (
+                            <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-text-secondary">非表示レイヤーも含める</span>
+                      </label>
+
+                      {/* 実行ボタン */}
+                      <button
+                        className="w-full px-3 py-2 text-xs font-bold rounded-lg bg-accent text-white hover:bg-accent/90 transition-colors active:scale-[0.97] disabled:opacity-50"
+                        onClick={textExtract.handleExtract}
+                        disabled={textExtract.isExtracting}
+                      >
+                        {textExtract.isExtracting ? (
+                          <span className="flex items-center justify-center gap-2">
+                            <div className="w-3.5 h-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                            抽出中...
+                          </span>
+                        ) : (
+                          "抽出を実行"
+                        )}
+                      </button>
+
+                      {/* 結果 */}
+                      {textExtract.result && (
+                        <div
+                          className={`px-3 py-2 rounded-lg border text-[10px] ${
+                            textExtract.result.success
+                              ? "bg-success/10 border-success/30 text-success"
+                              : "bg-error/10 border-error/30 text-error"
+                          }`}
+                        >
+                          {textExtract.result.message}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+            {/* === アクションモード === */}
+            {rightPanelMode === "action" && (
+              <div className="flex-1 overflow-auto p-3 space-y-2">
+                {([
+                  { id: "replace" as AppView, icon: "🔄", label: "差替え", desc: "テキスト/画像レイヤー差替え" },
+                  { id: "compose" as AppView, icon: "🔗", label: "合成", desc: "2つのPSDを統合" },
+                  { id: "tiff" as AppView, icon: "🖼️", label: "TIFF化", desc: "PSD→TIFF一括変換" },
+                  { id: "rename" as AppView, icon: "✏️", label: "リネーム", desc: "ファイル/レイヤーリネーム" },
+                ]).map((action) => (
+                  <button
+                    key={action.id}
+                    onClick={() => useViewStore.getState().setActiveView(action.id)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-[11px] rounded-lg bg-bg-tertiary hover:bg-accent/10 hover:text-accent transition-colors"
+                  >
+                    <span className="text-lg">{action.icon}</span>
+                    <div className="text-left"><div className="font-medium">{action.label}</div><div className="text-[9px] text-text-muted">{action.desc}</div></div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           );
         })()}
@@ -1174,6 +1343,22 @@ export function SpecCheckView() {
           </button>
         )}
       </div>
+      {/* Right-click context menu */}
+      {contextMenu && (
+        <FileContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          files={(() => {
+            const sel = files.filter((f) => selectedFileIds.includes(f.id));
+            if (sel.length > 0) return sel;
+            if (activeFile) return [activeFile];
+            return [];
+          })()}
+          allFiles={files}
+          onClose={() => setContextMenu(null)}
+          onLaunchTachimi={handleLaunchTachimi}
+        />
+      )}
     </div>
   );
 }
@@ -1200,6 +1385,160 @@ function getFileIconColor(name: string): string {
 function getFileExt(name: string): string {
   const dot = name.lastIndexOf(".");
   return dot >= 0 ? name.substring(dot + 1).toUpperCase() : "";
+}
+
+// ═══ File Properties Panel (ファイルプロパティ) ═══════
+
+function FilePropertiesPanel({ file, checkResult }: { file: PsdFile; checkResult?: SpecCheckResult }) {
+  const [open, setOpen] = useState(true);
+  const m = file.metadata;
+
+  const formatDate = (ts?: number) => {
+    if (!ts) return "—";
+    const d = new Date(ts * 1000);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}/${pad(d.getMonth() + 1)}/${pad(d.getDate())}, ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  };
+
+  const formatSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  };
+
+  const docType = (() => {
+    const ext = file.fileName.substring(file.fileName.lastIndexOf(".")).toLowerCase();
+    if (ext === ".psd") return "Photoshop document";
+    if (ext === ".psb") return "Photoshop large document";
+    if (ext === ".pdf") return "PDF document";
+    if (ext === ".jpg" || ext === ".jpeg") return "JPEG image";
+    if (ext === ".png") return "PNG image";
+    if (ext === ".tif" || ext === ".tiff") return "TIFF image";
+    if (ext === ".bmp") return "BMP image";
+    if (ext === ".gif") return "GIF image";
+    if (ext === ".eps") return "EPS file";
+    return ext.substring(1).toUpperCase() + " file";
+  })();
+
+  // Compute inch/cm dimensions from pixels + dpi
+  const inchW = m && m.dpi > 0 ? (m.width / m.dpi).toFixed(1) : null;
+  const inchH = m && m.dpi > 0 ? (m.height / m.dpi).toFixed(1) : null;
+  const cmW = m && m.dpi > 0 ? ((m.width / m.dpi) * 2.54).toFixed(1) : null;
+  const cmH = m && m.dpi > 0 ? ((m.height / m.dpi) * 2.54).toFixed(1) : null;
+
+  const colorModeJa: Record<string, string> = {
+    RGB: "RGB カラー",
+    CMYK: "CMYK カラー",
+    Grayscale: "白黒",
+    Bitmap: "ビットマップ",
+    Lab: "Lab カラー",
+    Indexed: "インデックスカラー",
+    Multichannel: "マルチチャンネル",
+    Duotone: "ダブルトーン",
+  };
+
+  const ps = m ? detectPaperSize(m.width, m.height, m.dpi) : null;
+
+  const Row = ({ label, value, className }: { label: string; value: React.ReactNode; className?: string }) => (
+    <div className="flex items-start gap-2 py-[2px]">
+      <span className="text-text-muted w-[90px] flex-shrink-0 text-right">{label}</span>
+      <span className={`text-text-primary flex-1 ${className || ""}`}>{value}</span>
+    </div>
+  );
+
+  return (
+    <div className="flex-shrink-0 border-t border-border/30 text-[10px] select-text">
+      {/* Header - collapsible */}
+      <button
+        className="w-full flex items-center gap-1 px-2 py-1.5 text-[10px] font-bold text-text-secondary hover:bg-bg-tertiary/50 transition-colors"
+        onClick={() => setOpen(!open)}
+      >
+        <svg
+          className={`w-3 h-3 text-text-muted transition-transform ${open ? "rotate-90" : ""}`}
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+        ファイルプロパティ
+      </button>
+
+      {open && (
+        <div className="px-2 pb-2 space-y-[1px]">
+          <Row label="ファイル名" value={file.fileName} className="font-medium break-all" />
+          <Row label="ドキュメントの種類" value={docType} />
+          {file.createdTime != null && (
+            <Row label="作成日" value={formatDate(file.createdTime)} className="font-mono" />
+          )}
+          {file.createdTime != null && (
+            <Row label="ファイルの作成日" value={formatDate(file.createdTime)} className="font-mono" />
+          )}
+          <Row label="ファイルの修正日" value={formatDate(file.modifiedTime)} className="font-mono" />
+          <Row label="ファイルサイズ" value={formatSize(file.fileSize)} className="font-mono" />
+
+          {m && (
+            <>
+              <div className="border-t border-border/20 my-1" />
+              <Row label="寸法" value={`${m.width} x ${m.height}`} className="font-mono" />
+              {inchW && inchH && (
+                <Row label="寸法 (インチ)" value={`${inchW}" x ${inchH}"`} className="font-mono" />
+              )}
+              {cmW && cmH && (
+                <Row label="寸法 (cm)" value={`${cmW} cm x ${cmH} cm`} className="font-mono" />
+              )}
+              {ps && <Row label="用紙サイズ" value={ps} className="text-accent-secondary font-medium" />}
+              <Row label="解像度" value={`${m.dpi} ppi`} className="font-mono" />
+              <Row label="ビット数" value={String(m.bitsPerChannel)} className="font-mono" />
+              <Row label="カラーモード" value={colorModeJa[m.colorMode] || m.colorMode} />
+              {m.hasAlphaChannels && (
+                <Row
+                  label="αチャンネル"
+                  value={
+                    <span className={m.hasOnlyTransparency ? "text-warning" : "text-error font-medium"}>
+                      {m.alphaChannelCount}ch {m.alphaChannelNames.length > 0 && `(${m.alphaChannelNames.join(", ")})`}
+                    </span>
+                  }
+                />
+              )}
+              {m.hasGuides && (
+                <Row label="ガイド" value={<span className="text-guide-v">{m.guides.length}本</span>} />
+              )}
+              {m.hasTombo && (
+                <Row label="トンボ" value={<span className="text-manga-peach">あり</span>} />
+              )}
+              <Row label="レイヤー数" value={String(m.layerCount)} className="font-mono" />
+            </>
+          )}
+
+          {/* Check result */}
+          {checkResult && (
+            <>
+              <div className="border-t border-border/20 my-1" />
+              <Row
+                label="チェック結果"
+                value={
+                  <span className={checkResult.passed ? "text-success font-bold" : "text-error font-bold"}>
+                    {checkResult.passed ? "OK" : "NG"}
+                  </span>
+                }
+              />
+              {!checkResult.passed && checkResult.results.filter((r) => !r.passed).map((r, i) => (
+                <Row
+                  key={i}
+                  label=""
+                  value={
+                    <span className="text-error text-[9px]">
+                      {r.rule.message || r.rule.type}: {String(r.actualValue)} → {String(r.rule.value)}
+                    </span>
+                  }
+                />
+              ))}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ═══ PSD File List View (リスト表示) ═════════════════
@@ -1435,5 +1774,48 @@ function PdfModeButton() {
     >
       PDF{pdfDisplayMode === "page" ? "頁" : "件"}
     </button>
+  );
+}
+
+/** ファイル階層ツリー（折りたたみ可能） */
+function FolderBreadcrumbTree({ currentPath, onNavigate }: { currentPath: string; onNavigate: (path: string) => void }) {
+  const [open, setOpen] = useState(true);
+  const parts = currentPath.replace(/\//g, "\\").split("\\").filter(Boolean);
+
+  return (
+    <div className="border-t border-border/40">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-1.5 px-4 py-2 text-[10px] text-text-muted hover:text-text-primary"
+      >
+        <svg className={`w-3 h-3 transition-transform ${open ? "rotate-90" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+        </svg>
+        フォルダ階層
+      </button>
+      {open && (
+        <div className="px-4 pb-3">
+          {parts.map((part, i) => {
+            const fullPath = parts.slice(0, i + 1).join("\\");
+            const isLast = i === parts.length - 1;
+            return (
+              <div key={i} style={{ paddingLeft: `${i * 12}px` }}>
+                <button
+                  onClick={() => !isLast && onNavigate(fullPath)}
+                  className={`flex items-center gap-1 text-[10px] py-0.5 rounded transition-colors ${
+                    isLast ? "text-accent font-medium" : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
+                  }`}
+                >
+                  <svg className="w-3 h-3 text-warning/70 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M10 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2h-8l-2-2z" />
+                  </svg>
+                  {part}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }

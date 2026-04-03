@@ -165,18 +165,36 @@ export function usePsdLoader() {
       }
 
       // Create initial file entries
-      const initialFiles: PsdFile[] = filePaths.map((filePath, index) => {
+      // Rust側で作成日/更新日を一括取得
+      let fileTimesMap = new Map<string, { created: number; modified: number }>();
+      try {
+        const times = await invoke<[string, number, number][]>("get_file_times", { filePaths });
+        for (const [p, created, modified] of times) {
+          fileTimesMap.set(p, { created, modified });
+        }
+      } catch { /* ignore */ }
+
+      const initialFiles: PsdFile[] = await Promise.all(filePaths.map(async (filePath, index) => {
         const fileName = filePath.split(/[/\\]/).pop() || "unknown.psd";
+        const times = fileTimesMap.get(filePath);
+        let modifiedTime = times?.modified || Date.now();
+        let createdTime = times?.created || modifiedTime;
+        let fileSize = 0;
+        try {
+          const s = await stat(filePath);
+          fileSize = s.size;
+        } catch { /* ignore */ }
         return {
           id: `file-${Date.now()}-${index}`,
           filePath,
           fileName,
-          fileSize: 0,
-          modifiedTime: Date.now(),
-          thumbnailStatus: "pending",
+          fileSize,
+          modifiedTime,
+          createdTime,
+          thumbnailStatus: "pending" as const,
           subfolderName: subfolderNames?.[index],
         };
-      });
+      }));
 
       setFiles(initialFiles);
       setLoadingStatus("idle");

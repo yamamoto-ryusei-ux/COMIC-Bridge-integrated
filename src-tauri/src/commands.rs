@@ -2876,6 +2876,45 @@ pub async fn delete_file(file_path: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Duplicate files in the same directory (file.psd → file_copy.psd, file_copy2.psd, ...)
+#[tauri::command]
+pub async fn duplicate_files(file_paths: Vec<String>) -> Result<Vec<String>, String> {
+    let mut results = Vec::new();
+    for file_path in &file_paths {
+        let src = Path::new(file_path);
+        if !src.exists() {
+            results.push(format!("Not found: {}", file_path));
+            continue;
+        }
+        let stem = src.file_stem().and_then(|s| s.to_str()).unwrap_or("file");
+        let ext = src.extension().and_then(|s| s.to_str()).unwrap_or("");
+        let parent = src.parent().unwrap_or(Path::new("."));
+
+        let mut dest;
+        let mut suffix = String::from("_copy");
+        let mut counter = 2u32;
+        loop {
+            let new_name = if ext.is_empty() {
+                format!("{}{}", stem, suffix)
+            } else {
+                format!("{}{}.{}", stem, suffix, ext)
+            };
+            dest = parent.join(&new_name);
+            if !dest.exists() {
+                break;
+            }
+            suffix = format!("_copy{}", counter);
+            counter += 1;
+        }
+
+        match fs::copy(src, &dest) {
+            Ok(_) => results.push(dest.to_string_lossy().to_string()),
+            Err(e) => results.push(format!("Error: {}", e)),
+        }
+    }
+    Ok(results)
+}
+
 /// Check if a file or directory exists
 #[tauri::command]
 pub async fn path_exists(path: String) -> Result<bool, String> {
@@ -5244,4 +5283,24 @@ pub async fn check_handoff() -> Result<Option<HandoffData>, String> {
         .map_err(|e| format!("ハンドオフJSON解析エラー: {}", e))?;
 
     Ok(Some(data))
+}
+
+/// Get file creation and modification times in milliseconds since epoch
+#[tauri::command]
+pub async fn get_file_times(file_paths: Vec<String>) -> Result<Vec<(String, u64, u64)>, String> {
+    use std::time::UNIX_EPOCH;
+    let mut results = Vec::new();
+    for path in file_paths {
+        let meta = std::fs::metadata(&path).map_err(|e| format!("stat error: {}", e))?;
+        let created = meta.created().ok()
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+        let modified = meta.modified().ok()
+            .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+        results.push((path, created, modified));
+    }
+    Ok(results)
 }

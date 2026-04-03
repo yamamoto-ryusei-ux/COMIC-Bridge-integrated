@@ -294,58 +294,72 @@ function switchProofreadingMode(mode) {
     updateProofreadingPrompt();
 }
 
-// 校正用ファイル読み込み
+// 校正用ファイル読み込み — COMIC-Bridge統合版: 親アプリのテキストを直接使用
 function loadProofreadingFiles(input) {
-    const files = Array.from(input.files);
-    if (files.length === 0) return;
+    // COMIC-Bridge統合版: ファイル入力を無視し、親から同期
+    syncProofreadingFromComicBridge();
+}
 
-    let loadedCount = 0;
-    const fileInfos = [];
-
-    files.forEach((file, index) => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            fileInfos[index] = {
-                name: file.name,
-                content: e.target.result,
-                size: file.size
-            };
-            loadedCount++;
-
-            if (loadedCount === files.length) {
-                state.proofreadingFiles = state.proofreadingFiles.concat(fileInfos);
-                state.proofreadingContent = state.proofreadingFiles.map(f => f.content).join('\n\n--- 次のファイル ---\n\n');
-                renderProofreadingFileList();
-                // 常用外漢字を検出してグローバル変数に保存＆ポップアップ表示
-                const detectedLines = detectNonJoyoLinesWithPageInfo(state.proofreadingFiles);
-                state.proofreadingDetectedNonJoyoWords = detectedLines;
-                showNonJoyoResultPopup(detectedLines, true);
-                updateProofreadingPrompt();
+// COMIC-Bridgeの親ウィンドウからテキストを取得して校正用stateに反映 + 常用外漢字検出
+function syncProofreadingFromComicBridge() {
+    var changed = false;
+    try {
+        var bridge = window.parent && window.parent.__COMIC_BRIDGE__;
+        if (!bridge) return;
+        var content = bridge.getTextContent();
+        var fileName = bridge.getTextFileName() || 'text.txt';
+        if (content) {
+            // 同一内容なら更新しない
+            if (state.proofreadingFiles.length === 1
+                && state.proofreadingFiles[0].content === content
+                && state.proofreadingFiles[0].name === fileName) {
+                // 内容同一でも初回は常用外漢字検出を行う
+                if (state.proofreadingDetectedNonJoyoWords && state.proofreadingDetectedNonJoyoWords.length >= 0
+                    && state._proofNonJoyoRan) return;
             }
-        };
-        reader.readAsText(file);
-    });
+            state.proofreadingFiles = [{
+                name: fileName,
+                content: content,
+                size: new Blob([content]).size
+            }];
+            state.proofreadingContent = content;
+            changed = true;
+        } else {
+            if (state.proofreadingFiles.length === 0) return;
+            state.proofreadingFiles = [];
+            state.proofreadingContent = '';
+            state.proofreadingDetectedNonJoyoWords = [];
+            changed = true;
+        }
+    } catch (e) { /* cross-origin */ }
+    renderProofreadingFileList();
+    updateProofreadingPrompt();
 
-    // inputをリセット
-    input.value = '';
+    // 常用外漢字検出
+    if (state.proofreadingFiles.length > 0) {
+        try {
+            var detected = detectNonJoyoLinesWithPageInfo(state.proofreadingFiles);
+            state.proofreadingDetectedNonJoyoWords = detected;
+            state._proofNonJoyoRan = true;
+            showNonJoyoResultPopup(detected, true);
+        } catch (e) { /* ignore */ }
+    }
 }
 
 // 校正用ファイルリスト描画
 function renderProofreadingFileList() {
     const statusEl = document.getElementById('proofreadingFileStatus');
     const manageBtn = document.getElementById('proofreadingManageBtn');
+    if (manageBtn) manageBtn.style.display = 'none';
 
     if (state.proofreadingFiles.length === 0) {
-        if (statusEl) statusEl.textContent = '';
-        if (manageBtn) manageBtn.style.display = 'none';
+        if (statusEl) { statusEl.textContent = 'テキスト未読込'; statusEl.style.color = ''; }
         return;
     }
-
-    // ヘッダーのステータス表示を更新
     if (statusEl) {
-        statusEl.textContent = '✓';
+        statusEl.textContent = '✓ ' + state.proofreadingFiles[0].name;
+        statusEl.style.color = '#27ae60';
     }
-    if (manageBtn) manageBtn.style.display = 'inline-block';
 }
 
 // 校正用ファイル個別削除
@@ -469,6 +483,7 @@ function clearAllProofreadingTxt() {
 
 // プロンプト更新
 function updateProofreadingPrompt() {
+
     const outputEl = document.getElementById('proofreadingOutput');
     const copyBtn = document.getElementById('proofreadingCopyBtn');
     const geminiBtn = document.getElementById('proofreadingGeminiBtn');
@@ -666,4 +681,4 @@ document.addEventListener('click', function(e) {
 export { showProofreadingPage, goToProofreadingPage, goToHomeFromProofreading, goToExtractionFromProofreading, changeProofreadingLabel, loadLabelRulesForProofreading, goToProofreadingPageFromMain, switchProofreadingMode, loadProofreadingFiles, renderProofreadingFileList, removeProofreadingFile, clearProofreadingFiles, openProofreadingTxtManageModal, closeProofreadingTxtManageModal, renderProofreadingTxtFileList, addProofreadingTxt, removeProofreadingTxtFile, clearAllProofreadingTxt, updateProofreadingPrompt, updateProofreadingCheckItems, updateProofreadingOptionsLabel, copyProofreadingPrompt, copyAndOpenGeminiForProofreading, toggleAddForm, toggleSymbolForm };
 
 // Expose to window for inline HTML handlers
-Object.assign(window, { showProofreadingPage, goToProofreadingPage, goToHomeFromProofreading, goToExtractionFromProofreading, changeProofreadingLabel, loadLabelRulesForProofreading, goToProofreadingPageFromMain, switchProofreadingMode, loadProofreadingFiles, renderProofreadingFileList, removeProofreadingFile, clearProofreadingFiles, openProofreadingTxtManageModal, closeProofreadingTxtManageModal, renderProofreadingTxtFileList, addProofreadingTxt, removeProofreadingTxtFile, clearAllProofreadingTxt, updateProofreadingPrompt, updateProofreadingCheckItems, updateProofreadingOptionsLabel, copyProofreadingPrompt, copyAndOpenGeminiForProofreading, toggleAddForm, toggleSymbolForm });
+Object.assign(window, { showProofreadingPage, goToProofreadingPage, goToHomeFromProofreading, goToExtractionFromProofreading, changeProofreadingLabel, loadLabelRulesForProofreading, goToProofreadingPageFromMain, switchProofreadingMode, loadProofreadingFiles, syncProofreadingFromComicBridge, renderProofreadingFileList, removeProofreadingFile, clearProofreadingFiles, openProofreadingTxtManageModal, closeProofreadingTxtManageModal, renderProofreadingTxtFileList, addProofreadingTxt, removeProofreadingTxtFile, clearAllProofreadingTxt, updateProofreadingPrompt, updateProofreadingCheckItems, updateProofreadingOptionsLabel, copyProofreadingPrompt, copyAndOpenGeminiForProofreading, toggleAddForm, toggleSymbolForm });

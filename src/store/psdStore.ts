@@ -18,7 +18,8 @@ interface PsdStore {
   viewMode: ViewMode;
   thumbnailSize: ThumbnailSize;
   specViewMode: "thumbnails" | "list" | "layers" | "layerCheck";
-  psdOnlyFilter: boolean;
+  psdOnlyFilter: boolean; // 互換用（fileTypeFilterで管理）
+  fileTypeFilter: "all" | "psd" | "pdf" | "image" | "text";
   pdfDisplayMode: "page" | "file"; // page=ページごと展開, file=ファイル単位
   contentLocked: boolean; // 中央画面ロック（アドレス変更時にファイルリストを保持）
 
@@ -49,6 +50,7 @@ interface PsdStore {
   setThumbnailSize: (size: ThumbnailSize) => void;
   setSpecViewMode: (mode: "thumbnails" | "list" | "layers" | "layerCheck") => void;
   setPsdOnlyFilter: (v: boolean) => void;
+  setFileTypeFilter: (v: "all" | "psd" | "pdf" | "image" | "text") => void;
   setPdfDisplayMode: (mode: "page" | "file") => void;
   setContentLocked: (locked: boolean) => void;
 
@@ -71,6 +73,7 @@ export const usePsdStore = create<PsdStore>((set, get) => ({
   thumbnailSize: "medium",
   specViewMode: "thumbnails",
   psdOnlyFilter: false,
+  fileTypeFilter: "all" as const,
   pdfDisplayMode: "page",
   contentLocked: false,
 
@@ -168,7 +171,8 @@ export const usePsdStore = create<PsdStore>((set, get) => ({
   setViewMode: (viewMode) => set({ viewMode }),
   setThumbnailSize: (thumbnailSize) => set({ thumbnailSize }),
   setSpecViewMode: (specViewMode) => set({ specViewMode }),
-  setPsdOnlyFilter: (psdOnlyFilter) => set({ psdOnlyFilter }),
+  setPsdOnlyFilter: (psdOnlyFilter) => set({ psdOnlyFilter, fileTypeFilter: psdOnlyFilter ? "psd" : "all" }),
+  setFileTypeFilter: (fileTypeFilter) => set({ fileTypeFilter, psdOnlyFilter: fileTypeFilter === "psd" }),
   setPdfDisplayMode: (pdfDisplayMode) => set({ pdfDisplayMode }),
   setContentLocked: (contentLocked) => set({ contentLocked }),
 

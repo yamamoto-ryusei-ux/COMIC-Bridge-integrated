@@ -4,9 +4,9 @@
 import { state } from './progen-state.js';
 let variationCheckTxtFiles = []; // 詳細チェック用のTXTファイル
 
-// 詳細チェックモーダルを開く
+// 詳細チェックモーダルを開く — COMIC-Bridge統合版: 親テキストを自動取得
 function openVariationCheckModal() {
-    variationCheckTxtFiles = [];
+    syncVariationCheckFromBridge();
     renderVariationCheckFileList();
     updateVariationCheckSubmitBtn();
     document.getElementById('variationCheckModal').style.display = 'flex';
@@ -18,33 +18,26 @@ function closeVariationCheckModal() {
     variationCheckTxtFiles = [];
 }
 
-// 詳細チェック用TXTファイル読み込み
+// COMIC-Bridge統合版: 親からテキスト同期
+function syncVariationCheckFromBridge() {
+    try {
+        var bridge = window.parent && window.parent.__COMIC_BRIDGE__;
+        if (!bridge) return;
+        var content = bridge.getTextContent();
+        var fileName = bridge.getTextFileName() || 'text.txt';
+        if (content) {
+            variationCheckTxtFiles = [{ name: fileName, content: content, size: new Blob([content]).size }];
+        } else {
+            variationCheckTxtFiles = [];
+        }
+    } catch (e) { /* cross-origin */ }
+}
+
+// 詳細チェック用TXTファイル読み込み（COMIC-Bridge統合版: 親から同期）
 function loadVariationCheckTxt(input) {
-    const files = input.files;
-    if (!files || files.length === 0) return;
-
-    let loadedCount = 0;
-    const totalFiles = files.length;
-
-    Array.from(files).forEach(file => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            variationCheckTxtFiles.push({
-                name: file.name,
-                content: e.target.result,
-                size: file.size
-            });
-
-            loadedCount++;
-            if (loadedCount === totalFiles) {
-                renderVariationCheckFileList();
-                updateVariationCheckSubmitBtn();
-            }
-        };
-        reader.readAsText(file, 'UTF-8');
-    });
-
-    input.value = '';
+    syncVariationCheckFromBridge();
+    renderVariationCheckFileList();
+    updateVariationCheckSubmitBtn();
 }
 
 // 詳細チェック用ファイルリスト描画

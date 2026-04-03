@@ -35,6 +35,7 @@ export interface PsdFile {
   fileName: string;
   fileSize: number;
   modifiedTime: number;
+  createdTime?: number;
   metadata?: PsdMetadata;
   thumbnailUrl?: string;
   thumbnailStatus: "pending" | "loading" | "ready" | "error";
@@ -155,11 +156,10 @@ export interface SpecCheckResult {
 
 // UI Types
 export type ViewMode = "grid";
-export type ThumbnailSize = "small" | "medium" | "large" | "xlarge";
+export type ThumbnailSize = "small" | "medium" | "large";
 
 export const THUMBNAIL_SIZES: Record<ThumbnailSize, { value: number; label: string }> = {
   small: { value: 100, label: "小" },
-  medium: { value: 140, label: "中" },
-  large: { value: 180, label: "大" },
-  xlarge: { value: 240, label: "特大" },
+  medium: { value: 120, label: "中" },
+  large: { value: 195, label: "大" },
 };

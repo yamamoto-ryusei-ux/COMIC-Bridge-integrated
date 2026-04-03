@@ -8,7 +8,8 @@ import { ComposeView } from "../views/ComposeView";
 import { RenameView } from "../views/RenameView";
 import { TiffView } from "../views/TiffView";
 import { ScanPsdView } from "../views/ScanPsdView";
-import { TypsettingView } from "../views/TypsettingView";
+// TypsettingView は隔離中 — 削除予定
+// import { TypsettingView } from "../views/TypsettingView";
 // KenbanView は隔離中 — 統合ビューアーに移行完了後に削除予定
 // import { KenbanView } from "../views/KenbanView";
 import { ProgenView } from "../views/ProgenView";
@@ -31,7 +32,8 @@ export function ViewRouter() {
       {/* Standard conditional rendering for lightweight tabs */}
       {activeView === "specCheck" && <SpecCheckView />}
       {activeView === "layers" && <LayerControlView />}
-      {activeView === "typesetting" && <TypsettingView />}
+      {/* TypsettingView は隔離中 — 削除予定 */}
+      {/* {activeView === "typesetting" && <TypsettingView />} */}
       {activeView === "split" && <SplitView />}
       {activeView === "replace" && <ReplaceView />}
       {activeView === "compose" && <ComposeView />}

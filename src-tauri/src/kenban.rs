@@ -347,37 +347,38 @@ pub fn open_folder(path: String) -> Result<(), String> {
 fn find_mojiq_path() -> Option<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
 
-    if let Ok(program_files) = std::env::var("ProgramFiles") {
-        candidates.push(
-            PathBuf::from(&program_files)
-                .join("MojiQ")
-                .join("MojiQ.exe"),
-        );
-    }
-
-    if let Ok(program_files_x86) = std::env::var("ProgramFiles(x86)") {
-        candidates.push(
-            PathBuf::from(&program_files_x86)
-                .join("MojiQ")
-                .join("MojiQ.exe"),
-        );
-    }
-
+    // 1. %LOCALAPPDATA%\Programs\MojiQ\MojiQ.exe（Electron標準インストール先）
     if let Some(local_app_data) = dirs::data_local_dir() {
+        for name in &["MojiQ", "mojiq"] {
+            candidates.push(
+                local_app_data.join("Programs").join(name).join("MojiQ.exe"),
+            );
+        }
+        // %LOCALAPPDATA%\MojiQ\MojiQ.exe
+        candidates.push(local_app_data.join("MojiQ").join("MojiQ.exe"));
+    }
+
+    // 2. %PROGRAMFILES%\MojiQ\MojiQ.exe
+    if let Ok(pf) = std::env::var("ProgramFiles") {
+        candidates.push(PathBuf::from(&pf).join("MojiQ").join("MojiQ.exe"));
+    }
+    if let Ok(pf86) = std::env::var("ProgramFiles(x86)") {
+        candidates.push(PathBuf::from(&pf86).join("MojiQ").join("MojiQ.exe"));
+    }
+
+    // 3. %USERPROFILE%\AppData\Local\Programs\MojiQ\MojiQ.exe（USERPROFILE経由のフォールバック）
+    if let Ok(profile) = std::env::var("USERPROFILE") {
         candidates.push(
-            local_app_data
+            PathBuf::from(&profile)
+                .join("AppData")
+                .join("Local")
                 .join("Programs")
                 .join("MojiQ")
                 .join("MojiQ.exe"),
         );
-        candidates.push(
-            local_app_data
-                .join("Programs")
-                .join("mojiq")
-                .join("MojiQ.exe"),
-        );
     }
 
+    // 4. デスクトップ（開発版 / ver_フォルダ）
     if let Some(desktop) = dirs::desktop_dir() {
         candidates.push(
             desktop
@@ -404,9 +405,21 @@ fn find_mojiq_path() -> Option<PathBuf> {
         }
     }
 
-    for path in candidates {
+    // 5. PATH環境変数から探す
+    for path in candidates.iter() {
         if path.exists() {
-            return Some(path);
+            return Some(path.clone());
+        }
+    }
+
+    // where コマンドでPATHから検索
+    if let Ok(output) = std::process::Command::new("where").arg("MojiQ.exe").output() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if let Some(line) = stdout.lines().next() {
+            let p = line.trim();
+            if !p.is_empty() && Path::new(p).exists() {
+                return Some(PathBuf::from(p));
+            }
         }
     }
 

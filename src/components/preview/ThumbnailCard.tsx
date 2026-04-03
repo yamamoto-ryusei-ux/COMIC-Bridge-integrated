@@ -64,7 +64,7 @@ export function ThumbnailCard({
         ${!hasError && isCaution ? "ring-2 ring-warning/60" : ""}
         ${isPassed && isChecked && !isCaution ? "ring-1 ring-success/30" : ""}
       `}
-      style={{ aspectRatio: "1 / 1.4142" }} // A4/B5 aspect ratio
+      style={{ aspectRatio: "1 / 1.4142", minHeight: `${_size}px` }} // A4/B5 aspect ratio + minimum size
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onMouseEnter={() => setIsHovered(true)}
@@ -96,7 +96,7 @@ export function ThumbnailCard({
           <img
             src={file.thumbnailUrl}
             alt={file.fileName}
-            className="max-w-full max-h-full object-contain"
+            className="w-full h-full object-contain"
             draggable={false}
           />
         )}

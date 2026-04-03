@@ -60,7 +60,7 @@ export function PreviewGrid({ fileFilter, fileSorter, onDoubleClickFile }: { fil
       <div
         className="grid gap-3"
         style={{
-          gridTemplateColumns: `repeat(auto-fill, minmax(${size}px, 1fr))`,
+          gridTemplateColumns: `repeat(auto-fill, minmax(${size}px, ${Math.round(size * 1.3)}px))`,
         }}
       >
         {files.map((file) => {

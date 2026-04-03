@@ -15,9 +15,11 @@ import type { FontResolveInfo } from "../../hooks/useFontResolver";
 
 interface SpecScanJsonDialogProps {
   onClose: () => void;
+  /** trueの場合、fixedモーダルではなくインライン表示 */
+  inline?: boolean;
 }
 
-export function SpecScanJsonDialog({ onClose }: SpecScanJsonDialogProps) {
+export function SpecScanJsonDialog({ onClose, inline }: SpecScanJsonDialogProps) {
   const [label, setLabel] = useState("");
   const [title, setTitle] = useState("");
   const [volumeStr, setVolumeStr] = useState("1");
@@ -266,12 +268,8 @@ export function SpecScanJsonDialog({ onClose }: SpecScanJsonDialogProps) {
   const isReady = !!label && !!title && !scanning;
   const fileCount = usePsdStore.getState().files.length;
 
-  return (
-    <div
-      className="fixed inset-0 z-[200] flex items-start justify-center pt-[10vh] bg-black/40"
-      onMouseDown={(e) => e.stopPropagation()}
-    >
-      <div className="bg-bg-secondary rounded-2xl shadow-2xl w-[400px] max-h-[80vh] flex flex-col border border-border/50 overflow-hidden">
+  const content = (
+      <div className={inline ? "flex flex-col h-full overflow-hidden" : "bg-bg-secondary rounded-2xl shadow-2xl w-[400px] max-h-[80vh] flex flex-col border border-border/50 overflow-hidden"}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-border/50">
           <h3 className="text-sm font-bold text-text-primary">JSON登録</h3>
@@ -535,6 +533,16 @@ export function SpecScanJsonDialog({ onClose }: SpecScanJsonDialogProps) {
           </button>
         </div>
       </div>
+  );
+
+  if (inline) return content;
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-start justify-center pt-[10vh] bg-black/40"
+      onMouseDown={(e) => e.stopPropagation()}
+    >
+      {content}
     </div>
   );
 }

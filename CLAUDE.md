@@ -374,13 +374,33 @@
 - **差分モード・分割ビューアーは統合ビューアー内で引き続き利用可能**（KenbanApp defaultAppModeプロップ経由）
 
 ### 21. ProGen（統合タブ）
-- **テキスト抽出プロンプト生成**（Google Gemini向け）
-- **校正チェック**（シンプル/バリエーション）
-- **テキスト成形エディタ**（COMIC-POT互換）
-- **マスタールールJSON管理**（Gドライブ連携）
-- **画像ビューアー**（PSD/TIFF/PDF対応）
+- **3モード**: 抽出プロンプト / 整形プロンプト / 校正プロンプト — ドットメニューから直接モード選択可能
+- **COMIC-Bridgeデータ連携**: `window.__COMIC_BRIDGE__` ブリッジオブジェクト経由でReact storeのデータをiframeから直接pull
+  - テキスト: `unifiedViewerStore.textContent` → ProGen `state.manuscriptTxtFiles` / `state.proofreadingFiles` に自動同期
+  - 作品情報JSON: `scanPsdStore.currentJsonFilePath` / `unifiedViewerStore.presetJsonPath` → ProGen JSON読み込み + レーベル自動認識
+  - 校正JSON: `unifiedViewerStore.checkData.filePath` → レーベルフォルダ名推定
+- **テキスト読み込みUI排除**: ProGen独自のファイル入力/D&Dゾーン/ガイドオーバーレイを全て削除。メイン画面TopNavの「テキスト」ボタンで読み込んだテキストを自動同期
+- **常用外漢字検出**: 校正モード遷移時 / テキスト変更時に `detectNonJoyoLinesWithPageInfo` → `showNonJoyoResultPopup` を自動実行
+- **レーベル自動認識**: JSON読み込み時に `processLoadedJson` → `autoSelectLabel` で校正ページ含む全セレクタに自動設定
+- **ランディング画面なし**: ドットメニューからモード選択→直接そのモード画面に遷移（`forceNavigateToMode`）。JSON未読み込み時は「新規作成」フロー（レーベル選択モーダル→JSON作成→モード遷移）
 - **iframe内で動作**（バニラJS、Reactとは独立）
 - 全コマンドは `progen_` プレフィックス付き
+- **ProgenView**: `publishBridge()` で `window.__COMIC_BRIDGE__` を毎render更新。`callIframe()` でiframe側コールバックを安全に呼び出し
+
+### 22. 右クリックコンテキストメニュー
+- **FileContextMenu.tsx**: SpecCheckViewの中央コンテンツエリアで右クリック → フローティングメニュー表示
+- **メニュー構成**:
+  - Psで開く(P) / MojiQで開く(M)（PDF限定） / ファイルの場所を開く
+  - カット / コピー / 複製（`duplicate_files` Rustコマンド） / 削除
+  - PDF作成（Tachimi起動） / TIFF作成（ビュー遷移） / テキスト抽出
+  - 編集 ▶（差し替え / 見開き分割 / レイヤー制御）
+  - リネーム ▶（このファイルをリネーム / バッチでリネーム / yyyymmdd_ジャンル_タイトル_巻）
+  - 読み込み ▶（別の作品を読み込み / セリフテキスト / 校正JSON / 作品JSON）
+- **MojiQ自動検索**: `find_mojiq_path()` で7箇所+PATHから自動探索（全ユーザー対応）
+
+### 23. ファイルプロパティパネル
+- **FilePropertiesPanel**: 右プレビューパネル下部に折りたたみ可能なプロパティ表示
+- **表示項目**: ファイル名 / ドキュメント種類 / 作成日 / 修正日 / ファイルサイズ / 寸法(px/inch/cm) / 用紙サイズ / 解像度 / ビット数 / カラーモード / αチャンネル / ガイド / トンボ / レイヤー数 / チェック結果
 
 ### 22. 統合ビューアータブ（UnifiedViewerView）
 - **3サブタブ構成**: 統合ビューアー / 差分モード / 分割ビューアー
@@ -409,8 +429,8 @@
 ## UI構成
 
 ### レイアウト
-- **TopNav**: ロゴ（CB Logo = ホームボタン）+ データ読込ボタン（テキスト/作品情報/校正JSON）+ 3色インジケーター（読込済=塗り、未読込=フチのみ）+ ステータス + バージョン。旧12タブはドットメニューに統合
-- **GlobalAddressBar**: TopNav直下に常時表示。戻る/進む/上の階層/パス入力/フォルダ参照/再読み込みボタン。全タブで共通表示
+- **TopNav**: ロゴ（CB Logo = ホームボタン、クリックで全リセット）+ データ読込ボタン（テキスト/作品情報/校正JSON、各×ボタンでクリア可能）+ ステータス + バージョン。旧12タブはドットメニューに統合
+- **GlobalAddressBar**: TopNav直下に常時表示。戻る/進む/上の階層/パス入力/×ボタン（読み込みクリア）/フォルダ参照/再読み込みボタン。全タブで共通表示
 - **ViewRouter + viewStore**: タブベースのビュー切替管理。AppView型:
   ```typescript
   export type AppView =
@@ -420,7 +440,10 @@
   ```
   progen / unifiedViewer は状態保持型マウント（display切替、アンマウントしない）。kenbanは隔離中（マウント無効化）
 - **AppLayout**: TopNav + GlobalAddressBar + ViewRouter構成。グローバルD&Dリスナー（useGlobalDragDrop）
-- **ドットメニュー**: SpecCheckView中央エリア右端に9点アイコン。クリックで全タブ（レイヤー制御〜ビューアー、検版除く）のドロップダウン表示。外部クリックで自動閉じ
+- **ドットメニュー**: GlobalAddressBar右端に9点アイコン。クリックで全タブ（レイヤー制御〜ビューアー、検版・写植除く）+ ProGen3モードのドロップダウン表示。外部クリックで自動閉じ
+- **D&Dオーバーレイ**: ファイルをドラッグ中にホーム画面を暗くし「ドラッグして読み込み」を表示（Tauri `onDragDropEvent` enter/leave監視）
+- **DropZone（空状態）**: ファイル未読み込み時、中央エリアをクリックするとフォルダ選択ダイアログを表示。D&Dも対応
+- **右クリックコンテキストメニュー**: FileContextMenu — ファイル操作/編集/読み込みの階層メニュー
 
 ### ビュー
 - **LayerControlView**: レイヤー制御パネル + LayerPreviewPanel（レイヤー構造タブ + ビューアータブ）。**サブタブ構成**: 「レイヤー制御」「リネーム」の2タブ。リネームタブはRenameViewをそのまま内蔵
@@ -439,7 +462,7 @@
   - PSDフィルタ / PDF表示切替（ページごと/ファイル単位）/ ソート（名前/サイズ/DPI/チェック結果）
   - 対応ファイル表示: PSD/PSB/JPG/PNG/TIFF/BMP/GIF/PDF/EPS + TXT/JSON + フォルダのみ（それ以外は非表示）
   - PDF表示: `FilePreviewImage`でpdfPageIndex/pdfSourcePathを`useHighResPreview`に渡し、`get_pdf_preview`（PDFium）でレンダリング
-- **TypsettingView**: 写植関連（写植チェック・写植確認を統合）。MojiQ校正JSONの読み込み・カテゴリ別表示・ページ遷移連動
+- **TypsettingView**: 写植関連（隔離中 — ViewRouterでマウント無効化、ドットメニューから除外。削除予定）
 - **ReplaceView**: レイヤー差替え
 - **ComposeView**: 合成（2カラム: ComposePanel | ComposeDropZone）。Replace機能と類似のペアリングUI
 - **SplitView**: 見開き分割
@@ -447,7 +470,7 @@
 - **TiffView**: TIFF化（3カラム: TiffSettingsPanel | TiffFileList | Center(プレビュー/一覧/ビューアータブ切替)）。TiffFileListヘッダーとTiffBatchQueueヘッダーにサブフォルダチェックを配置
 - **ScanPsdView**: Scan PSD（2カラム: ScanPsdPanel(5タブ) | ScanPsdContent(モード選択/スキャン/サマリー)）。JSON編集時に未登録フォントアラート表示。フォント帳を独立セクションとして追加（モーダル表示）
 - **KenbanView**: KENBAN検版（隔離中 — ViewRouterでマウント無効化、ドットメニューから除外。統合完了後に削除予定）
-- **ProgenView**: ProGen（iframe `/progen/index.html`、状態保持型マウント）
+- **ProgenView**: ProGen（iframe `/progen/index.html`、状態保持型マウント、`__COMIC_BRIDGE__`ブリッジでデータ連携）
 - **UnifiedViewerView**: 統合ビューアー + 差分モード + 分割ビューアーの3タブ。統合ビューアーは3カラム（全タブ共通パネル）。unifiedViewerStore独立管理。psdStoreとdoSync+loadImageRefで自動同期。PDF表示はpdf.jsで描画（isPdf/pdfPath/pdfPageを正しくマッピング）
 
 ### レイヤーツリー (LayerPreviewPanel)
@@ -494,6 +517,7 @@ src/
 │   ├── common/            # 共通コンポーネント
 │   │   ├── CompactFileList.tsx    # コンパクトファイル一覧
 │   │   ├── DetailSlidePanel.tsx   # スライドイン詳細パネル
+│   │   ├── FileContextMenu.tsx   # 右クリックコンテキストメニュー（ファイル操作/編集/読み込み）
 │   │   └── TextExtractButton.tsx  # テキスト抽出フローティングボタン（COMIC-POT互換出力）
 │   ├── file-browser/      # ファイル選択・ドロップゾーン
 │   │   ├── DropZone.tsx          # UI表示のみ（D&DリスナーはuseGlobalDragDrop）
@@ -648,6 +672,7 @@ src/
 │   ├── useReplaceProcessor.ts    # レイヤー差替え処理
 │   ├── useScanPsdProcessor.ts    # Scan PSD処理（スキャン・JSON保存/読込・ガイド自動選択）
 │   ├── useSpecChecker.ts         # 仕様チェック（自動実行・結果キャッシュ）
+│   ├── useTextExtract.ts         # テキスト抽出ロジック共有フック（COMIC-POT互換出力）
 │   ├── useSpecConverter.ts       # 直接仕様変換（ag-psd+Rust、Photoshop不要）
 │   ├── useSplitProcessor.ts      # 見開き分割処理
 │   └── useTiffProcessor.ts       # TIFF化処理（設定マージ・invoke・結果処理）
@@ -666,7 +691,7 @@ src/
 │   ├── specStore.ts       # 仕様・チェック結果（specifications, checkResults, autoCheckEnabled）。localStorage永続化
 │   ├── guideStore.ts      # ガイド線状態（guides, history/future, selectedGuideIndex）
 │   ├── layerStore.ts      # レイヤー制御: actionMode(hide/show/custom/organize/layerMove), saveMode, selectedConditions, customConditions, organizeTargetName, layerMove条件, deleteHiddenText, customVisibilityOps/customMoveOps（カスタム操作Map）
-│   ├── viewStore.ts       # ビュー切替状態（activeView: AppView）
+│   ├── viewStore.ts       # ビュー切替状態（activeView: AppView, progenMode: ProgenMode）
 │   ├── fontBookStore.ts   # フォント帳（entries, fontBookDir, isLoaded）
 │   ├── splitStore.ts      # 分割設定（settings, selectionHistory/Future）
 │   ├── replaceStore.ts    # 差替え設定（folders, batchFolders, settings, pairingJobs, manualPairs, excludedPairIndices）

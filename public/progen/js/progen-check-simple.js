@@ -4,9 +4,9 @@
 import { state } from './progen-state.js';
 let simpleCheckTxtFiles = []; // 簡易チェック用のTXTファイル
 
-// 簡易チェックモーダルを開く
+// 簡易チェックモーダルを開く — COMIC-Bridge統合版: 親テキストを自動取得
 function openSimpleCheckModal() {
-    simpleCheckTxtFiles = [];
+    syncSimpleCheckFromBridge();
     renderSimpleCheckFileList();
     updateSimpleCheckSubmitBtn();
     document.getElementById('simpleCheckModal').style.display = 'flex';
@@ -18,33 +18,26 @@ function closeSimpleCheckModal() {
     simpleCheckTxtFiles = [];
 }
 
-// 簡易チェック用TXTファイル読み込み
+// COMIC-Bridge統合版: 親からテキスト同期
+function syncSimpleCheckFromBridge() {
+    try {
+        var bridge = window.parent && window.parent.__COMIC_BRIDGE__;
+        if (!bridge) return;
+        var content = bridge.getTextContent();
+        var fileName = bridge.getTextFileName() || 'text.txt';
+        if (content) {
+            simpleCheckTxtFiles = [{ name: fileName, content: content, size: new Blob([content]).size }];
+        } else {
+            simpleCheckTxtFiles = [];
+        }
+    } catch (e) { /* cross-origin */ }
+}
+
+// 簡易チェック用TXTファイル読み込み（COMIC-Bridge統合版: 親から同期）
 function loadSimpleCheckTxt(input) {
-    const files = input.files;
-    if (!files || files.length === 0) return;
-
-    let loadedCount = 0;
-    const totalFiles = files.length;
-
-    Array.from(files).forEach(file => {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            simpleCheckTxtFiles.push({
-                name: file.name,
-                content: e.target.result,
-                size: file.size
-            });
-
-            loadedCount++;
-            if (loadedCount === totalFiles) {
-                renderSimpleCheckFileList();
-                updateSimpleCheckSubmitBtn();
-            }
-        };
-        reader.readAsText(file, 'UTF-8');
-    });
-
-    input.value = '';
+    syncSimpleCheckFromBridge();
+    renderSimpleCheckFileList();
+    updateSimpleCheckSubmitBtn();
 }
 
 // 簡易チェック用ファイルリスト描画
