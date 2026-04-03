@@ -54,15 +54,13 @@ const proofreadingTxtDropZone = document.getElementById('proofreadingTxtDropZone
 if (proofreadingTxtDropZone) window.setupDropZone(proofreadingTxtDropZone, window.addProofreadingTxt);
 
 // ═══ COMIC-Bridge統合: URLパラメータからモード自動遷移 ═══
-// ProgenView.tsx がiframe srcに ?mode=extraction 等を付与する
 (function () {
     var params = new URLSearchParams(window.location.search);
-    var mode = params.get('mode'); // 'extraction' | 'formatting' | 'proofreading'
-    if (!mode) return; // パラメータなし = 通常起動（ランディング表示）
+    var mode = params.get('mode');
+    if (!mode) return;
 
     console.log('[ProGen] Auto-navigate to mode:', mode);
 
-    // ランディング画面を即座に非表示
     var landing = document.getElementById('landingScreen');
     var main = document.getElementById('mainWrapper');
     var proofreading = document.getElementById('proofreadingPage');
@@ -70,25 +68,18 @@ if (proofreadingTxtDropZone) window.setupDropZone(proofreadingTxtDropZone, windo
     if (main) main.style.display = 'none';
     if (proofreading) proofreading.style.display = 'none';
 
-    // ブリッジからJSON読み込み（親windowアクセス可能な場合）
+    // ブリッジ取得（失敗してもモード遷移は行う）
     var bridge = null;
-    try {
-        bridge = (window._getBridge && window._getBridge())
-              || (window.parent && window.parent !== window && window.parent.__COMIC_BRIDGE__)
-              || null;
-    } catch (e) { /* cross-origin */ }
-
-    // レーベル自動認識
-    if (window.autoSelectLabel) {
-        try { window.autoSelectLabel(); } catch (e) { /* ignore */ }
+    try { bridge = (window._getBridge && window._getBridge()) || null; } catch (e) {}
+    if (!bridge) {
+        try { bridge = (window.parent !== window && window.parent.__COMIC_BRIDGE__) || null; } catch (e) {}
     }
 
-    // テキスト同期（ブリッジ経由）
-    function syncText() {
-        if (!bridge) return;
-        try {
+    // テキスト同期（エラーでも続行）
+    try {
+        if (bridge && bridge.getTextContent) {
             var content = bridge.getTextContent();
-            var fileName = bridge.getTextFileName() || 'text.txt';
+            var fileName = (bridge.getTextFileName && bridge.getTextFileName()) || 'text.txt';
             if (content && window.state) {
                 var fileObj = { name: fileName, content: content, size: content.length };
                 window.state.manuscriptTxtFiles = [fileObj];
@@ -96,67 +87,69 @@ if (proofreadingTxtDropZone) window.setupDropZone(proofreadingTxtDropZone, windo
                 window.state.proofreadingFiles = [fileObj];
                 window.state.proofreadingContent = content;
             }
-        } catch (e) { /* ignore */ }
-    }
-    syncText();
-
-    // JSON読み込み → モード遷移
-    var jsonPath = bridge ? bridge.getJsonPath() : '';
-    function navigateToMode() {
-        if (mode === 'proofreading') {
-            if (proofreading) proofreading.style.display = 'flex';
-            if (window.state) {
-                window.state.currentProofreadingMode = 'simple';
-                window.state.proofreadingReturnTo = 'landing';
-            }
-            document.querySelectorAll('.proofreading-mode-btn').forEach(function(btn) {
-                btn.classList.toggle('active', btn.dataset.mode === 'simple');
-            });
-            if (window.updateProofreadingCheckItems) window.updateProofreadingCheckItems();
-            if (window.updateProofreadingOptionsLabel) window.updateProofreadingOptionsLabel();
-            if (window.renderProofreadingFileList) window.renderProofreadingFileList();
-            if (window.updateProofreadingPrompt) window.updateProofreadingPrompt();
-
-            // 常用外漢字検出
-            setTimeout(function () {
-                syncText();
-                if (window.state && window.state.proofreadingFiles && window.state.proofreadingFiles.length > 0
-                    && window.detectNonJoyoLinesWithPageInfo && window.showNonJoyoResultPopup) {
-                    var detected = window.detectNonJoyoLinesWithPageInfo(window.state.proofreadingFiles);
-                    window.state.proofreadingDetectedNonJoyoWords = detected;
-                    window.showNonJoyoResultPopup(detected, true);
-                }
-            }, 300);
-        } else {
-            if (main) main.style.display = 'flex';
-            if (window.state) window.state.currentViewMode = 'edit';
-            if (mode === 'formatting' && window.selectDataType) window.selectDataType('txt_only');
-            if (window.updateTxtUploadStatus) window.updateTxtUploadStatus();
-            if (window.renderTable) window.renderTable();
-            if (window.showEditMode) window.showEditMode();
-            if (window.renderSymbolTable) window.renderSymbolTable();
-            if (window.generateXML) window.generateXML();
         }
+    } catch (e) { console.warn('[ProGen] Text sync failed:', e); }
+
+    // モード遷移（必ず実行される）
+    function navigateToMode() {
+        try {
+            if (mode === 'proofreading') {
+                if (proofreading) proofreading.style.display = 'flex';
+                if (window.state) {
+                    window.state.currentProofreadingMode = 'simple';
+                    window.state.proofreadingReturnTo = 'landing';
+                }
+                document.querySelectorAll('.proofreading-mode-btn').forEach(function(btn) {
+                    btn.classList.toggle('active', btn.dataset.mode === 'simple');
+                });
+                if (window.updateProofreadingCheckItems) window.updateProofreadingCheckItems();
+                if (window.updateProofreadingOptionsLabel) window.updateProofreadingOptionsLabel();
+                if (window.renderProofreadingFileList) window.renderProofreadingFileList();
+                if (window.updateProofreadingPrompt) window.updateProofreadingPrompt();
+            } else {
+                if (main) main.style.display = 'flex';
+                if (window.state) window.state.currentViewMode = 'edit';
+                if (mode === 'formatting' && window.selectDataType) window.selectDataType('txt_only');
+                if (window.updateTxtUploadStatus) window.updateTxtUploadStatus();
+                if (window.renderTable) window.renderTable();
+                if (window.showEditMode) window.showEditMode();
+                if (window.renderSymbolTable) window.renderSymbolTable();
+                if (window.generateXML) window.generateXML();
+            }
+            // Geminiボタン強制有効化
+            var geminiBtn = document.getElementById('extractionGeminiBtn');
+            if (geminiBtn) geminiBtn.removeAttribute('disabled');
+            // データタイプトグル有効化
+            if (window.enableDataTypeToggle) window.enableDataTypeToggle();
+        } catch (e) { console.warn('[ProGen] Navigate error:', e); }
     }
+
+    // JSON読み込み → モード遷移（全てtry/catchで保護）
+    var jsonPath = '';
+    try { jsonPath = bridge && bridge.getJsonPath ? bridge.getJsonPath() : ''; } catch (e) {}
 
     if (jsonPath && window.electronAPI && window.electronAPI.readJsonFile) {
         window.electronAPI.readJsonFile(jsonPath).then(function (result) {
-            if (result && result.success !== false && window.processLoadedJson) {
-                var fn = jsonPath.split('\\').pop() || jsonPath.split('/').pop() || '';
-                window.processLoadedJson(result, fn).then(function () {
-                    // processLoadedJson が hideLandingScreen を呼ぶので再度非表示
-                    if (landing) landing.style.display = 'none';
-                    if (mode === 'proofreading') { if (main) main.style.display = 'none'; }
+            try {
+                if (result && result.success !== false && window.processLoadedJson) {
+                    var fn = jsonPath.split('\\').pop() || jsonPath.split('/').pop() || '';
+                    window.processLoadedJson(result, fn).then(function () {
+                        if (landing) landing.style.display = 'none';
+                        if (mode === 'proofreading' && main) main.style.display = 'none';
+                        navigateToMode();
+                        try { if (window.autoSelectLabel) window.autoSelectLabel(); } catch(e){}
+                    }).catch(function () { navigateToMode(); });
+                } else {
                     navigateToMode();
-                    if (window.autoSelectLabel) { try { window.autoSelectLabel(); } catch(e){} }
-                });
-            } else {
-                navigateToMode();
-            }
-        }).catch(function () {
-            navigateToMode();
-        });
+                }
+            } catch (e) { navigateToMode(); }
+        }).catch(function () { navigateToMode(); });
     } else {
         navigateToMode();
     }
+
+    // レーベル自動認識（遅延実行）
+    setTimeout(function () {
+        try { if (window.autoSelectLabel) window.autoSelectLabel(); } catch(e){}
+    }, 500);
 })();
