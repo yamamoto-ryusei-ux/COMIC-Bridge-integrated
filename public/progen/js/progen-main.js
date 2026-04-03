@@ -79,14 +79,16 @@ if (proofreadingTxtDropZone) window.setupDropZone(proofreadingTxtDropZone, windo
     console.log('[ProGen] Handoff data:', data ? 'loaded' : 'none',
         data ? { text: !!data.textContent, json: !!data.jsonPath, label: data.labelName } : '');
 
-    // テキスト注入
-    if (data && data.textContent && window.state) {
+    // テキスト注入関数（processLoadedJson後に再呼び出しするため関数化）
+    function injectText() {
+        if (!data || !data.textContent || !window.state) return;
         var fileObj = { name: data.textFileName || 'text.txt', content: data.textContent, size: data.textContent.length };
         window.state.manuscriptTxtFiles = [fileObj];
         window.state.txtGuideDismissed = true;
         window.state.proofreadingFiles = [fileObj];
         window.state.proofreadingContent = data.textContent;
     }
+    injectText(); // 初回注入
 
     // レーベル自動認識
     function applyLabel() {
@@ -162,6 +164,19 @@ if (proofreadingTxtDropZone) window.setupDropZone(proofreadingTxtDropZone, windo
         } catch (e) { console.warn('[ProGen] Navigate error:', e); }
     }
 
+    // 全処理を最終的に実行する共通関数
+    function finalize() {
+        applyLabel();
+        navigateToMode();
+        // processLoadedJsonがstateを上書きするため、テキストを再注入
+        injectText();
+        // UI更新（テキスト再注入後）
+        if (window.updateTxtUploadStatus) window.updateTxtUploadStatus();
+        if (window.generateXML) window.generateXML();
+        if (window.renderProofreadingFileList) window.renderProofreadingFileList();
+        if (window.updateProofreadingPrompt) window.updateProofreadingPrompt();
+    }
+
     // JSON読み込み → レーベル適用 → モード遷移
     var jsonPath = data ? data.jsonPath : '';
     if (jsonPath && window.electronAPI && window.electronAPI.readJsonFile) {
@@ -172,15 +187,14 @@ if (proofreadingTxtDropZone) window.setupDropZone(proofreadingTxtDropZone, windo
                     window.processLoadedJson(result, fn).then(function () {
                         if (landing) landing.style.display = 'none';
                         if (mode === 'proofreading' && main) main.style.display = 'none';
-                        applyLabel();
-                        navigateToMode();
-                    }).catch(function () { applyLabel(); navigateToMode(); });
+                        finalize();
+                    }).catch(function () { finalize(); });
                 } else {
-                    applyLabel(); navigateToMode();
+                    finalize();
                 }
-            } catch (e) { applyLabel(); navigateToMode(); }
-        }).catch(function () { applyLabel(); navigateToMode(); });
+            } catch (e) { finalize(); }
+        }).catch(function () { finalize(); });
     } else {
-        applyLabel(); navigateToMode();
+        finalize();
     }
 })();
