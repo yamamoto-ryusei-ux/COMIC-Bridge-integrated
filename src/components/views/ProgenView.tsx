@@ -1,12 +1,16 @@
-import { useRef, useCallback, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useScanPsdStore } from "../../store/scanPsdStore";
 import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
 import { useViewStore } from "../../store/viewStore";
 
 /**
- * 親windowに __COMIC_BRIDGE__ オブジェクトを公開する。
- * iframe (ProGen) は window.parent.__COMIC_BRIDGE__ で直接参照。
+ * ProGen統合ビュー
+ *
+ * モード遷移: URLハッシュ + ランディング画面CSSで強制非表示
+ * テキスト連携: Tauri invoke経由で一時ファイルに書き出し → ProGen側で読み込み
+ * ブリッジ: window.__COMIC_BRIDGE__ を公開（親windowアクセスが可能な場合のみ動作）
  */
+
 function publishBridge() {
   (window as any).__COMIC_BRIDGE__ = {
     pendingMode: useViewStore.getState().progenMode,
@@ -27,15 +31,10 @@ function publishBridge() {
       const v = useUnifiedViewerStore.getState();
       return s.currentJsonFilePath || v.presetJsonPath || "";
     },
-    getCheckJsonPath: () => {
-      const v = useUnifiedViewerStore.getState();
-      return v.checkData?.filePath || "";
-    },
-    // レーベル名: workInfoから直接取得（JSONパスより確実）
+    getCheckJsonPath: () => useUnifiedViewerStore.getState().checkData?.filePath || "",
     getLabelName: () => {
       const s = useScanPsdStore.getState();
       if (s.workInfo.label) return s.workInfo.label;
-      // JSONパスからフォルダ名を推定
       const jp = s.currentJsonFilePath || useUnifiedViewerStore.getState().presetJsonPath || "";
       if (!jp) return "";
       const parts = jp.replace(/\//g, "\\").split("\\");
@@ -59,63 +58,41 @@ function publishBridge() {
   };
 }
 
-/** iframe側の関数を安全に呼び出す */
-function callIframe(iframeRef: React.RefObject<HTMLIFrameElement | null>, fn: string) {
-  try {
-    const win = iframeRef.current?.contentWindow;
-    if (win && typeof (win as any)[fn] === "function") {
-      (win as any)[fn]();
-    }
-  } catch {
-    // iframe未準備 or cross-origin: 無視
-  }
-}
-
 export function ProgenView() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const iframeReady = useRef(false);
-
   const progenMode = useViewStore((s) => s.progenMode);
   const textContent = useUnifiedViewerStore((s) => s.textContent);
 
-  // ブリッジを常に最新に保つ
+  // iframeのURLにモードをハッシュで渡す（リロードでモード切替）
+  // ハッシュ変更 = iframe再読み込み → progen-main.js がハッシュを読んで自動遷移
+  const [iframeSrc, setIframeSrc] = useState("/progen/index.html");
+
   useEffect(() => {
     publishBridge();
   });
 
-  // モード指定が来たらiframeに通知
+  // モード指定が来たら iframe src を変更して強制リロード
   useEffect(() => {
     if (!progenMode) return;
     publishBridge();
-    if (iframeReady.current) {
-      callIframe(iframeRef, "__comicBridgeOnModeReady");
-    }
+    const ts = Date.now(); // キャッシュバスター
+    setIframeSrc(`/progen/index.html?mode=${progenMode}&t=${ts}`);
+    useViewStore.getState().setProgenMode(null);
   }, [progenMode]);
 
-  // テキスト変更時にiframe側に通知
+  // テキスト変更時: ブリッジ更新のみ（iframe側がpullする）
   useEffect(() => {
-    if (!iframeReady.current) return;
     publishBridge();
-    callIframe(iframeRef, "__comicBridgeOnTextChange");
   }, [textContent]);
-
-  const handleIframeLoad = useCallback(() => {
-    iframeReady.current = true;
-    publishBridge();
-    // iframeの初期化完了後にペンディングモードがあれば通知
-    // progen-main.js 側でも呼ぶが、こちらからも念のため
-    setTimeout(() => callIframe(iframeRef, "__comicBridgeOnModeReady"), 300);
-  }, []);
 
   return (
     <div className="flex h-full w-full overflow-hidden" style={{ position: "absolute", inset: 0 }}>
       <iframe
         ref={iframeRef}
-        src="/progen/index.html"
+        src={iframeSrc}
         className="w-full h-full border-0"
         title="ProGen"
-        /* sandbox不要: 同一オリジン + parent.__COMIC_BRIDGE__アクセスに必要 */
-        onLoad={handleIframeLoad}
+        onLoad={() => publishBridge()}
       />
     </div>
   );

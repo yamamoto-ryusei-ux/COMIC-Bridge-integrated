@@ -19,11 +19,9 @@ export function ViewRouter() {
   const activeView = useViewStore((s) => s.activeView);
 
   // State-preserving mount for heavy tabs (once mounted, never unmount)
-  const [progenMounted, setProgenMounted] = useState(false);
   const [unifiedViewerMounted, setUnifiedViewerMounted] = useState(false);
 
   useEffect(() => {
-    if (activeView === "progen") setProgenMounted(true);
     if (activeView === "unifiedViewer") setUnifiedViewerMounted(true);
   }, [activeView]);
 
@@ -48,12 +46,8 @@ export function ViewRouter() {
         </div>
       ) */}
 
-      {/* ProGen: display toggle for state preservation */}
-      {progenMounted && (
-        <div style={{ display: activeView === "progen" ? "contents" : "none" }}>
-          <ProgenView />
-        </div>
-      )}
+      {/* ProGen: URLパラメータ方式のため毎回マウント/アンマウント */}
+      {activeView === "progen" && <ProgenView />}
 
       {/* Unified Viewer: display toggle for state preservation */}
       {unifiedViewerMounted && (

@@ -5,6 +5,13 @@
 <title>テキスト抽出・成形プロンプトジェネレータ</title>
 <link rel="icon" href="logo/favicon.ico">
 <link rel="stylesheet" href="css/progen.css">
+<script>
+// COMIC-Bridge統合: URLパラメータにmodeがある場合、ランディング画面を即座に非表示
+// （JSモジュールの読み込みを待たずにちらつきを防止）
+if (new URLSearchParams(window.location.search).get('mode')) {
+    document.write('<style>#landingScreen{display:none!important}</style>');
+}
+</script>
 </head>
 <body>
 
