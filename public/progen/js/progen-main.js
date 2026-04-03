@@ -166,18 +166,34 @@ if (proofreadingTxtDropZone) window.setupDropZone(proofreadingTxtDropZone, windo
 
     // 全処理を最終的に実行する共通関数
     function finalize() {
-        applyLabel();
-        navigateToMode();
-        // processLoadedJsonがstateを上書きするため、テキストを再注入
+        // 1) 画面を強制リセット（processLoadedJsonが勝手にmainWrapperを表示するので）
+        if (landing) landing.style.display = 'none';
+        if (mode === 'proofreading') {
+            if (main) main.style.display = 'none';
+        }
+
+        // 2) テキスト再注入（processLoadedJson後に上書きされた分を修復）
         injectText();
-        // UI更新（テキスト再注入後）
-        if (window.updateTxtUploadStatus) window.updateTxtUploadStatus();
-        if (window.generateXML) window.generateXML();
-        if (window.renderProofreadingFileList) window.renderProofreadingFileList();
-        if (window.updateProofreadingPrompt) window.updateProofreadingPrompt();
+
+        // 3) レーベル設定
+        applyLabel();
+
+        // 4) モード遷移
+        navigateToMode();
+
+        // 5) 遅延でテキスト再注入+UI再更新（navigateToMode内部の非同期処理完了を待つ）
+        setTimeout(function () {
+            injectText();
+            if (window.updateTxtUploadStatus) window.updateTxtUploadStatus();
+            if (window.generateXML) window.generateXML();
+            if (mode === 'proofreading') {
+                if (window.renderProofreadingFileList) window.renderProofreadingFileList();
+                if (window.updateProofreadingPrompt) window.updateProofreadingPrompt();
+            }
+        }, 200);
     }
 
-    // JSON読み込み → レーベル適用 → モード遷移
+    // JSON読み込み → finalize
     var jsonPath = data ? data.jsonPath : '';
     if (jsonPath && window.electronAPI && window.electronAPI.readJsonFile) {
         window.electronAPI.readJsonFile(jsonPath).then(function (result) {
@@ -185,8 +201,6 @@ if (proofreadingTxtDropZone) window.setupDropZone(proofreadingTxtDropZone, windo
                 if (result && result.success !== false && window.processLoadedJson) {
                     var fn = jsonPath.split('\\').pop() || jsonPath.split('/').pop() || '';
                     window.processLoadedJson(result, fn).then(function () {
-                        if (landing) landing.style.display = 'none';
-                        if (mode === 'proofreading' && main) main.style.display = 'none';
                         finalize();
                     }).catch(function () { finalize(); });
                 } else {
