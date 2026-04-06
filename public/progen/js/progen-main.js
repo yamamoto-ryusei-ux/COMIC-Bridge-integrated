@@ -162,8 +162,11 @@ if (proofreadingTxtDropZone) window.setupDropZone(proofreadingTxtDropZone, windo
             return;
         }
 
+        // ランディングをJS側で先に非表示（CSS !importantは使わない）
+        var landing = document.getElementById('landingScreen');
+        if (landing) landing.style.display = 'none';
+
         // startNewCreation でProGenの画面を正しく初期化
-        // (hideLandingScreen + renderTable + showEditMode + generateXML etc.)
         if (window.startNewCreation) {
             window.startNewCreation(cmd.mode);
         }
