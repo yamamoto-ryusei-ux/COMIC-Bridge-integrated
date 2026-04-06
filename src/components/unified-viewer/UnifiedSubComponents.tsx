@@ -239,7 +239,8 @@ export function CheckJsonBrowser({ onSelect, onCancel }: { onSelect: (path: stri
     try {
       const path = `${CHECK_JSON_BASE_PATH}/${label}`;
       const r = await invoke<{ folders: string[]; json_files: string[] }>("list_folder_contents", { folderPath: path });
-      setTitles(r.folders.sort());
+      // 「校正チェックデータ」サブフォルダはスキップ（表示しない）
+      setTitles(r.folders.filter((f) => f !== CHECK_DATA_SUBFOLDER).sort());
       setStep("title");
     } catch { setError("フォルダ読み込みエラー"); }
     setLoading(false);
