@@ -27,6 +27,8 @@ interface ViewState {
   kenbanPathB: string | null;
   /** 検版: 差分/分割切替 */
   kenbanViewMode: "diff" | "parallel";
+  /** JSONブラウザモード（TopNavモーダル用） */
+  jsonBrowserMode: "preset" | "check" | null;
 
   setActiveView: (view: AppView) => void;
   setDetailPanelOpen: (open: boolean) => void;
@@ -36,6 +38,7 @@ interface ViewState {
   setKenbanPathA: (path: string | null) => void;
   setKenbanPathB: (path: string | null) => void;
   setKenbanViewMode: (mode: "diff" | "parallel") => void;
+  setJsonBrowserMode: (mode: "preset" | "check" | null) => void;
 }
 
 export const useViewStore = create<ViewState>((set) => ({
@@ -46,6 +49,7 @@ export const useViewStore = create<ViewState>((set) => ({
   kenbanPathA: null,
   kenbanPathB: null,
   kenbanViewMode: "diff" as const,
+  jsonBrowserMode: null,
 
   setActiveView: (activeView) => set({ activeView }),
   setDetailPanelOpen: (isDetailPanelOpen) => set({ isDetailPanelOpen }),
@@ -55,4 +59,5 @@ export const useViewStore = create<ViewState>((set) => ({
   setKenbanPathA: (kenbanPathA) => set({ kenbanPathA }),
   setKenbanPathB: (kenbanPathB) => set({ kenbanPathB }),
   setKenbanViewMode: (kenbanViewMode) => set({ kenbanViewMode }),
+  setJsonBrowserMode: (jsonBrowserMode) => set({ jsonBrowserMode }),
 }));

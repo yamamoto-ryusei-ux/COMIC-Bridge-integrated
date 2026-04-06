@@ -255,7 +255,8 @@ export function TopNav() {
   const updater = useAppUpdater();
   const viewerStore = useUnifiedViewerStore();
   const jsonFolderPath = useScanPsdStore((s) => s.jsonFolderPath);
-  const [jsonBrowserMode, setJsonBrowserMode] = useState<"preset" | "check" | null>(null);
+  const jsonBrowserMode = useViewStore((s) => s.jsonBrowserMode);
+  const setJsonBrowserMode = useViewStore((s) => s.setJsonBrowserMode);
 
   const passedCount = Array.from(checkResults.values()).filter((r) => r.passed).length;
   const failedCount = Array.from(checkResults.values()).filter((r) => !r.passed).length;
