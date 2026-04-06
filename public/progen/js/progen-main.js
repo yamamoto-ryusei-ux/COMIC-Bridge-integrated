@@ -28,7 +28,8 @@ function showToast(message, type) {
 }
 window.showToast = showToast;
 
-import './progen-state.js';
+import { state } from './progen-state.js';
+window.state = state; // COMIC-Bridge統合: IIFE内からアクセスするためwindowに公開
 import './progen-xml-templates.js';
 import './progen-data.js';
 import './progen-landing.js';
