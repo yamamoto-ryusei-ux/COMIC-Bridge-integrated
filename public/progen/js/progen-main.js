@@ -233,12 +233,28 @@ if (proofreadingTxtDropZone) window.setupDropZone(proofreadingTxtDropZone, windo
         if (gb) gb.removeAttribute('disabled');
         if (window.enableDataTypeToggle) window.enableDataTypeToggle();
 
+        // 画面を確実に正しい状態にする
+        var landing2 = document.getElementById('landingScreen');
+        var main2 = document.getElementById('mainWrapper');
+        var proof2 = document.getElementById('proofreadingPage');
+        if (landing2) landing2.style.display = 'none';
+
+        if (cmd.mode === 'proofreading') {
+            if (main2) main2.style.display = 'none';
+            if (proof2) proof2.style.display = 'flex';
+        } else {
+            if (proof2) proof2.style.display = 'none';
+            if (main2) main2.style.display = 'flex';
+        }
+
         // UI更新
         if (window.updateTxtUploadStatus) window.updateTxtUploadStatus();
+        if (window.renderTable) window.renderTable();
+        if (window.showEditMode) window.showEditMode();
         if (window.renderSymbolTable) window.renderSymbolTable();
         if (window.generateXML) window.generateXML();
 
-        // 校正モードの場合: 校正ページが確実に表示された後にUI更新
+        // 校正モードの場合
         if (cmd.mode === 'proofreading') {
             // 校正ページを確実に表示
             var pp = document.getElementById('proofreadingPage');
