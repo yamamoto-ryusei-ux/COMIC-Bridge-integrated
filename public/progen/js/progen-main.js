@@ -141,55 +141,9 @@ if (proofreadingTxtDropZone) window.setupDropZone(proofreadingTxtDropZone, windo
         if (label) setLabel(label);
     }
 
-    // --- モード画面表示 ---
-    function showMode(mode) {
-        var landing = document.getElementById('landingScreen');
-        var main = document.getElementById('mainWrapper');
-        var proofreading = document.getElementById('proofreadingPage');
-
-        if (landing) landing.style.display = 'none';
-        if (main) main.style.display = 'none';
-        if (proofreading) proofreading.style.display = 'none';
-
-        if (mode === 'proofreading') {
-            if (proofreading) proofreading.style.display = 'flex';
-            s.currentProofreadingMode = 'simple';
-            s.proofreadingReturnTo = 'landing';
-            document.querySelectorAll('.proofreading-mode-btn').forEach(function(b) {
-                b.classList.toggle('active', b.dataset.mode === 'simple');
-            });
-            if (window.updateProofreadingCheckItems) window.updateProofreadingCheckItems();
-            if (window.updateProofreadingOptionsLabel) window.updateProofreadingOptionsLabel();
-            if (window.renderProofreadingFileList) window.renderProofreadingFileList();
-            if (window.updateProofreadingPrompt) window.updateProofreadingPrompt();
-            // 常用外漢字
-            if (s.proofreadingFiles.length > 0 && window.detectNonJoyoLinesWithPageInfo && window.showNonJoyoResultPopup) {
-                var d = window.detectNonJoyoLinesWithPageInfo(s.proofreadingFiles);
-                s.proofreadingDetectedNonJoyoWords = d;
-                window.showNonJoyoResultPopup(d, true);
-            }
-        } else {
-            if (main) main.style.display = 'flex';
-            s.currentViewMode = 'edit';
-            if (mode === 'formatting' && window.selectDataType) window.selectDataType('txt_only');
-            if (window.updateTxtUploadStatus) window.updateTxtUploadStatus();
-            if (window.renderTable) window.renderTable();
-            if (window.showEditMode) window.showEditMode();
-            if (window.renderSymbolTable) window.renderSymbolTable();
-            if (window.generateXML) window.generateXML();
-        }
-        // Gemini有効化
-        var gb = document.getElementById('extractionGeminiBtn');
-        if (gb) gb.removeAttribute('disabled');
-        if (window.enableDataTypeToggle) window.enableDataTypeToggle();
-        // JSON表示
-        var ji = document.getElementById('loadedJsonIndicator');
-        if (ji) ji.style.display = s.currentJsonPath ? 'flex' : 'none';
-        var sb = document.getElementById('saveToJsonBtn');
-        if (sb) sb.style.display = s.currentJsonPath ? 'inline-block' : 'none';
-    }
-
     // --- メイン処理 ---
+    // startNewCreation（ProGen自身の初期化関数）で画面を正しくセットアップした後、
+    // 遅延でテキスト・レーベル・JSONルールを上書き注入する
     function processCommand(cmd) {
         if (!cmd || !cmd.mode || !s) return;
         console.log('[ProGen] Command:', cmd.mode, {
@@ -197,26 +151,28 @@ if (proofreadingTxtDropZone) window.setupDropZone(proofreadingTxtDropZone, windo
             label: cmd.labelName, newCreation: !!cmd.newCreation
         });
 
-        // 新規作成 → レーベル選択モーダルを起動（ProGen既存フロー）
+        // 新規作成（JSON未登録）
         if (cmd.newCreation) {
-            // テキストがあれば先に注入
             injectText(cmd);
-            // handleLandingNewCreation がレーベル選択→startNewCreation→モード画面の流れ
             if (window.handleLandingNewCreation) {
                 window.handleLandingNewCreation(cmd.mode);
-            } else {
-                showMode(cmd.mode);
+            } else if (window.startNewCreation) {
+                window.startNewCreation(cmd.mode);
             }
             return;
         }
 
-        // 1) テキスト注入
-        injectText(cmd);
+        // startNewCreation でProGenの画面を正しく初期化
+        // (hideLandingScreen + renderTable + showEditMode + generateXML etc.)
+        if (window.startNewCreation) {
+            window.startNewCreation(cmd.mode);
+        }
 
-        // 2) レーベル設定
-        setLabel(cmd.labelName);
+        // startNewCreationの内部タイマー(hideLandingScreen: 200ms+350ms)完了後に
+        // テキスト・レーベル・JSONルールを上書き注入
+        var delay = 700;
 
-        // 3) JSON読み込み（processLoadedJsonを使わず、直接stateに設定）
+        // JSON読み込み → 遅延で上書き
         if (cmd.jsonPath && window.electronAPI && window.electronAPI.readJsonFile) {
             s.currentJsonPath = cmd.jsonPath;
             window.electronAPI.readJsonFile(cmd.jsonPath).then(function (result) {
@@ -225,17 +181,56 @@ if (proofreadingTxtDropZone) window.setupDropZone(proofreadingTxtDropZone, windo
                         applyJsonRules(result);
                     }
                 } catch (e) { console.warn('[ProGen] JSON apply error:', e); }
-                // テキスト再注入（保険）
-                injectText(cmd);
-                // 4) 画面表示
-                showMode(cmd.mode);
-            }).catch(function (e) {
-                console.warn('[ProGen] JSON read error:', e);
-                showMode(cmd.mode);
+                // 遅延で最終上書き
+                setTimeout(function () { applyOverrides(cmd); }, delay);
+            }).catch(function () {
+                setTimeout(function () { applyOverrides(cmd); }, delay);
             });
         } else {
-            // JSONなし → 直接画面表示
-            showMode(cmd.mode);
+            setTimeout(function () { applyOverrides(cmd); }, delay);
+        }
+    }
+
+    // startNewCreationの全タイマー完了後に呼ぶ最終上書き
+    function applyOverrides(cmd) {
+        // テキスト注入
+        injectText(cmd);
+
+        // レーベル設定
+        setLabel(cmd.labelName);
+
+        // JSON表示
+        var ji = document.getElementById('loadedJsonIndicator');
+        var jf = document.getElementById('loadedJsonFilename');
+        if (ji && jf && s.currentJsonPath) {
+            jf.textContent = s.currentJsonPath.split('\\').pop() || '';
+            ji.style.display = 'flex';
+        }
+        var sb = document.getElementById('saveToJsonBtn');
+        if (sb) sb.style.display = s.currentJsonPath ? 'inline-block' : 'none';
+
+        // Gemini有効化
+        var gb = document.getElementById('extractionGeminiBtn');
+        if (gb) gb.removeAttribute('disabled');
+        if (window.enableDataTypeToggle) window.enableDataTypeToggle();
+
+        // UI更新
+        if (window.updateTxtUploadStatus) window.updateTxtUploadStatus();
+        if (window.renderSymbolTable) window.renderSymbolTable();
+        if (window.generateXML) window.generateXML();
+
+        // 校正モードの場合
+        if (cmd.mode === 'proofreading') {
+            if (window.renderProofreadingFileList) window.renderProofreadingFileList();
+            if (window.updateProofreadingPrompt) window.updateProofreadingPrompt();
+            if (window.updateProofreadingOptionsLabel) window.updateProofreadingOptionsLabel();
+            // 常用外漢字
+            if (s.proofreadingFiles && s.proofreadingFiles.length > 0
+                && window.detectNonJoyoLinesWithPageInfo && window.showNonJoyoResultPopup) {
+                var d = window.detectNonJoyoLinesWithPageInfo(s.proofreadingFiles);
+                s.proofreadingDetectedNonJoyoWords = d;
+                window.showNonJoyoResultPopup(d, true);
+            }
         }
     }
 
