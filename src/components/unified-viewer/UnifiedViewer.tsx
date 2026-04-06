@@ -5,6 +5,7 @@
  * Right: テキスト編集 / 校正JSON
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { FileContextMenu } from "../common/FileContextMenu";
 import {
   DndContext,
   closestCenter,
@@ -78,6 +79,7 @@ import { useViewerFileOps } from "./useViewerFileOps";
 // ═════════════════════════════════════════════════════════
 export function UnifiedViewer() {
   const store = useUnifiedViewerStore();
+  const [viewerContextMenu, setViewerContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   // Sync with psdStore: メイン画面のPSDファイルを常にビューアーに反映
   const psdFiles = usePsdStore((s) => s.files);
@@ -111,11 +113,18 @@ export function UnifiedViewer() {
     if (activeView === "unifiedViewer") {
       doSync();
       cache.current.clear();
-      // Reactレンダー完了後にloadImageを直接呼ぶ
+      // メイン画面のactiveFileIdに対応するインデックスに自動移動
       setTimeout(() => {
         const st = useUnifiedViewerStore.getState();
-        if (st.files.length > 0 && st.currentFileIndex >= 0) {
-          loadImageRef.current(st.currentFileIndex);
+        const psd = usePsdStore.getState();
+        if (st.files.length > 0) {
+          let idx = st.currentFileIndex;
+          if (psd.activeFileId) {
+            const matchIdx = st.files.findIndex((f) => f.path === psd.files.find((p) => p.id === psd.activeFileId)?.filePath);
+            if (matchIdx >= 0) idx = matchIdx;
+          }
+          st.setCurrentFileIndex(idx >= 0 ? idx : 0);
+          loadImageRef.current(idx >= 0 ? idx : 0);
         }
       }, 100);
     }
@@ -761,6 +770,11 @@ export function UnifiedViewer() {
       }
       if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); goPrev(); }
       else if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); goNext(); }
+      else if (e.key === "p" || e.key === "P") {
+        e.preventDefault();
+        const f = useUnifiedViewerStore.getState().files[useUnifiedViewerStore.getState().currentFileIndex];
+        if (f?.path) invoke("open_file_in_photoshop", { filePath: f.path }).catch(() => {});
+      }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
@@ -1643,6 +1657,10 @@ export function UnifiedViewer() {
       ref={containerRef}
       className="flex flex-col h-full w-full bg-bg-primary"
       style={{ userSelect: resizingSide ? "none" : undefined }}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        setViewerContextMenu({ x: e.clientX, y: e.clientY });
+      }}
     >
       {/* ─── Top toolbar ─── */}
       <div className="flex-shrink-0 h-7 bg-bg-secondary border-b border-border flex items-center px-2 gap-1 text-xs">
@@ -1887,6 +1905,23 @@ export function UnifiedViewer() {
             </div>
           </div>
         </div>
+      )}
+      {/* 右クリックコンテキストメニュー */}
+      {viewerContextMenu && (
+        <FileContextMenu
+          x={viewerContextMenu.x}
+          y={viewerContextMenu.y}
+          files={(() => {
+            const psd = usePsdStore.getState();
+            const currentFile = store.files[store.currentFileIndex];
+            if (!currentFile) return [];
+            const match = psd.files.find((f) => f.filePath === currentFile.path);
+            return match ? [match] : [];
+          })()}
+          allFiles={usePsdStore.getState().files}
+          onClose={() => setViewerContextMenu(null)}
+          viewerMode
+        />
       )}
     </div>
   );

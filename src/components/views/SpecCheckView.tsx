@@ -86,6 +86,10 @@ export function SpecCheckView() {
     return () => { unlisten?.(); clearTimeout(timer); };
   }, []);
   const [expandedFile, setExpandedFile] = useState<typeof activeFile>(null);
+  const [desktopPath, setDesktopPath] = useState("C:\\Users");
+  useEffect(() => {
+    import("@tauri-apps/api/path").then(({ desktopDir }) => desktopDir().then((p) => setDesktopPath(p))).catch(() => {});
+  }, []);
   // ドットメニューはGlobalAddressBarに移動済み
   const [sortKey, setSortKey] = useState<"name" | "modified" | "type">("name");
   const [sortAsc, setSortAsc] = useState(true);
@@ -467,12 +471,12 @@ export function SpecCheckView() {
                   )}
                 </div>
 
-                {/* ファイル階層ツリー（ファイル名の下、情報の上） */}
-                {currentFolderPath && <FolderBreadcrumbTree currentPath={currentFolderPath} onNavigate={(path) => {
+                {/* ファイル階層ツリー（常時表示、未選択時はデスクトップ） */}
+                <FolderBreadcrumbTree currentPath={currentFolderPath || desktopPath} onNavigate={(path) => {
                   usePsdStore.getState().setContentLocked(false);
                   usePsdStore.getState().setCurrentFolderPath(path);
                   loadFolder(path).catch(() => {});
-                }} />}
+                }} />
 
                 {/* Content */}
                 <div className="flex-1 overflow-auto">
@@ -497,24 +501,12 @@ export function SpecCheckView() {
               </>
             ) : (
               <div className="flex-1 flex items-center justify-center">
-                <div className="text-center px-6">
-                  <div className="w-10 h-10 mx-auto mb-3 rounded-xl bg-bg-tertiary flex items-center justify-center">
-                    <svg
-                      className="w-5 h-5 text-text-muted"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={1.5}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
-                      />
-                    </svg>
-                  </div>
-                  <p className="text-xs text-text-muted">ファイルを選択すると詳細が表示されます</p>
-                </div>
+                {/* フォルダ階層ツリー（ファイル未選択時） */}
+                <FolderBreadcrumbTree currentPath={currentFolderPath || desktopPath} onNavigate={(path) => {
+                  usePsdStore.getState().setContentLocked(false);
+                  usePsdStore.getState().setCurrentFolderPath(path);
+                  loadFolder(path).catch(() => {});
+                }} />
               </div>
             )}
           </div>
@@ -690,9 +682,37 @@ export function SpecCheckView() {
           <div
             className="flex-1 overflow-hidden relative"
             data-preview-grid
+            tabIndex={0}
+            onKeyDown={(e) => {
+              const list = filteredFiles;
+              if (list.length === 0) return;
+              const currentIdx = list.findIndex((f) => f.id === usePsdStore.getState().activeFileId);
+              if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+                e.preventDefault();
+                let nextIdx: number;
+                if (e.key === "ArrowRight") nextIdx = currentIdx < list.length - 1 ? currentIdx + 1 : 0;
+                else nextIdx = currentIdx > 0 ? currentIdx - 1 : list.length - 1;
+                usePsdStore.getState().selectFile(list[nextIdx].id);
+              } else if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                e.preventDefault();
+                let cols = 1;
+                if (viewMode === "thumbnails") {
+                  // .grid クラスを持つ要素のgridTemplateColumnsから列数を取得
+                  const gridEl = (e.currentTarget as HTMLElement).querySelector(".grid");
+                  if (gridEl) {
+                    const computed = window.getComputedStyle(gridEl).gridTemplateColumns;
+                    if (computed && computed !== "none") {
+                      cols = computed.split(/\s+/).filter(Boolean).length;
+                    }
+                  }
+                }
+                const step = e.key === "ArrowDown" ? cols : -cols;
+                const nextIdx = Math.max(0, Math.min(list.length - 1, currentIdx + step));
+                if (nextIdx !== currentIdx) usePsdStore.getState().selectFile(list[nextIdx].id);
+              }
+            }}
             onContextMenu={(e) => {
               e.preventDefault();
-              // Select the file under cursor if clicking on a thumbnail row
               setContextMenu({ x: e.clientX, y: e.clientY });
             }}
           >

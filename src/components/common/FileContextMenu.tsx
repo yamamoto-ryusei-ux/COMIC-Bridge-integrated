@@ -22,6 +22,8 @@ interface FileContextMenuProps {
   allFiles: PsdFile[];    // all loaded files
   onClose: () => void;
   onLaunchTachimi?: () => void;
+  /** ビューアーモード: カット/コピー/複製/削除/読み込みを非表示 */
+  viewerMode?: boolean;
 }
 
 interface MenuItem {
@@ -138,6 +140,7 @@ export function FileContextMenu({
   allFiles,
   onClose,
   onLaunchTachimi,
+  viewerMode,
 }: FileContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const { loadFolder } = usePsdLoader();
@@ -494,13 +497,27 @@ export function FileContextMenu({
     },
   ];
 
+  // ビューアーモード: カット/コピー/複製/削除/読み込みを除外
+  const filteredMenuItems = viewerMode
+    ? menuItems.filter((item) => {
+        if (item.separator) return true;
+        const hidden = ["カット", "コピー", "複製", "削除", "読み込み"];
+        return !hidden.includes(item.label);
+      }).filter((item, i, arr) => {
+        // 連続するセパレータや先頭/末尾のセパレータを除去
+        if (item.separator && (i === 0 || i === arr.length - 1)) return false;
+        if (item.separator && arr[i - 1]?.separator) return false;
+        return true;
+      })
+    : menuItems;
+
   return createPortal(
     <div
       ref={menuRef}
       className="fixed z-[9999] min-w-[200px] max-w-[280px] bg-white rounded-xl shadow-elevated border border-border/60 p-1.5 select-none"
       style={{ left: x, top: y }}
     >
-      <SubMenu items={menuItems} onClose={onClose} />
+      <SubMenu items={filteredMenuItems} onClose={onClose} />
     </div>,
     document.body,
   );
