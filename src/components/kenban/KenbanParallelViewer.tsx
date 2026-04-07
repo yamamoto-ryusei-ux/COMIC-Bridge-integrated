@@ -285,7 +285,7 @@ const ParallelViewer: React.FC<ParallelViewerProps> = (props) => {
         }
       });
     })();
-  }, [parallelPdfImageA, parallelPdfImageB, drawToCanvasWithScale, measureContainer]);
+  }, [parallelPdfImageA, parallelPdfImageB, drawToCanvasWithScale, measureContainer, isFullscreen]);
 
   // ファイルパスから親フォルダパスを取得
   const getDirectoryFromPath = useCallback((filePath: string): string | null => {

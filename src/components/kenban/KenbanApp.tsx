@@ -3772,12 +3772,12 @@ export default function MangaDiffDetector({ defaultAppMode, externalPathA, exter
       setFullscreenTransitioning(false);
       setShowFullscreenHint(true);
       setTimeout(() => setShowFullscreenHint(false), 3000);
+      // PSD/画像はCSS object-containで自動リサイズ、再取得不要
     } else {
       // 全画面解除 + バー展開を同時に開始
       window.setFullscreen(false); // awaitしない
       setIsFullscreen(false);
       useViewStore.getState().setViewerFullscreen(false);
-      // CSS transitionでバーが展開される
     }
   }, []);
 

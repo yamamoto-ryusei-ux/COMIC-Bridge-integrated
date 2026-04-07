@@ -436,6 +436,7 @@
   - **psdStore同期**: メイン画面のファイルを`doSync`でビューアーストアに自動反映。タブ切替時にキャッシュクリア+`loadImageRef`で画像再読み込み。PDF情報（`isPdf`/`pdfPath`/`pdfPage`）も正しくマッピング（0-indexed→1-indexed変換）
 - **差分モード**: KenbanApp（defaultAppMode="diff-check", externalPathA/B props）
 - **分割ビューアー**: KenbanApp（defaultAppMode="parallel-view", externalPathA/B props）
+- **全画面表示**: PSD/画像はCSS object-containで自動リサイズ（再取得不要）。PDFはisFullscreen依存のuseEffectでcanvas再描画
 - 条件レンダリング: タブ切替で毎回マウント/アンマウント（検A/B propsを確実に反映）
 - **検A/検B連携**: TopNavの検A/Bで選択したフォルダパスをexternalPathA/B propsで渡し、KenbanApp内でuseEffectで自動読み込み（filesA/B + parallelFilesA/B 両方にセット）。PDF/PSD/TIFF自動判定
 - **隔離中**: 検版（KenbanView）とレイヤー分離確認（LayerSeparationPanel）はドットメニュー/ビューモードから除外、コンポーネントのマウント無効化（統合完了後に削除予定）
