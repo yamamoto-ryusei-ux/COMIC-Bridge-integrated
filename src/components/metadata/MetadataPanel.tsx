@@ -43,17 +43,17 @@ interface MetadataPanelProps {
 }
 
 export function MetadataPanel({ file }: MetadataPanelProps) {
-  const [textLayersOnly, setTextLayersOnly] = useState(false);
   const { outlierFileIds, majoritySize } = useCanvasSizeCheck();
   const isCanvasOutlier = outlierFileIds.has(file.id);
 
   return (
-    <div className="p-4 space-y-5">
+    <div className="space-y-4">
       {file.metadata ? (
         <>
-          {/* Color Mode & Bit Depth */}
-          <CollapsibleSection title="カラーモード・ビット深度">
-          <div className="grid grid-cols-2 gap-3">
+          {/* 原稿仕様（統合セクション） */}
+          <CollapsibleSection title="原稿仕様">
+          {/* カラーモード・ビット深度 */}
+          <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="bg-bg-tertiary rounded-xl p-3">
               <span
                 className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ${
@@ -75,14 +75,9 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
               </span>
             </div>
           </div>
-          </CollapsibleSection>
 
-          {/* Alpha Channels */}
+          {/* αチャンネル */}
           {file.metadata.hasAlphaChannels && (
-          <CollapsibleSection
-            title={`αチャンネル (${file.metadata.alphaChannelCount})`}
-            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" /></svg>}
-          >
             <div
               className={`bg-bg-tertiary rounded-xl p-3 ring-1 ${
                 file.metadata.hasOnlyTransparency ? "ring-warning/40" : "ring-error/40"
@@ -111,14 +106,9 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
                 </p>
               )}
             </div>
-          </CollapsibleSection>
           )}
 
-          {/* Canvas Size */}
-          <CollapsibleSection
-            title="キャンバスサイズ"
-            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>}
-          >
+          {/* キャンバスサイズ */}
           <div
             className={`bg-bg-tertiary rounded-xl p-3 ${isCanvasOutlier ? "ring-1 ring-warning/50" : ""}`}
           >
@@ -154,15 +144,9 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
               </div>
             )}
           </div>
-          </CollapsibleSection>
 
           {/* トンボ */}
-          <CollapsibleSection
-            title="トンボ・ガイド"
-            defaultOpen={false}
-            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 4h4M4 4v4M20 4h-4M20 4v4M4 20h4M4 20v-4M20 20h-4M20 20v-4" /></svg>}
-          >
-          <div className="bg-bg-tertiary rounded-xl p-3">
+          <div className="bg-bg-tertiary rounded-xl p-3 mt-3">
             {file.metadata.hasTombo ? (
               <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-manga-peach/20 text-manga-peach">
                 あり
@@ -175,29 +159,6 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
           </div>
           </CollapsibleSection>
 
-          {/* Layer Tree */}
-          <CollapsibleSection
-            title="レイヤー"
-            defaultOpen={false}
-            icon={<svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>}
-            extra={<span className="px-1.5 py-0.5 rounded-md text-[10px] bg-accent/20 text-accent">{file.metadata.layerCount}</span>}
-          >
-          <div>
-            <label className="flex items-center gap-1.5 mb-1.5 cursor-pointer text-[10px] text-text-muted hover:text-text-secondary">
-              <input
-                type="checkbox"
-                checked={textLayersOnly}
-                onChange={(e) => setTextLayersOnly(e.target.checked)}
-                className="rounded border-border accent-accent w-3 h-3"
-              />
-              テキストのみ表示（非表示レイヤー除く）
-            </label>
-            <div className="border-t border-border/40 pt-1.5 mt-1.5" />
-            <div className="bg-bg-tertiary rounded-xl p-2 max-h-72 overflow-auto">
-              <LayerTree layers={textLayersOnly ? filterTextLayers(file.metadata.layerTree) : file.metadata.layerTree} />
-            </div>
-          </div>
-          </CollapsibleSection>
         </>
       ) : file.thumbnailStatus === "loading" ? (
         <div className="flex flex-col items-center justify-center py-8">
@@ -219,6 +180,32 @@ export function MetadataPanel({ file }: MetadataPanelProps) {
           {file.error && <p className="text-xs text-text-muted mt-1 text-center">{file.error}</p>}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** レイヤーセクション（左サイドバー用、CollapsibleSidebarSectionの中に入る） */
+export function LayerSectionPanel({ file }: { file: PsdFile }) {
+  const [textLayersOnly, setTextLayersOnly] = useState(false);
+  if (!file.metadata) return null;
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-text-muted">レイヤー数:</span>
+        <span className="px-1.5 py-0.5 rounded-md text-[10px] bg-accent/20 text-accent">{file.metadata.layerCount}</span>
+      </div>
+      <label className="flex items-center gap-1.5 cursor-pointer text-[10px] text-text-muted hover:text-text-secondary">
+        <input
+          type="checkbox"
+          checked={textLayersOnly}
+          onChange={(e) => setTextLayersOnly(e.target.checked)}
+          className="rounded border-border accent-accent w-3 h-3"
+        />
+        テキストのみ表示（非表示レイヤー除く）
+      </label>
+      <div className="bg-bg-tertiary rounded-xl p-2 max-h-72 overflow-auto">
+        <LayerTree layers={textLayersOnly ? filterTextLayers(file.metadata.layerTree) : file.metadata.layerTree} />
+      </div>
     </div>
   );
 }

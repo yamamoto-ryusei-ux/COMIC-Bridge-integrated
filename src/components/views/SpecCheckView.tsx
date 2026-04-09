@@ -13,7 +13,7 @@ import { usePsdLoader } from "../../hooks/usePsdLoader";
 
 import { usePageNumberCheck } from "../../hooks/usePageNumberCheck";
 import { PreviewGrid } from "../preview/PreviewGrid";
-import { MetadataPanel } from "../metadata/MetadataPanel";
+import { MetadataPanel, LayerSectionPanel } from "../metadata/MetadataPanel";
 import { FixGuidePanel } from "../spec-checker/FixGuidePanel";
 import { GuideSectionPanel } from "../spec-checker/GuideSectionPanel";
 import { SpecLayerGrid } from "../spec-checker/SpecLayerGrid";
@@ -27,7 +27,7 @@ import { TextExtractButton } from "../common/TextExtractButton";
 import { useTextExtract } from "../../hooks/useTextExtract";
 import { useHighResPreview } from "../../hooks/useHighResPreview";
 import { detectPaperSize } from "../../lib/paperSize";
-import { useViewStore, showPromptDialog, type AppView } from "../../store/viewStore";
+import { showPromptDialog } from "../../store/viewStore";
 import { useSettingsStore } from "../../store/settingsStore";
 import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
 // useScanPsdStore は SpecScanJsonDialog 内で使用
@@ -62,7 +62,6 @@ export function SpecCheckView() {
   const setViewMode = usePsdStore((s) => s.setSpecViewMode);
   const [tachimiError, setTachimiError] = useState<string | null>(null);
   const [showPreviewPanel, setShowPreviewPanel] = useState(true);
-  const [rightPanelMode, setRightPanelMode] = useState<"preview" | "action">("preview");
   const [showScanJsonInPanel, setShowScanJsonInPanel] = useState(false);
   const [showTextExtractInPanel, setShowTextExtractInPanel] = useState(false);
   const textExtract = useTextExtract();
@@ -532,10 +531,14 @@ export function SpecCheckView() {
                       </>
                     );
                   })()}
-                  <CollapsibleSidebarSection title="ガイド線" icon={<svg className="w-3.5 h-3.5 text-guide-v" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 4h18M3 20h18M4 3v18M20 3v18" /></svg>}>
+                  <CollapsibleSidebarSection title="原稿仕様" icon={<svg className="w-3.5 h-3.5 text-accent-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>}>
                     <GuideSectionPanel file={activeFile} />
+                    <div className="border-t border-border/20 mt-2 pt-2" />
+                    <MetadataPanel file={activeFile} />
                   </CollapsibleSidebarSection>
-                  <MetadataPanel file={activeFile} />
+                  <CollapsibleSidebarSection title="レイヤー" defaultOpen={false} icon={<svg className="w-3.5 h-3.5 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>}>
+                    <LayerSectionPanel file={activeFile} />
+                  </CollapsibleSidebarSection>
                 </div>
               </>
             ) : (
@@ -1114,23 +1117,6 @@ export function SpecCheckView() {
           const previewText = previewLocked ? lockedTextFile : selectedTextFile;
           return (
           <div className="w-[320px] flex-shrink-0 border-l border-border flex flex-col overflow-hidden bg-bg-secondary relative">
-            {/* Mode tabs */}
-            <div className="flex-shrink-0 flex border-b border-border/50 text-[10px]">
-              {([
-                { id: "preview" as const, label: "プレビュー" },
-                { id: "action" as const, label: "アクション" },
-              ]).map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setRightPanelMode(m.id)}
-                  className={`flex-1 py-1.5 transition-colors ${
-                    rightPanelMode === m.id ? "text-accent font-medium border-b-2 border-accent" : "text-text-muted hover:text-text-secondary"
-                  }`}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
             {/* Preview header */}
             <div className="flex-shrink-0 h-8 border-b border-border/50 flex items-center px-2 gap-1">
               <span className="text-[11px] text-text-primary font-medium truncate flex-1">
@@ -1214,30 +1200,28 @@ export function SpecCheckView() {
                 ロック中
               </div>
             )}
-            {/* Preview image — プレビューモード時のみ表示 */}
-            {rightPanelMode === "preview" && (
-              previewFile ? (
-                <div className="flex-1 min-h-0 cursor-pointer overflow-hidden" onDoubleClick={() => setExpandedFile(previewFile)} title="ダブルクリックで拡大">
-                  <FilePreviewImage file={previewFile} />
-                </div>
-              ) : previewText ? (
-                <div className="flex-1 min-h-0 overflow-auto p-3 bg-white">
-                  <pre className="text-xs font-mono text-black whitespace-pre-wrap leading-relaxed">
-                    {previewText.content}
-                  </pre>
-                </div>
-              ) : (
-                <div className="flex-1 flex items-center justify-center bg-[#1a1a1e] text-text-muted/30 text-xs">
-                  ファイルを選択
-                </div>
-              )
+            {/* Preview image */}
+            {previewFile ? (
+              <div className="flex-1 min-h-0 cursor-pointer overflow-hidden" onDoubleClick={() => setExpandedFile(previewFile)} title="ダブルクリックで拡大">
+                <FilePreviewImage file={previewFile} />
+              </div>
+            ) : previewText ? (
+              <div className="flex-1 min-h-0 overflow-auto p-3 bg-white">
+                <pre className="text-xs font-mono text-black whitespace-pre-wrap leading-relaxed">
+                  {previewText.content}
+                </pre>
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center justify-center bg-[#1a1a1e] text-text-muted/30 text-xs">
+                ファイルを選択
+              </div>
             )}
             {/* File Properties Panel — プレビュータブ時のみ */}
-            {rightPanelMode === "preview" && previewFile && (
+            {previewFile && (
               <FilePropertiesPanel file={previewFile} checkResult={checkResults.get(previewFile.id)} />
             )}
             {/* Text file info — プレビュータブ時のみ */}
-            {rightPanelMode === "preview" && !previewFile && previewText && (
+            {!previewFile && previewText && (
               <div className="flex-shrink-0 px-3 py-2 border-t border-border/30 text-[10px] text-text-muted space-y-0.5">
                 <div className="flex justify-between">
                   <span>ファイル</span>
@@ -1367,50 +1351,7 @@ export function SpecCheckView() {
                 </div>
               </div>
             )}
-            {/* === アクションモード（作成+アクション統合） === */}
-            {rightPanelMode === "action" && (
-              <div className="flex-1 overflow-auto p-3 space-y-3">
-                {/* 作成 */}
-                <div>
-                  <div className="text-[9px] text-text-muted font-medium mb-1.5 px-1">作成</div>
-                  <div className="space-y-1.5">
-                    <button onClick={() => useViewStore.getState().setActiveView("scanPsd")}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-[11px] rounded-lg bg-bg-tertiary hover:bg-accent/10 hover:text-accent transition-colors">
-                      <span className="text-lg">📊</span>
-                      <div className="text-left"><div className="font-medium">スキャナー</div><div className="text-[9px] text-text-muted">PSDスキャン・プリセット管理</div></div>
-                    </button>
-                    <button onClick={() => setShowTextExtractInPanel(true)}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-[11px] rounded-lg bg-bg-tertiary hover:bg-accent/10 hover:text-accent transition-colors">
-                      <span className="text-lg">📝</span>
-                      <div className="text-left"><div className="font-medium">テキスト抽出</div><div className="text-[9px] text-text-muted">PSDテキストレイヤーを抽出</div></div>
-                    </button>
-                    <button onClick={() => setShowScanJsonInPanel(true)}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-[11px] rounded-lg bg-bg-tertiary hover:bg-accent/10 hover:text-accent transition-colors">
-                      <span className="text-lg">📋</span>
-                      <div className="text-left"><div className="font-medium">JSON登録</div><div className="text-[9px] text-text-muted">フォント/サイズをJSONに登録</div></div>
-                    </button>
-                  </div>
-                </div>
-                {/* アクション */}
-                <div>
-                  <div className="text-[9px] text-text-muted font-medium mb-1.5 px-1">アクション</div>
-                  <div className="space-y-1.5">
-                    {([
-                      { id: "replace" as AppView, icon: "🔄", label: "差替え", desc: "テキスト/画像レイヤー差替え" },
-                      { id: "compose" as AppView, icon: "🔗", label: "合成", desc: "2つのPSDを統合" },
-                      { id: "tiff" as AppView, icon: "🖼️", label: "TIFF化", desc: "PSD→TIFF一括変換" },
-                      { id: "rename" as AppView, icon: "✏️", label: "リネーム", desc: "ファイル/レイヤーリネーム" },
-                    ]).map((action) => (
-                      <button key={action.id} onClick={() => useViewStore.getState().setActiveView(action.id)}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-[11px] rounded-lg bg-bg-tertiary hover:bg-accent/10 hover:text-accent transition-colors">
-                        <span className="text-lg">{action.icon}</span>
-                        <div className="text-left"><div className="font-medium">{action.label}</div><div className="text-[9px] text-text-muted">{action.desc}</div></div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* === 作成モード — アクション統合時に非表示 === */}
           </div>
           );
         })()}
@@ -1643,8 +1584,16 @@ function PsdFileListView({
   onOpenFile: (path: string) => void;
   onOpenExternalFile?: (name: string) => void;
 }) {
+  const listRef = useRef<HTMLDivElement>(null);
+  const activeId = selectedFileIds[selectedFileIds.length - 1];
+  useEffect(() => {
+    if (!activeId || !listRef.current) return;
+    const el = listRef.current.querySelector(`[data-file-id="${activeId}"]`);
+    if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [activeId]);
+
   return (
-    <div className="h-full overflow-auto select-none">
+    <div ref={listRef} className="h-full overflow-auto select-none">
       {/* Folders */}
       {folders.length > 0 && (
         <div className="border-b border-border/30">
@@ -1706,10 +1655,14 @@ function PsdFileListView({
             return (
               <tr
                 key={file.id}
+                data-file-id={file.id}
                 className={`cursor-pointer transition-colors ${
-                  hasNG ? "bg-error/20" : isCaution ? "bg-yellow-100" : isActive ? "bg-accent/8" : "hover:bg-bg-tertiary/60"
+                  hasNG ? "bg-error/20" : isCaution ? "bg-yellow-100" : isActive ? "bg-sky-100" : "hover:bg-bg-tertiary/60"
                 }`}
-                onClick={(e) => onSelectFile(file.id, e.ctrlKey || e.metaKey)}
+                onClick={(e) => {
+                  if (e.shiftKey) { usePsdStore.getState().selectRange(file.id); }
+                  else { onSelectFile(file.id, e.ctrlKey || e.metaKey); }
+                }}
                 onDoubleClick={() => onOpenFile(file.filePath)}
               >
                 {/* 結果 */}
@@ -1894,10 +1847,21 @@ function CollapsibleSidebarSection({ title, icon, children, defaultOpen = true }
   );
 }
 
-/** ファイル階層ツリー（折りたたみ可能） */
+/** ファイル階層ツリー（折りたたみ可能、サブフォルダ表示） */
 function FolderBreadcrumbTree({ currentPath, onNavigate }: { currentPath: string; onNavigate: (path: string) => void }) {
   const [open, setOpen] = useState(true);
-  const parts = currentPath.replace(/\//g, "\\").split("\\").filter(Boolean);
+  const [subFolders, setSubFolders] = useState<string[]>([]);
+  const rawParts = currentPath.replace(/\//g, "\\").split("\\").filter(Boolean);
+  // ドライブレター修正: "C" → "C:"
+  const parts = rawParts.map((p, i) => i === 0 && /^[A-Za-z]$/.test(p) ? p + ":" : p);
+
+  // 現在フォルダのサブフォルダを取得
+  useEffect(() => {
+    if (!currentPath) { setSubFolders([]); return; }
+    invoke<string[]>("list_subfolders", { folderPath: currentPath })
+      .then((folders) => setSubFolders(folders.sort()))
+      .catch(() => setSubFolders([]));
+  }, [currentPath]);
 
   return (
     <div className="border-t border-border/40">
@@ -1912,15 +1876,16 @@ function FolderBreadcrumbTree({ currentPath, onNavigate }: { currentPath: string
       </button>
       {open && (
         <div className="px-4 pb-3">
+          {/* 親階層 */}
           {parts.map((part, i) => {
             const fullPath = parts.slice(0, i + 1).join("\\");
             const isLast = i === parts.length - 1;
             return (
               <div key={i} style={{ paddingLeft: `${i * 12}px` }}>
                 <button
-                  onDoubleClick={() => !isLast && onNavigate(fullPath)}
+                  onClick={() => !isLast && onNavigate(fullPath)}
                   className={`flex items-center gap-1 text-[10px] py-0.5 rounded transition-colors ${
-                    isLast ? "text-accent font-medium" : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary"
+                    isLast ? "text-accent font-medium cursor-default" : "text-text-secondary hover:text-text-primary hover:bg-bg-tertiary cursor-pointer"
                   }`}
                 >
                   <svg className="w-3 h-3 text-warning/70 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
@@ -1929,6 +1894,23 @@ function FolderBreadcrumbTree({ currentPath, onNavigate }: { currentPath: string
                   {part}
                 </button>
               </div>
+            );
+          })}
+          {/* サブフォルダ */}
+          {subFolders.map((sub) => {
+            const subName = sub.split("\\").pop() || sub;
+            return (
+            <div key={sub} style={{ paddingLeft: `${parts.length * 12}px` }}>
+              <button
+                onClick={() => onNavigate(sub)}
+                className="flex items-center gap-1 text-[10px] py-0.5 rounded text-text-muted hover:text-text-primary hover:bg-bg-tertiary cursor-pointer transition-colors"
+              >
+                <svg className="w-3 h-3 text-warning/40 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M10 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V8a2 2 0 00-2-2h-8l-2-2z" />
+                </svg>
+                {subName}
+              </button>
+            </div>
             );
           })}
         </div>

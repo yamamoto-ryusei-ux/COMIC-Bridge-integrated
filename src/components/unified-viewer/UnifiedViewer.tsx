@@ -451,6 +451,15 @@ export function UnifiedViewer() {
     setChunks(result);
   }, []);
 
+  // textContent が外部（TopNav等）から変更された場合にchunksを自動更新
+  useEffect(() => {
+    if (store.textContent.length > 0) {
+      parseChunks(store.textContent);
+    } else {
+      setChunks([]);
+    }
+  }, [store.textContent, parseChunks]);
+
   // ═══ File operations (extracted to useViewerFileOps) ═══
   const { openFolder, openTextFile, handleJsonFileSelect, handleSave, handleSaveAs } = useViewerFileOps({
     expandPdf,
@@ -1685,52 +1694,58 @@ export function UnifiedViewer() {
         {dims.w > 0 && <span className="text-text-muted/50 ml-1">{dims.w}×{dims.h}</span>}
       </div>
 
-      {/* ─── Tab selector bar (outside resize area) ─── */}
+      {/* ─── Tab selector bar ─── */}
       <div className="flex-shrink-0 h-7 bg-bg-tertiary/50 border-b border-border/50 flex items-center text-[10px]">
-        {/* Left panel tabs */}
-        <div className="flex items-center gap-0.5 px-1 border-r border-border/30">
-          <span className="text-text-muted/40 text-[9px] mr-0.5">L</span>
-          {ALL_PANEL_TABS.map((t) => (
-            <PanelTabBtn key={t.id} active={store.leftTab === t.id} onClick={() => { store.setLeftTab(t.id); setLeftManualResize(false); }}>
-              {t.label}
-            </PanelTabBtn>
-          ))}
-        </div>
         <div className="flex-1" />
-        {/* Right panel tabs */}
+        {/* Right panel tabs (2つまで選択可能) */}
         <div className="flex items-center gap-0.5 px-1 border-l border-border/30">
-          {ALL_PANEL_TABS.map((t) => (
-            <PanelTabBtn
-              key={t.id}
-              active={store.rightTab === t.id}
-              onClick={() => { store.setRightTab(t.id); setRightManualResize(false); }}
-              badge={t.id === "proofread" ? (checkData?.allItems.length || undefined) : t.id === "diff" ? (textDiffResults?.hasDiff ? 1 : undefined) : undefined}
-            >
-              {t.label}
-            </PanelTabBtn>
-          ))}
-          <span className="text-text-muted/40 text-[9px] ml-0.5">R</span>
+          {ALL_PANEL_TABS.map((t) => {
+            const isRight = store.rightTab === t.id;
+            const isLeft = store.leftTab === t.id && store.leftTab !== store.rightTab;
+            return (
+              <PanelTabBtn
+                key={t.id}
+                active={isRight || isLeft}
+                onClick={() => {
+                  // 左クリック: 現在のメインタブを更新
+                  store.setRightTab(t.id);
+                  setRightManualResize(false);
+                }}
+                onContextMenu={(e: React.MouseEvent) => {
+                  e.preventDefault();
+                  // 右クリック: 新規タブとして左側に追加
+                  if (t.id !== store.rightTab) {
+                    store.setLeftTab(t.id);
+                  }
+                }}
+                badge={t.id === "proofread" ? (checkData?.allItems.length || undefined) : t.id === "diff" ? (textDiffResults?.hasDiff ? 1 : undefined) : undefined}
+              >
+                {isLeft ? "◀ " : ""}{t.label}{isRight ? " ●" : ""}
+              </PanelTabBtn>
+            );
+          })}
           {store.isDirty && <span className="text-warning text-[10px] ml-1">未保存</span>}
         </div>
       </div>
 
-      {/* ─── Main 3-column area ─── */}
+      {/* ─── Main area (center + right) ─── */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* ═══ LEFT SIDEBAR ═══ */}
-        <div className="flex flex-col overflow-hidden bg-bg-secondary border-r border-border" style={{ width: leftWidth }}>
-          {/* Left content — shared renderer */}
-          <div className="flex-1 overflow-auto">
-            {renderTabContent(store.leftTab)}
-          </div>
-        </div>
 
-        {/* Left resize handle */}
-        <div
-          className={`w-1 flex-shrink-0 cursor-col-resize hover:bg-accent/30 transition-colors ${
-            resizingSide === "left" ? "bg-accent/50" : "bg-transparent"
-          }`}
-          onMouseDown={(e) => { e.preventDefault(); setResizingSide("left"); }}
-        />
+        {/* ═══ PAGE LIST (vertical) ═══ */}
+        <div className="w-8 flex-shrink-0 bg-bg-secondary border-r border-border/30 overflow-y-auto overflow-x-hidden select-none">
+          {files.map((f, i) => (
+            <button
+              key={f.path}
+              onClick={() => store.setCurrentFileIndex(i)}
+              className={`w-full py-1 text-[9px] text-center transition-colors ${
+                i === idx ? "bg-accent/15 text-accent font-bold" : "text-text-muted hover:text-text-primary hover:bg-bg-tertiary/50"
+              }`}
+              title={f.name}
+            >
+              {i + 1}
+            </button>
+          ))}
+        </div>
 
         {/* ═══ CENTER: Image viewer ═══ */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -1853,9 +1868,33 @@ export function UnifiedViewer() {
           onMouseDown={(e) => { e.preventDefault(); setResizingSide("right"); }}
         />
 
-        {/* ═══ RIGHT PANEL ═══ */}
+        {/* ═══ RIGHT PANELS (2つまで) ═══ */}
+        {store.leftTab !== store.rightTab && (
+          <>
+            {/* 2つ目のパネル（左側） */}
+            <div className="flex flex-col overflow-hidden bg-bg-secondary border-l border-border" style={{ width: leftWidth }}>
+              <div className="flex-shrink-0 h-5 bg-bg-tertiary/30 border-b border-border/30 flex items-center px-2">
+                <span className="text-[9px] text-text-muted/60 flex-1">{ALL_PANEL_TABS.find((t) => t.id === store.leftTab)?.label}</span>
+                <button onClick={() => store.setLeftTab(store.rightTab)} className="text-[9px] text-text-muted hover:text-text-primary">✕</button>
+              </div>
+              <div className="flex-1 overflow-auto">
+                {renderTabContent(store.leftTab)}
+              </div>
+            </div>
+            {/* Resize handle between panels */}
+            <div
+              className={`w-1 flex-shrink-0 cursor-col-resize hover:bg-accent/30 transition-colors ${
+                resizingSide === "left" ? "bg-accent/50" : "bg-transparent"
+              }`}
+              onMouseDown={(e) => { e.preventDefault(); setResizingSide("left"); }}
+            />
+          </>
+        )}
+        {/* メインパネル（右側） */}
         <div className="flex flex-col overflow-hidden bg-bg-secondary border-l border-border" style={{ width: rightWidth }}>
-          {/* Right content — shared renderer */}
+          <div className="flex-shrink-0 h-5 bg-bg-tertiary/30 border-b border-border/30 flex items-center px-2">
+            <span className="text-[9px] text-text-muted/60">{ALL_PANEL_TABS.find((t) => t.id === store.rightTab)?.label}</span>
+          </div>
           <div className="flex-1 overflow-auto">
             {renderTabContent(store.rightTab)}
           </div>

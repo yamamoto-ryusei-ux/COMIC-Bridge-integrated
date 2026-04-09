@@ -8,7 +8,6 @@ import { useAppUpdater } from "../../hooks/useAppUpdater";
 import { useUnifiedViewerStore, type FontPresetEntry } from "../../store/unifiedViewerStore";
 import { useScanPsdStore } from "../../store/scanPsdStore";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
-import { readFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import type { ProofreadingCheckItem } from "../../types/typesettingCheck";
 import { JsonFileBrowser } from "../scanPsd/JsonFileBrowser";
@@ -16,6 +15,7 @@ import { CheckJsonBrowser } from "../unified-viewer/UnifiedViewer";
 import { WorkflowBar } from "./WorkflowBar";
 import { SettingsButton } from "./SettingsPanel";
 import { useSettingsStore, ALL_NAV_BUTTONS } from "../../store/settingsStore";
+import { parseComicPotText } from "../unified-viewer/utils";
 
 export function TopNav() {
   const setActiveView = useViewStore((s) => s.setActiveView);
@@ -326,12 +326,17 @@ function TopNavDataButtons() {
   const handleOpenText = useCallback(async () => {
     const path = await dialogOpen({ filters: [{ name: "テキスト", extensions: ["txt"] }], multiple: false });
     if (!path) return;
-    const bytes = await readFile(path as string);
-    const content = new TextDecoder("utf-8").decode(bytes);
-    const vs = useUnifiedViewerStore.getState();
-    vs.setTextContent(content);
-    vs.setTextFilePath(path as string);
-    vs.setIsDirty(false);
+    try {
+      const content = await invoke<string>("read_text_file", { filePath: path as string });
+      const vs = useUnifiedViewerStore.getState();
+      vs.setTextContent(content);
+      vs.setTextFilePath(path as string);
+      vs.setIsDirty(false);
+      // COMIC-POTフォーマットをパースしてページ/ブロックに分割
+      const { header, pages } = parseComicPotText(content);
+      vs.setTextHeader(header);
+      vs.setTextPages(pages);
+    } catch { /* ignore */ }
   }, []);
 
   const handleKenbanPick = async (type: "folder" | "file") => {
@@ -441,7 +446,7 @@ function ABPickerButton({ kenbanPickMode, setKenbanPickMode, handleKenbanPick }:
   const nameB = kenbanPathB?.split("\\").pop() || "";
 
   return (
-    <div ref={ref} className="relative" onMouseEnter={() => setHover(true)} onMouseLeave={() => { if (!kenbanPickMode) setHover(false); }}>
+    <div ref={ref} className="relative" onMouseEnter={() => { clearTimeout((ref.current as any)?._hoverTimer); setHover(true); }} onMouseLeave={() => { if (!kenbanPickMode) (ref.current as any)._hoverTimer = setTimeout(() => setHover(false), 300); }}>
       {/* メインボタン */}
       <div className={`flex items-center gap-0 px-1.5 py-0.5 text-[9px] rounded transition-colors cursor-default ${
         hasAny ? "bg-sky-100 text-sky-600" : "text-text-muted hover:text-text-primary hover:bg-bg-tertiary"
@@ -526,7 +531,7 @@ function TopNavToolMenu() {
   const hasWorkJson = !!(scanJsonPath || (viewerPresets.length > 0 && viewerPresetPath));
 
   return (
-    <div ref={ref} className="relative" onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
+    <div ref={ref} className="relative" onMouseEnter={() => { clearTimeout((ref.current as any)?._hoverTimer); setHover(true); }} onMouseLeave={() => { (ref.current as any)._hoverTimer = setTimeout(() => setHover(false), 300); }}>
       <button
         className={`w-7 h-7 flex items-center justify-center rounded transition-colors ${hover ? "text-accent bg-accent/10" : "text-text-muted hover:text-text-primary hover:bg-bg-tertiary"}`}
         title="ツール"

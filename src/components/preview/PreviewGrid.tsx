@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { usePsdStore } from "../../store/psdStore";
 import { useSpecStore } from "../../store/specStore";
 import { ThumbnailCard } from "./ThumbnailCard";
@@ -54,9 +54,17 @@ export function PreviewGrid({ fileFilter, fileSorter, onDoubleClickFile }: { fil
   };
 
   const size = THUMBNAIL_SIZES[thumbnailSize].value;
+  const gridRef = useRef<HTMLDivElement>(null);
+
+  // activeFileId変更時に自動スクロール
+  useEffect(() => {
+    if (!activeFileId || !gridRef.current) return;
+    const el = gridRef.current.querySelector(`[data-file-id="${activeFileId}"]`);
+    if (el) el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [activeFileId]);
 
   return (
-    <div className="h-full overflow-auto p-4 select-none" data-preview-grid>
+    <div ref={gridRef} className="h-full overflow-auto p-4 select-none" data-preview-grid>
       <div
         className="grid gap-9"
         style={{
@@ -69,6 +77,7 @@ export function PreviewGrid({ fileFilter, fileSorter, onDoubleClickFile }: { fil
             <ThumbnailCard
               key={file.id}
               file={file}
+              dataFileId={file.id}
               size={size}
               isSelected={selectedFileIds.includes(file.id)}
               isActive={activeFileId === file.id}

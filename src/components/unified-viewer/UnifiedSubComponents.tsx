@@ -28,12 +28,13 @@ export function ToolBtn({ children, onClick, disabled, title }: {
 }
 
 // ─── PanelTabBtn ────────────────────────────────────────
-export function PanelTabBtn({ children, active, onClick, badge }: {
-  children: React.ReactNode; active: boolean; onClick: () => void; badge?: number;
+export function PanelTabBtn({ children, active, onClick, onContextMenu, badge }: {
+  children: React.ReactNode; active: boolean; onClick: () => void; onContextMenu?: (e: React.MouseEvent) => void; badge?: number;
 }) {
   return (
     <button
       onClick={onClick}
+      onContextMenu={onContextMenu}
       className={`px-2 py-0.5 rounded transition-colors ${
         active ? "bg-accent/15 text-accent font-medium" : "text-text-muted hover:text-text-secondary hover:bg-bg-tertiary/60"
       }`}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
@@ -6,6 +6,7 @@ import { readFile } from "@tauri-apps/plugin-fs";
 import { usePsdStore } from "../../store/psdStore";
 import { useViewStore, validateAndSetABPath, showPromptDialog, type AppView } from "../../store/viewStore";
 import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
+import { parseComicPotText } from "../unified-viewer/utils";
 import { useScanPsdStore } from "../../store/scanPsdStore";
 import { usePsdLoader } from "../../hooks/usePsdLoader";
 import { useTextExtract } from "../../hooks/useTextExtract";
@@ -85,44 +86,39 @@ function SubMenu({ items, onClose }: { items: MenuItem[]; onClose: () => void })
 function SubMenuItem({ item, onClose }: { item: MenuItem; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const subRef = useRef<HTMLDivElement>(null);
+  const [showSub, setShowSub] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ホバー時にサブメニューの位置をclamp（hidden→block後に実サイズが取れる）
-  const clampSubMenu = useCallback(() => {
-    if (!ref.current || !subRef.current) return;
-    const sub = subRef.current;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    // リセット
-    sub.style.left = "100%";
-    sub.style.right = "auto";
-    sub.style.top = "0px";
-    // Horizontal: 右にはみ出す場合は左に展開
+  const handleEnter = useCallback(() => {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
+    setShowSub(true);
+    // 位置clamp
     requestAnimationFrame(() => {
-      const subRect = sub.getBoundingClientRect();
-      if (subRect.right > vw) {
-        sub.style.left = "auto";
-        sub.style.right = "100%";
-      }
-      // Vertical: 下にはみ出す場合は上にずらす
-      const subRect2 = sub.getBoundingClientRect();
-      if (subRect2.bottom > vh) {
-        sub.style.top = `${vh - subRect2.bottom - 8}px`;
-      }
-      // 上にはみ出す場合
-      const subRect3 = sub.getBoundingClientRect();
-      if (subRect3.top < 0) {
-        sub.style.top = `${-subRect3.top + 8}px`;
-      }
+      if (!ref.current || !subRef.current) return;
+      const sub = subRef.current;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      sub.style.left = "100%"; sub.style.right = "auto"; sub.style.top = "0px";
+      const r1 = sub.getBoundingClientRect();
+      if (r1.right > vw) { sub.style.left = "auto"; sub.style.right = "100%"; }
+      const r2 = sub.getBoundingClientRect();
+      if (r2.bottom > vh) sub.style.top = `${vh - r2.bottom - 8}px`;
+      const r3 = sub.getBoundingClientRect();
+      if (r3.top < 0) sub.style.top = `${-r3.top + 8}px`;
     });
   }, []);
 
+  const handleLeave = useCallback(() => {
+    closeTimer.current = setTimeout(() => setShowSub(false), 300);
+  }, []);
+
   return (
-    <div ref={ref} className="relative group/sub" onMouseEnter={clampSubMenu}>
+    <div ref={ref} className="relative" onMouseEnter={handleEnter} onMouseLeave={handleLeave}>
       <div
         className={`w-full flex items-center gap-2 px-3 py-1.5 text-[11px] rounded-md transition-colors ${
           item.disabled
             ? "text-text-muted/40 cursor-default"
-            : "text-text-primary hover:bg-accent/8 hover:text-accent cursor-pointer"
+            : showSub ? "bg-accent/8 text-accent" : "text-text-primary hover:bg-accent/8 hover:text-accent cursor-pointer"
         }`}
       >
         {item.icon && <span className="w-4 text-center text-xs flex-shrink-0">{item.icon}</span>}
@@ -134,7 +130,7 @@ function SubMenuItem({ item, onClose }: { item: MenuItem; onClose: () => void })
       {/* Sub-menu */}
       <div
         ref={subRef}
-        className="absolute top-0 left-full hidden group-hover/sub:block z-50 min-w-[180px] bg-white rounded-xl shadow-elevated border border-border/60 p-1.5"
+        className={`absolute top-0 left-full z-50 min-w-[180px] bg-white rounded-xl shadow-elevated border border-border/60 p-1.5 ${showSub ? "block" : "hidden"}`}
         style={{ marginLeft: "2px" }}
       >
         <SubMenu items={item.children!} onClose={onClose} />
@@ -303,12 +299,14 @@ export function FileContextMenu({
   const handleLoadThisText = useCallback(async () => {
     if (!singleFile?.filePath) return;
     try {
-      const bytes = await readFile(singleFile.filePath);
-      const content = new TextDecoder("utf-8").decode(bytes);
+      const content = await invoke<string>("read_text_file", { filePath: singleFile.filePath });
       const viewerStore = useUnifiedViewerStore.getState();
       viewerStore.setTextContent(content);
       viewerStore.setTextFilePath(singleFile.filePath);
       viewerStore.setIsDirty(false);
+      const { header, pages } = parseComicPotText(content);
+      viewerStore.setTextHeader(header);
+      viewerStore.setTextPages(pages);
     } catch { /* ignore */ }
   }, [singleFile]);
 
@@ -319,6 +317,9 @@ export function FileContextMenu({
     vs.setTextContent(previewText.content);
     vs.setTextFilePath(previewText.path);
     vs.setIsDirty(false);
+    const { header, pages } = parseComicPotText(previewText.content);
+    vs.setTextHeader(header);
+    vs.setTextPages(pages);
   }, [previewText]);
 
   // ── フォルダ/ファイル選択時のアクション ──

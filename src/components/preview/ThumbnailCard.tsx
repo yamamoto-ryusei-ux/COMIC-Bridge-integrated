@@ -13,6 +13,7 @@ interface ThumbnailCardProps {
   majoritySize?: string;
   isCaution?: boolean;
   cautionReasons?: string[];
+  dataFileId?: string;
 }
 
 // ルールタイプの日本語表示
@@ -35,6 +36,7 @@ export function ThumbnailCard({
   majoritySize,
   isCaution,
   cautionReasons,
+  dataFileId,
 }: ThumbnailCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const checkResults = useSpecStore((state) => state.checkResults);
@@ -71,6 +73,7 @@ export function ThumbnailCard({
           : isSelected ? { boxShadow: "0 0 0 12px rgba(56,189,248,0.35)" }
           : {}),
       }}
+      data-file-id={dataFileId}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       onMouseEnter={() => setIsHovered(true)}
