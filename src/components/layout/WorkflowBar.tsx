@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { useViewStore } from "../../store/viewStore";
+import { useScanPsdStore } from "../../store/scanPsdStore";
+import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
+import { useProgenStore } from "../../store/progenStore";
 
 // ═══ ワークフロー定義 ═══
 
@@ -96,6 +99,15 @@ export function WorkflowBar() {
     const vs = useViewStore.getState();
     if (step.progenMode) {
       vs.setProgenMode(step.progenMode as any);
+      // レーベル読み込み（ProGen起動時）
+      const scan = useScanPsdStore.getState();
+      const viewer = useUnifiedViewerStore.getState();
+      let lbl = scan.workInfo.label || "";
+      if (!lbl) {
+        const jp = scan.currentJsonFilePath || viewer.presetJsonPath || "";
+        if (jp) { const ps = jp.replace(/\//g, "\\").split("\\"); if (ps.length >= 2) lbl = ps[ps.length - 2]; }
+      }
+      if (lbl) useProgenStore.getState().loadMasterRule(lbl);
     }
     vs.setActiveView(step.nav as any);
   };

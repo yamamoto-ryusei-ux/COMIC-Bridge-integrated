@@ -7,6 +7,7 @@ import { useSpecStore } from "../../store/specStore";
 import { useAppUpdater } from "../../hooks/useAppUpdater";
 import { useUnifiedViewerStore, type FontPresetEntry } from "../../store/unifiedViewerStore";
 import { useScanPsdStore } from "../../store/scanPsdStore";
+import { useProgenStore } from "../../store/progenStore";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import type { ProofreadingCheckItem } from "../../types/typesettingCheck";
@@ -557,7 +558,7 @@ function TopNavToolMenu() {
           <div className="border-t border-border/40 my-1" />
           <div className="px-3 py-0.5 text-[9px] text-text-muted/50 font-medium">ProGen</div>
           {TOOL_PROGEN_MODES.map((mode) => (
-            <button key={mode.id} className="w-full text-left px-3 py-1.5 text-[11px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors" onClick={() => { useViewStore.getState().setProgenMode(mode.id); setActiveView("progen"); setHover(false); }}>
+            <button key={mode.id} className="w-full text-left px-3 py-1.5 text-[11px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors" onClick={() => { useViewStore.getState().setProgenMode(mode.id); const _lbl = useScanPsdStore.getState().workInfo.label || (() => { const jp = useScanPsdStore.getState().currentJsonFilePath || useUnifiedViewerStore.getState().presetJsonPath || ""; if (!jp) return ""; const ps = jp.replace(/\//g, "\\").split("\\"); return ps.length >= 2 ? ps[ps.length - 2] : ""; })(); if (_lbl) useProgenStore.getState().loadMasterRule(_lbl); setActiveView("progen"); setHover(false); }}>
               {mode.label}
               {!hasWorkJson && <span className="text-[9px] text-text-muted/50 ml-1">新規</span>}
             </button>

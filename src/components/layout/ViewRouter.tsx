@@ -52,7 +52,7 @@ export function ViewRouter() {
         </div>
       ) */}
 
-      {/* ProGen: state-preserving + localStorageポーリング */}
+      {/* ProGen: React native (state-preserving via display toggle) */}
       {progenMounted && (
         <div style={{ display: activeView === "progen" ? "contents" : "none" }}>
           <ProgenView />

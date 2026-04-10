@@ -21,7 +21,7 @@
 - **PDF処理**: pdfium-render（プレビュー/サムネイル）、Photoshop PDFOpenOptions（分割処理）
 - **バックエンド**: Rust
 - **KENBAN/統合ビューアー**: pdfjs-dist, pdf-lib, jspdf, lucide-react（kenban-scope CSSで隔離、LCS diff等のユーティリティは`kenban-utils/textExtract.ts`で共有）
-- **ProGenタブ**: バニラJS（iframe経由で埋め込み、Reactとは独立）
+- **ProGenタブ**: React（Zustand + Tailwind、本体と統合済み）
 
 ## 設計思想
 
@@ -373,20 +373,21 @@
 - **5つの比較モード**: tiff-tiff, psd-psd, pdf-pdf, psd-tiff, text-verify
 - **差分モード・分割ビューアーは統合ビューアー内で引き続き利用可能**（KenbanApp defaultAppModeプロップ経由）
 
-### 21. ProGen（統合タブ）
+### 21. ProGen（React統合済み）
 - **3モード**: 抽出プロンプト / 整形プロンプト / 校正プロンプト — ドットメニューから直接モード選択可能
-- **COMIC-Bridgeデータ連携**: localStorage `cb_progen_cmd` でデータ渡し（window.parent参照は本番ビルドで動作しないため不使用）
-  - テキスト: localStorage経由 → `state.manuscriptTxtFiles` / `state.proofreadingFiles` に注入
-  - 作品情報JSON: localStorage経由のjsonPath → `electronAPI.readJsonFile` → `applyJsonRules` でstateに直接設定（processLoadedJson不使用）
-  - レーベル: localStorage経由のlabelName → セレクタUI直接設定 + マスタールール読み込み
-- **テキスト読み込みUI排除**: ProGen独自のファイル入力/D&Dゾーン/ガイドオーバーレイを全て削除。メイン画面TopNavの「テキスト」ボタンで読み込んだテキストを自動同期
-- **常用外漢字検出**: 校正モード遷移時 / テキスト変更時に `detectNonJoyoLinesWithPageInfo` → `showNonJoyoResultPopup` を自動実行
-- **レーベル自動認識**: JSON読み込み時に `processLoadedJson` → `autoSelectLabel` で校正ページ含む全セレクタに自動設定
-- **ランディング画面なし**: ドットメニューからモード選択→localStorage書き込み→iframe内500msポーリングで検知→`startNewCreation(mode)`で画面初期化→700ms後の`applyOverrides`でテキスト/レーベル/JSONルールを上書き注入。JSON未読み込み時は「新規作成」フロー（`handleLandingNewCreation` → レーベル選択モーダル）
-- **本番ビルド対応**: CSP削除（iframeのonclickハンドラがnonce置換でブロックされるため）。`window.state` をES moduleからwindowに公開
-- **iframe内で動作**（バニラJS、Reactとは独立）
-- 全コマンドは `progen_` プレフィックス付き
-- **ProgenView**: localStorage `cb_progen_cmd` にコマンド書き込み → iframe内ポーリングで受信。条件レンダリング（ProGenタブ表示時のみマウント）
+- **React完全移植済み**: iframe/バニラJS廃止、Zustand + Tailwind CSSで本体と統合
+- **画面ルーター**: `progenStore.screen` で6画面を切替（landing/extraction/proofreading/admin/comicpot/resultViewer）
+- **ProgenView**: `viewStore.progenMode` → `progenStore.screen` 自動マッピング + ラベル自動読み込み
+- **主要コンポーネント**:
+  - `ProgenRuleView` — ルール編集（サイドバー6カテゴリ+カードグリッド+Gemini連携）
+  - `ProgenProofreadingView` — 校正チェック（正誤/提案+XMLプロンプト生成）
+  - `ProgenJsonBrowser` — GドライブJSONフォルダツリー（検索・読込・保存・新規作成）
+  - `ProgenResultViewer` — 校正結果表示（3タブ+ピックアップ+CSV貼り付け）
+  - `ProgenCalibrationSave` — 校正データ保存（TXTフォルダ選択→巻数入力）
+  - `ComicPotEditor` — COMIC-POTテキスト編集（チャンク表示+D&D+ルビ+形式変換）
+  - `ProgenAdminView` — パスワード付き管理画面（レーベルCRUD+ルール編集）
+- **ScanPsdEditView統合**: 各機能をモーダルとして起動可能（ルール一覧/校正チェック/JSONブラウザ/結果ビューア/COMIC-POTエディタ）
+- 全コマンドは `progen_` プレフィックス付き（Rust側変更なし）
 
 ### 22. 右クリックコンテキストメニュー
 - **FileContextMenu.tsx**: SpecCheckViewの中央コンテンツエリアで右クリック → フローティングメニュー表示
@@ -431,7 +432,22 @@
 - **ZIP名自動生成**: `yyyymmdd_ジャンル_タイトル_巻` — 作品情報JSON(`presetData.workInfo.genre/title`)参照、巻数はフォルダ名から検出（JSONのvolumeは無視）
 - **JSON workInfo自動読み込み**: プリセットJSON読み込み時に`presetData.workInfo`からgenre/label/title/authorをscanPsdStoreにセット（volumeはセットしない）
 - **テキスト読み込み時のCOMIC-POTパース**: TopNav/FileContextMenu/SpecCheckViewの全テキスト読み込み箇所で`parseComicPotText()`を呼び、`textPages`/`textHeader`をstoreにセット。UnifiedViewer内のuseEffectで`textContent`変更時に`parseChunks`を自動実行
-- **ProGen マスターJSON一覧**: ScanPsdEditView内にフォント帳と同形式のモーダル。`progen_get_master_label_list`でレーベル一覧取得、`workInfo.label`から自動選択。統一表記ルール/校正ルール/オプションを3タブ表示。4種類のGeminiプロンプト（抽出/整形/正誤/提案）をコピー→Gemini起動
+- **ProGen React移植（Phase 0-6完了、iframe廃止）**:
+  - `src/types/progen.ts` — 全型定義+定数
+  - `src/store/progenStore.ts` — Zustandストア（40+プロパティ）
+  - `src/hooks/useProgenTauri.ts` — 26個のprogen_*コマンドのinvokeラッパー
+  - `src/hooks/useProgenJson.ts` — JSON読み書き+CSV解析+カテゴリグループ化
+  - `src/hooks/useComicPotState.ts` — COMIC-POTエディタ専用useReducerステート
+  - `src/components/progen/ProgenRuleView.tsx` — ルール編集（6カテゴリ+Gemini）
+  - `src/components/progen/ProgenProofreadingView.tsx` — 校正チェック（正誤/提案）
+  - `src/components/progen/ProgenJsonBrowser.tsx` — GドライブJSONブラウザ
+  - `src/components/progen/ProgenResultViewer.tsx` — 校正結果ビューア（3タブ）
+  - `src/components/progen/ProgenCalibrationSave.tsx` — 校正データ保存
+  - `src/components/progen/ProgenAdminView.tsx` — パスワード付き管理画面
+  - `src/components/progen/comicpot/ComicPotEditor.tsx` — COMIC-POTテキストエディタ
+  - `src/components/progen/comicpot/ComicPotChunkList.tsx` — チャンク表示+D&D
+  - `src/components/views/ProgenView.tsx` — React画面ルーター（6画面切替）
+  - ScanPsdEditViewで各機能をモーダルとして起動可能
 - **スキャナーJSON編集のTopNav連携**: ScanPsdModeSelectorで「JSON編集」選択時、TopNavで読み込み済みの作品情報JSON（`unifiedViewerStore.presetJsonPath`）があれば`loadPresetJson`で自動読み込み
 - **create_zip Rustコマンド**: zip crate使用、フォルダ再帰対応、デスクトップに保存
 
@@ -534,7 +550,7 @@
 - **TiffView**: TIFF化（3カラム: TiffSettingsPanel | TiffFileList | Center(プレビュー/一覧/ビューアータブ切替)）。TiffFileListヘッダーとTiffBatchQueueヘッダーにサブフォルダチェックを配置
 - **ScanPsdView**: Scan PSD（2カラム: ScanPsdPanel(5タブ) | ScanPsdContent(モード選択/スキャン/サマリー)）。JSON編集時に未登録フォントアラート表示。フォント帳を独立セクションとして追加（モーダル表示）
 - **KenbanView**: KENBAN検版（隔離中 — ViewRouterでマウント無効化、ドットメニューから除外。統合完了後に削除予定）
-- **ProgenView**: ProGen iframe。条件レンダリング（表示時のみマウント）。localStorage `cb_progen_cmd` でデータ連携（テキスト/JSON/レーベル）。500msポーリングでコマンド受信。`startNewCreation` + 700ms遅延 `applyOverrides` でモード遷移+データ上書き
+- **ProgenView**: React画面ルーター。progenStore.screenで6画面切替。viewStore.progenModeから自動初期化。状態保持型マウント（display切替）
 - **UnifiedViewerView**: 統合ビューアー + 差分モード + 分割ビューアーの3タブ。統合ビューアーは3カラム（全タブ共通パネル）。unifiedViewerStore独立管理。psdStoreとdoSync+loadImageRefで自動同期。PDF表示はpdf.jsで描画（isPdf/pdfPath/pdfPageを正しくマッピング）
 
 ### レイヤーツリー (LayerPreviewPanel)
@@ -625,7 +641,7 @@ src/
 │   │   ├── FolderSetupView.tsx  # フォルダセットアップ（原稿コピー+構造作成）
 │   │   ├── RequestPrepView.tsx  # 依頼準備（ZIP圧縮、3モード、内容チェック）
 │   │   ├── KenbanView.tsx       # KENBANラッパー（kenban-scope）
-│   │   ├── ProgenView.tsx       # ProGenラッパー（iframe）
+│   │   ├── ProgenView.tsx       # ProGen画面ルーター（React native、6画面切替）
 │   │   └── UnifiedViewerView.tsx # 統合ビューアー（6サブタブ）
 │   ├── metadata/          # メタデータ表示
 │   │   ├── MetadataPanel.tsx
@@ -707,6 +723,16 @@ src/
 │   │       ├── FontSizesTab.tsx      # タブ2: フォントサイズ統計
 │   │       ├── GuideLinesTab.tsx     # タブ3: ガイド線（選択/除外）
 │   │       └── TextRubyTab.tsx       # タブ4: テキスト/ルビ
+│   ├── progen/            # ProGen（React統合済み、iframe廃止）
+│   │   ├── ProgenRuleView.tsx            # ルール編集（6カテゴリ+Gemini）
+│   │   ├── ProgenProofreadingView.tsx    # 校正チェック（正誤/提案）
+│   │   ├── ProgenJsonBrowser.tsx         # GドライブJSONブラウザ
+│   │   ├── ProgenResultViewer.tsx        # 校正結果ビューア（3タブ+ピックアップ）
+│   │   ├── ProgenCalibrationSave.tsx     # 校正データ保存（TXTフォルダ選択）
+│   │   ├── ProgenAdminView.tsx           # パスワード付き管理画面
+│   │   └── comicpot/
+│   │       ├── ComicPotEditor.tsx        # COMIC-POTテキストエディタ
+│   │       └── ComicPotChunkList.tsx     # チャンク表示+D&D
 │   ├── typesetting-confirm/ # 写植確認
 │   │   └── TypesettingConfirmPanel.tsx  # フォント指定・テキスト保存・ビューアー連動
 │   ├── ErrorBoundary.tsx  # Reactエラーバウンダリ（ViewRouterに適用）
@@ -743,7 +769,10 @@ src/
 │   ├── useTextExtract.ts         # テキスト抽出ロジック共有フック（COMIC-POT互換出力）
 │   ├── useSpecConverter.ts       # 直接仕様変換（ag-psd+Rust、Photoshop不要）
 │   ├── useSplitProcessor.ts      # 見開き分割処理
-│   └── useTiffProcessor.ts       # TIFF化処理（設定マージ・invoke・結果処理）
+│   ├── useTiffProcessor.ts       # TIFF化処理（設定マージ・invoke・結果処理）
+│   ├── useProgenTauri.ts         # ProGen 26コマンドのinvokeラッパー
+│   ├── useProgenJson.ts          # ProGen JSON読み書き+CSV解析+カテゴリグループ化
+│   └── useComicPotState.ts       # COMIC-POTエディタ専用useReducerステート
 ├── lib/
 │   ├── psd/
 │   │   └── parser.ts            # ag-psdラッパー、メタデータ抽出
@@ -752,7 +781,8 @@ src/
 │   ├── layerTreeOps.ts          # レイヤーツリー操作ユーティリティ
 │   ├── naturalSort.ts           # 自然順ソート（数字部分を数値比較）
 │   ├── paperSize.ts             # 用紙サイズ判定（ピクセル+DPI→B4/A4等）
-│   └── textUtils.ts             # テキスト処理ユーティリティ
+│   ├── textUtils.ts             # テキスト処理ユーティリティ
+│   └── progenPrompts.ts         # ProGen XMLプロンプトテンプレート（正誤/提案チェック）
 ├── store/
 │   ├── index.ts           # バレルエクスポート（psdStore, guideStore, specStore）
 │   ├── psdStore.ts        # ファイル一覧・選択状態（files, selectedFileIds, activeFileId, viewMode）
@@ -768,6 +798,7 @@ src/
 │   ├── renameStore.ts     # リネーム設定（subMode, layerSettings, fileSettings, fileEntries）
 │   ├── tiffStore.ts       # TIFF化設定・状態（settings, fileOverrides, cropPresets, cropGuides, phase, results）。localStorage永続化（crop.bounds除く）
 │   ├── scanPsdStore.ts    # Scan PSD（mode, scanData, presetSets, workInfo, guide選択/除外, パス設定）。パスのみlocalStorage永続化
+│   ├── progenStore.ts     # ProGen全状態（40+プロパティ、ルール管理、マスタールール読み込み、JSONルール適用）
 │   ├── typesettingCheckStore.ts  # 写植チェック（checkData, checkTabMode, searchQuery, navigateToPage）
 │   └── unifiedViewerStore.ts    # 統合ビューアー（独立ファイル管理、テキスト、校正JSON、フォントプリセット、PanelTab共通タブ型）
 ├── styles/
@@ -791,19 +822,12 @@ src/
     ├── replace.ts         # ReplaceSettings, PairingJob, FolderSelection, BatchFolder等
     ├── rename.ts          # RenameSubMode, RenameRule, FileRenameEntry等
     ├── tiff.ts            # TiffSettings, TiffCropBounds, TiffCropPreset, TiffScandataFile等
+    ├── progen.ts          # SymbolRule, ProofRule, ProgenOptions, NumberRuleState, EditCategory, ProgenScreen等
     ├── scanPsd.ts         # ScanData, PresetJsonData, ScanGuideSet, ScanWorkInfo, FontPreset, GENRE_LABELS, FONT_SUB_NAME_MAP等
     └── typesettingCheck.ts # ProofreadingCheckData, CheckItem, CheckKind等
 
 public/
-├── progen/              # ProGen静的ファイル（iframe用）
-│   ├── index.html       # ProGenメインHTML
-│   ├── css/progen.css   # ProGenスタイル
-│   ├── js/              # ProGen全JSモジュール（17ファイル）
-│   │   ├── tauri-bridge.js    # Tauri API ブリッジ（progen_プレフィックス付き）
-│   │   ├── progen-main.js     # エントリポイント
-│   │   ├── progen-state.js    # グローバルstate
-│   │   └── ...               # 他14モジュール
-│   └── logo/            # ProGenロゴ/アイコン
+├── (progen/ 削除済み — React統合完了)
 ├── pdfjs-wasm/          # PDF.js WASM（KENBAN用）
 
 src-tauri/
@@ -1384,7 +1408,9 @@ textLogFolderPath: string      // テキストログフォルダパス
 - Rust側: kenban.rs に21コマンドを集約。rayon並列処理で画像差分を高速計算
 
 ### ProGen統合方式
-- **iframe隔離**: `public/progen/index.html` をiframeで埋め込み。バニラJSはReactと完全に独立
-- **Tauriブリッジ**: `tauri-bridge.js` が `window.__TAURI__` 経由でRustコマンドを呼び出し。全コマンドは `progen_` プレフィックス付き
+- **React統合**: iframe廃止、Zustand + Tailwindで本体と完全統合
+- **Tauriコマンド**: `useProgenTauri.ts` が `@tauri-apps/api/core` invoke経由。全コマンドは `progen_` プレフィックス付き
+- **状態管理**: `progenStore.ts`（Zustand）で全ProGen状態を一元管理。COMIC-POTエディタのみ`useComicPotState`（useReducer）でローカル管理
+- **画面ルーター**: `ProgenView.tsx` で `progenStore.screen` に基づき6画面を切替
 - **状態保持型マウント**: KENBANと同様にdisplay切替で状態保持
-- Rust側: progen.rs に26コマンドを集約
+- Rust側: progen.rs に26コマンドを集約（変更なし）

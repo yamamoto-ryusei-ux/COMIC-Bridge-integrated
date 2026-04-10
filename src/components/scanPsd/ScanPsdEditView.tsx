@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useScanPsdStore } from "../../store/scanPsdStore";
+import { useProgenStore } from "../../store/progenStore";
 import { useScanPsdProcessor } from "../../hooks/useScanPsdProcessor";
 import type { ScanResult } from "../../hooks/useScanPsdProcessor";
 import { WorkInfoTab } from "./tabs/WorkInfoTab";
@@ -10,7 +11,13 @@ import { FontSizesTab } from "./tabs/FontSizesTab";
 import { GuideLinesTab } from "./tabs/GuideLinesTab";
 import { TextRubyTab } from "./tabs/TextRubyTab";
 import { FontBookView } from "../views/FontBookView";
-import { ProgenJsonBrowser } from "./ProgenJsonBrowser";
+import { ProgenRuleView } from "../progen/ProgenRuleView";
+import { ProgenProofreadingView } from "../progen/ProgenProofreadingView";
+import { ProgenJsonBrowser } from "../progen/ProgenJsonBrowser";
+import { ProgenResultViewer } from "../progen/ProgenResultViewer";
+import { ProgenCalibrationSave } from "../progen/ProgenCalibrationSave";
+import type { PickedItem } from "../../hooks/useProgenJson";
+import ComicPotEditor from "../progen/comicpot/ComicPotEditor";
 
 interface PendingFolder {
   path: string;
@@ -60,6 +67,12 @@ export function ScanPsdEditView() {
   const presetSets = useScanPsdStore((s) => s.presetSets);
   const { savePresetJson, startScan, removeVolumeData } = useScanPsdProcessor();
 
+  // workInfo.label変更時にProGenマスタールールを自動読み込み
+  const progenLoadMasterRule = useProgenStore((s) => s.loadMasterRule);
+  useEffect(() => {
+    if (workInfo.label) progenLoadMasterRule(workInfo.label);
+  }, [workInfo.label, progenLoadMasterRule]);
+
   // 未登録フォント数
   const unregisteredCount = useMemo(() => {
     if (!scanData?.fonts) return 0;
@@ -74,6 +87,11 @@ export function ScanPsdEditView() {
   const [showScanDialog, setShowScanDialog] = useState(false);
   const [showFontBook, setShowFontBook] = useState(false);
   const [showProgenJson, setShowProgenJson] = useState(false);
+  const [showProofreading, setShowProofreading] = useState(false);
+  const [showJsonBrowser, setShowJsonBrowser] = useState(false);
+  const [showResultViewer, setShowResultViewer] = useState(false);
+  const [showComicPotEditor, setShowComicPotEditor] = useState(false);
+  const [calibrationItems, setCalibrationItems] = useState<PickedItem[] | null>(null);
   const [pendingFolders, setPendingFolders] = useState<PendingFolder[]>([]);
 
   // スキャン完了ダイアログ
@@ -324,15 +342,15 @@ export function ScanPsdEditView() {
               </div>
               <div>
                 <SectionHeader icon="font" color="purple">
-                  ProGen マスターJSON
+                  ProGen ルール一覧
                 </SectionHeader>
                 <div className="bg-white rounded-2xl border border-border/60 shadow-card p-4 flex flex-col items-center gap-2">
-                  <p className="text-[11px] text-text-muted text-center">統一表記ルールの確認・Geminiへのコピーを行います</p>
+                  <p className="text-[11px] text-text-muted text-center">統一表記・校正ルールの確認、Geminiプロンプト生成</p>
                   <button
                     onClick={() => setShowProgenJson(true)}
                     className="px-4 py-2 text-[11px] font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg hover:opacity-90 transition-opacity"
                   >
-                    ProGen JSON一覧を開く
+                    ルール一覧を開く
                   </button>
                 </div>
               </div>
@@ -342,6 +360,56 @@ export function ScanPsdEditView() {
                 </SectionHeader>
                 <div className="bg-white rounded-2xl border border-border/60 shadow-card p-4">
                   <GuideLinesTab />
+                </div>
+              </div>
+              <div>
+                <SectionHeader icon="font" color="mint">
+                  校正チェック
+                </SectionHeader>
+                <div className="bg-white rounded-2xl border border-border/60 shadow-card p-4 flex flex-col items-center gap-2">
+                  <p className="text-[11px] text-text-muted text-center">正誤チェック・提案チェックのプロンプトを生成</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowProofreading(true)}
+                      className="px-4 py-2 text-[11px] font-medium text-white bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-lg hover:opacity-90 transition-opacity"
+                    >
+                      校正チェック
+                    </button>
+                    <button
+                      onClick={() => setShowResultViewer(true)}
+                      className="px-4 py-2 text-[11px] font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg hover:opacity-90 transition-opacity"
+                    >
+                      結果ビューア
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <SectionHeader icon="font" color="sky">
+                  JSONファイル
+                </SectionHeader>
+                <div className="bg-white rounded-2xl border border-border/60 shadow-card p-4 flex flex-col items-center gap-2">
+                  <p className="text-[11px] text-text-muted text-center">作品JSONの読み込み・保存</p>
+                  <button
+                    onClick={() => setShowJsonBrowser(true)}
+                    className="px-4 py-2 text-[11px] font-medium text-white bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-lg hover:opacity-90 transition-opacity"
+                  >
+                    JSONブラウザを開く
+                  </button>
+                </div>
+              </div>
+              <div>
+                <SectionHeader icon="font" color="warm">
+                  COMIC-POT エディタ
+                </SectionHeader>
+                <div className="bg-white rounded-2xl border border-border/60 shadow-card p-4 flex flex-col items-center gap-2">
+                  <p className="text-[11px] text-text-muted text-center">テキスト編集・ルビ付与・形式変換</p>
+                  <button
+                    onClick={() => setShowComicPotEditor(true)}
+                    className="px-4 py-2 text-[11px] font-medium text-white bg-gradient-to-r from-rose-500 to-rose-600 rounded-lg hover:opacity-90 transition-opacity"
+                  >
+                    エディタを開く
+                  </button>
                 </div>
               </div>
             </div>
@@ -388,14 +456,77 @@ export function ScanPsdEditView() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowProgenJson(false)}>
           <div className="bg-bg-primary rounded-xl shadow-2xl w-[90vw] h-[85vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-bg-secondary">
-              <h3 className="text-sm font-medium">ProGen マスターJSON</h3>
+              <h3 className="text-sm font-medium">ProGen ルール一覧</h3>
               <button onClick={() => setShowProgenJson(false)} className="text-text-muted hover:text-text-primary text-lg">✕</button>
             </div>
             <div className="flex-1 overflow-hidden">
-              <ProgenJsonBrowser />
+              <ProgenRuleView />
             </div>
           </div>
         </div>
+      )}
+
+      {/* 校正チェックモーダル */}
+      {showProofreading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowProofreading(false)}>
+          <div className="bg-bg-primary rounded-xl shadow-2xl w-[90vw] h-[85vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-bg-secondary">
+              <h3 className="text-sm font-medium">校正チェック</h3>
+              <button onClick={() => setShowProofreading(false)} className="text-text-muted hover:text-text-primary text-lg">✕</button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <ProgenProofreadingView />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* JSONブラウザモーダル */}
+      {showJsonBrowser && (
+        <ProgenJsonBrowser
+          mode="edit"
+          onClose={() => setShowJsonBrowser(false)}
+          onJsonLoaded={() => {
+            setShowJsonBrowser(false);
+          }}
+          autoExpandLabel={workInfo.label || ""}
+        />
+      )}
+
+      {/* 校正結果ビューアモーダル */}
+      {showResultViewer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowResultViewer(false)}>
+          <div className="bg-bg-primary rounded-xl shadow-2xl w-[90vw] h-[85vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <ProgenResultViewer
+              onBack={() => setShowResultViewer(false)}
+              onGoToProofreading={() => {
+                setShowResultViewer(false);
+                setShowProofreading(true);
+              }}
+              onSaveCalibration={(items) => {
+                setCalibrationItems(items);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* COMIC-POTエディタモーダル */}
+      {showComicPotEditor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowComicPotEditor(false)}>
+          <div className="bg-bg-primary rounded-xl shadow-2xl w-[90vw] h-[85vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <ComicPotEditor onBack={() => setShowComicPotEditor(false)} />
+          </div>
+        </div>
+      )}
+
+      {/* 校正データ保存ダイアログ */}
+      {calibrationItems && (
+        <ProgenCalibrationSave
+          items={calibrationItems}
+          onClose={() => setCalibrationItems(null)}
+          onSaved={() => setCalibrationItems(null)}
+        />
       )}
 
       {/* 追加スキャンダイアログ */}
