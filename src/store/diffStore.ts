@@ -85,6 +85,9 @@ interface DiffStore {
   showMarkers: boolean;
   cropBounds: CropBounds | null;
 
+  // ── プレビューキャッシュ（filePath → URL）──
+  previewMap: Record<string, string>;
+
   // ═══ Actions ═══
   setFolderA: (path: string | null) => void;
   setFolderB: (path: string | null) => void;
@@ -114,6 +117,10 @@ interface DiffStore {
   setShowMarkers: (show: boolean) => void;
   setCropBounds: (bounds: CropBounds | null) => void;
 
+  /** ファイルのプレビューURLを取得してキャッシュ */
+  loadPreviewForFile: (filePath: string) => Promise<void>;
+  /** filesA / filesB から compareMode を自動判定して設定 */
+  autoDetectCompareMode: () => void;
   /** 1ペアの差分計算を実行 */
   processPair: (index: number) => Promise<void>;
   /** 全ペアを順次処理 */
@@ -123,16 +130,6 @@ interface DiffStore {
 }
 
 // ═══ ヘルパー ═══
-
-const SUPPORTED_EXTS: Record<CompareMode, { a: string[]; b: string[] }> = {
-  "tiff-tiff": {
-    a: ["tif", "tiff", "jpg", "jpeg", "png", "bmp"],
-    b: ["tif", "tiff", "jpg", "jpeg", "png", "bmp"],
-  },
-  "psd-psd": { a: ["psd", "psb"], b: ["psd", "psb"] },
-  "pdf-pdf": { a: ["pdf"], b: ["pdf"] },
-  "psd-tiff": { a: ["psd", "psb"], b: ["tif", "tiff", "jpg", "jpeg"] },
-};
 
 function getExt(path: string): string {
   return path.substring(path.lastIndexOf(".") + 1).toLowerCase();
@@ -152,12 +149,13 @@ function naturalSort(a: string, b: string): number {
 }
 
 /** ファイルのプレビューURLを取得（PSD/PDF/通常画像対応） */
-export async function loadPreviewUrl(filePath: string): Promise<string> {
+export async function loadPreviewUrl(filePath: string, pdfPageOneIndexed: number = 1): Promise<string> {
   const ext = getExt(filePath);
   if (ext === "pdf") {
+    // Rust側は0-indexed
     const result = await invoke<{ src: string; width: number; height: number }>(
       "kenban_render_pdf_page",
-      { path: filePath, page: 1, dpi: 150, splitSide: null },
+      { path: filePath, page: pdfPageOneIndexed - 1, dpi: 150, splitSide: null },
     );
     return convertFileSrc(result.src);
   } else if (ext === "psd" || ext === "psb") {
@@ -169,6 +167,72 @@ export async function loadPreviewUrl(filePath: string): Promise<string> {
   } else {
     return convertFileSrc(filePath);
   }
+}
+
+/** A/Bの拡張子から compareMode を決定（PSD/TIFF の順序は問わない） */
+export function computeCompareMode(
+  extA: string,
+  extB: string,
+  psdExts: string[] = ["psd", "psb"],
+  tiffExts: string[] = ["tif", "tiff", "jpg", "jpeg", "png", "bmp"],
+): CompareMode | null {
+  const aIsPsd = psdExts.includes(extA);
+  const bIsPsd = psdExts.includes(extB);
+  const aIsTiff = tiffExts.includes(extA);
+  const bIsTiff = tiffExts.includes(extB);
+  const aIsPdf = extA === "pdf";
+  const bIsPdf = extB === "pdf";
+
+  // 1. PDF が片方でもあれば pdf-pdf
+  if (aIsPdf || bIsPdf) return "pdf-pdf";
+  // 2. PSD と TIFF の混在 → psd-tiff（順序問わず）
+  if ((aIsPsd && bIsTiff) || (aIsTiff && bIsPsd)) return "psd-tiff";
+  // 3. 両方 PSD
+  if (aIsPsd && bIsPsd) return "psd-psd";
+  // 4. 両方 TIFF系
+  if (aIsTiff && bIsTiff) return "tiff-tiff";
+  // 5. 片方未設定 → 設定されている方で判定
+  if (aIsPsd || bIsPsd) return "psd-psd";
+  if (aIsTiff || bIsTiff) return "tiff-tiff";
+  return null;
+}
+
+/** ペアの組み合わせがcompareModeと一致しているか判定（psd-tiff は双方向OK） */
+export function isValidPairCombination(
+  fileAPath: string | undefined | null,
+  fileBPath: string | undefined | null,
+  compareMode: CompareMode,
+): { valid: boolean; reason?: string } {
+  if (!fileAPath || !fileBPath) return { valid: true };
+  const extA = getExt(fileAPath);
+  const extB = getExt(fileBPath);
+
+  const psdExts = ["psd", "psb"];
+  const tiffExts = ["tif", "tiff", "jpg", "jpeg", "png", "bmp"];
+
+  if (compareMode === "psd-tiff") {
+    // 双方向OK: A=PSD&B=TIFF or A=TIFF&B=PSD
+    const oneIsPsd = psdExts.includes(extA) || psdExts.includes(extB);
+    const oneIsTiff = tiffExts.includes(extA) || tiffExts.includes(extB);
+    if (oneIsPsd && oneIsTiff) return { valid: true };
+    return { valid: false, reason: `PSD/TIFFの組み合わせが必要ですが A=${extA.toUpperCase()}, B=${extB.toUpperCase()} です` };
+  }
+  if (compareMode === "psd-psd") {
+    if (!psdExts.includes(extA)) return { valid: false, reason: `A側はPSDが必要ですが ${extA.toUpperCase()} です` };
+    if (!psdExts.includes(extB)) return { valid: false, reason: `B側はPSDが必要ですが ${extB.toUpperCase()} です` };
+    return { valid: true };
+  }
+  if (compareMode === "pdf-pdf") {
+    if (extA !== "pdf") return { valid: false, reason: `A側はPDFが必要ですが ${extA.toUpperCase()} です` };
+    if (extB !== "pdf") return { valid: false, reason: `B側はPDFが必要ですが ${extB.toUpperCase()} です` };
+    return { valid: true };
+  }
+  if (compareMode === "tiff-tiff") {
+    if (!tiffExts.includes(extA)) return { valid: false, reason: `A側はTIFF/画像が必要ですが ${extA.toUpperCase()} です` };
+    if (!tiffExts.includes(extB)) return { valid: false, reason: `B側はTIFF/画像が必要ですが ${extB.toUpperCase()} です` };
+    return { valid: true };
+  }
+  return { valid: true };
 }
 
 /** ファイル拡張子からCompareModeを推定 */
@@ -206,8 +270,34 @@ export const useDiffStore = create<DiffStore>((set, get) => ({
   filterDiffOnly: false,
   showMarkers: true,
   cropBounds: null,
+  previewMap: {},
 
   // ── Actions ──
+  loadPreviewForFile: async (filePath) => {
+    const cached = get().previewMap[filePath];
+    if (cached) return;
+    try {
+      const url = await loadPreviewUrl(filePath);
+      set((s) => ({ previewMap: { ...s.previewMap, [filePath]: url } }));
+    } catch (e) {
+      console.error(`loadPreviewForFile error (${filePath}):`, e);
+    }
+  },
+
+  autoDetectCompareMode: () => {
+    const { filesA, filesB } = get();
+    const extA = filesA[0] ? getExt(filesA[0].filePath) : "";
+    const extB = filesB[0] ? getExt(filesB[0].filePath) : "";
+
+    const psdExts = ["psd", "psb"];
+    const tiffExts = ["tif", "tiff", "jpg", "jpeg", "png", "bmp"];
+
+    const mode = computeCompareMode(extA, extB, psdExts, tiffExts);
+    if (mode && mode !== get().compareMode) {
+      set({ compareMode: mode });
+    }
+  },
+
   setFolderA: (path) => set({ folderA: path }),
   setFolderB: (path) => set({ folderB: path }),
   setFilesA: (files) => { set({ filesA: files }); get().rebuildPairs(); },
@@ -218,42 +308,43 @@ export const useDiffStore = create<DiffStore>((set, get) => ({
     const ext = getExt(path);
     const isFile = ext.length > 0 && ["pdf", "psd", "psb", "tif", "tiff", "jpg", "jpeg", "png", "bmp"].includes(ext);
 
+    let loadedFiles: DiffFile[] = [];
     if (isFile) {
-      // 単一ファイル
+      // 単一ファイル（compareModeは変更しない、タブ移動時に判定される）
       const file: DiffFile = { name: getFileName(path), filePath: path };
-      // CompareMode自動判定
-      const otherFiles = side === "A" ? get().filesB : get().filesA;
-      const otherExt = otherFiles[0] ? getExt(otherFiles[0].filePath) : "";
-      const mode = detectCompareMode(ext, otherExt || ext);
-      set({ compareMode: mode });
+      loadedFiles = [file];
       if (side === "A") {
         set({ folderA: path, filesA: [file] });
       } else {
         set({ folderB: path, filesB: [file] });
       }
     } else {
-      // フォルダ → 中のファイル一覧取得
-      const compareMode = get().compareMode;
-      const exts = SUPPORTED_EXTS[compareMode];
-      const allExts = [...new Set([...exts.a, ...exts.b])];
+      // フォルダ → 中のファイル一覧取得（全対応形式を読み込む。compareMode フィルタは不要）
+      const ALL_EXTS = ["pdf", "psd", "psb", "tif", "tiff", "jpg", "jpeg", "png", "bmp"];
       try {
         const filePaths = await invoke<string[]>("kenban_list_files_in_folder", {
           path,
-          extensions: allExts,
+          extensions: ALL_EXTS,
         });
-        const files: DiffFile[] = filePaths
+        loadedFiles = filePaths
           .map((p) => ({ name: getFileName(p), filePath: p }))
           .sort((a, b) => naturalSort(a.name, b.name));
         if (side === "A") {
-          set({ folderA: path, filesA: files });
+          set({ folderA: path, filesA: loadedFiles });
         } else {
-          set({ folderB: path, filesB: files });
+          set({ folderB: path, filesB: loadedFiles });
         }
       } catch (e) {
         console.error("loadFolderSide error:", e);
       }
     }
+    // compareMode の自動判定はタブ移動時のみ（UnifiedViewerView 側で実行）
     get().rebuildPairs();
+
+    // 各ファイルのプレビューを並行取得（バックグラウンド）
+    for (const f of loadedFiles) {
+      get().loadPreviewForFile(f.filePath);
+    }
   },
 
   setPairingMode: (mode) => { set({ pairingMode: mode }); get().rebuildPairs(); },
@@ -314,31 +405,6 @@ export const useDiffStore = create<DiffStore>((set, get) => ({
     const pair = pairs[index];
     if (!pair) return;
 
-    // ── A単独 or B単独 → プレビューだけ読み込む ──
-    if (!pair.fileA || !pair.fileB) {
-      const file = pair.fileA || pair.fileB;
-      if (!file) return;
-      try {
-        const url = await loadPreviewUrl(file.filePath);
-        set((s) => {
-          const next = [...s.pairs];
-          if (pair.fileA) {
-            next[index] = { ...next[index], status: "done", srcA: url };
-          } else {
-            next[index] = { ...next[index], status: "done", srcB: url };
-          }
-          return { pairs: next };
-        });
-      } catch (e) {
-        set((s) => {
-          const next = [...s.pairs];
-          next[index] = { ...next[index], status: "error", error: String(e) };
-          return { pairs: next };
-        });
-      }
-      return;
-    }
-
     // status: loading
     set((s) => {
       const next = [...s.pairs];
@@ -346,41 +412,68 @@ export const useDiffStore = create<DiffStore>((set, get) => ({
       return { pairs: next };
     });
 
-    // ── PDF-PDF の場合は差分計算をスキップしてプレビューだけ ──
-    if (compareMode === "pdf-pdf") {
-      try {
-        const [urlA, urlB] = await Promise.all([
-          loadPreviewUrl(pair.fileA.filePath),
-          loadPreviewUrl(pair.fileB.filePath),
-        ]);
-        set((s) => {
-          const next = [...s.pairs];
-          next[index] = { ...next[index], status: "done", srcA: urlA, srcB: urlB };
-          return { pairs: next };
-        });
-      } catch (e) {
-        set((s) => {
-          const next = [...s.pairs];
-          next[index] = { ...next[index], status: "error", error: String(e) };
-          return { pairs: next };
-        });
-      }
+    // ── ステップ1: 必ずプレビューを取得（A・B どちらも対応）──
+    let previewA: string | undefined;
+    let previewB: string | undefined;
+    try {
+      if (pair.fileA) previewA = await loadPreviewUrl(pair.fileA.filePath);
+    } catch (e) {
+      console.error("Preview A error:", e);
+    }
+    try {
+      if (pair.fileB) previewB = await loadPreviewUrl(pair.fileB.filePath);
+    } catch (e) {
+      console.error("Preview B error:", e);
+    }
+
+    // プレビューだけまずセット（差分計算前でも表示できるように）
+    set((s) => {
+      const next = [...s.pairs];
+      next[index] = {
+        ...next[index],
+        status: "done",
+        srcA: previewA,
+        srcB: previewB,
+      };
+      return { pairs: next };
+    });
+
+    // ── ステップ2: 両方そろっていなければ終了 ──
+    if (!pair.fileA || !pair.fileB) return;
+
+    // ── ステップ2.5: 不適切な組み合わせは差分計算をスキップ ──
+    const validity = isValidPairCombination(pair.fileA.filePath, pair.fileB.filePath, compareMode);
+    if (!validity.valid) {
+      set((s) => {
+        const next = [...s.pairs];
+        next[index] = { ...next[index], error: validity.reason };
+        return { pairs: next };
+      });
       return;
     }
 
+    // ── ステップ3: PDF-PDF は差分計算スキップ（プレビューのみ）──
+    if (compareMode === "pdf-pdf") return;
+
+    // ── ステップ4: 差分計算を試行（失敗してもプレビューは残る）──
     try {
       if (compareMode === "psd-tiff") {
         if (!cropBounds) {
           set((s) => {
             const next = [...s.pairs];
-            next[index] = { ...next[index], status: "error", error: "クロップ範囲未設定" };
+            next[index] = { ...next[index], error: "クロップ範囲未設定" };
             return { pairs: next };
           });
           return;
         }
+        // PSD/TIFFの順序を自動判定（双方向対応）
+        const psdExts = ["psd", "psb"];
+        const aIsPsd = psdExts.includes(getExt(pair.fileA.filePath));
+        const psdPath = aIsPsd ? pair.fileA.filePath : pair.fileB.filePath;
+        const tiffPath = aIsPsd ? pair.fileB.filePath : pair.fileA.filePath;
         const result = await invoke<any>("compute_diff_heatmap", {
-          psdPath: pair.fileA.filePath,
-          tiffPath: pair.fileB.filePath,
+          psdPath,
+          tiffPath,
           cropBounds,
           threshold,
         });
@@ -426,9 +519,11 @@ export const useDiffStore = create<DiffStore>((set, get) => ({
         });
       }
     } catch (e) {
+      // 差分計算失敗 → プレビューは残したまま、エラー情報のみ追加
+      console.error("Diff computation failed:", e);
       set((s) => {
         const next = [...s.pairs];
-        next[index] = { ...next[index], status: "error", error: String(e) };
+        next[index] = { ...next[index], error: String(e) };
         return { pairs: next };
       });
     }
@@ -457,5 +552,6 @@ export const useDiffStore = create<DiffStore>((set, get) => ({
     currentPage: 1,
     totalPages: 1,
     cropBounds: null,
+    previewMap: {},
   }),
 }));

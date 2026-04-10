@@ -9,7 +9,7 @@ import type { SymbolRule, ProofRule } from "../../types/progen";
 import { showPromptDialog } from "../../store/viewStore";
 import { openExternalUrl } from "../../hooks/useProgenTauri";
 import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
-import { generateSimpleCheckPrompt, generateVariationCheckPrompt } from "../../lib/progenPrompts";
+import { generateSimpleCheckPrompt, generateVariationCheckPrompt, generateExtractionPrompt, generateFormattingPrompt } from "../../lib/progenPrompts";
 
 // ═══ メインコンポーネント ═══
 
@@ -299,16 +299,27 @@ function GeminiButtons() {
   const [copied, setCopied] = useState<string | null>(null);
 
   const getTextContent = () => useUnifiedViewerStore.getState().textContent || "";
-  const buildSymbolRulesText = () => store.symbolRules.filter((r) => r.active).map((r) => `「${r.src}」→「${r.dst}」（${r.note}）`).join("\n");
   const showCopied = (msg: string) => { setCopied(msg); setTimeout(() => setCopied(null), 2000); };
   const gemini = () => openExternalUrl("https://gemini.google.com/app");
 
   const extraction = async () => {
-    const prompt = `以下の統一表記ルールに従って、テキストからセリフを抽出・整形してください。\n\n【統一表記ルール】\n${buildSymbolRulesText() || "（なし）"}\n\n【対象テキスト】\n${getTextContent() || "（未読み込み）"}\n\n【指示】\n- 漫画の読み順（右上→左下）でセリフを抽出\n- 吹き出し1つにつき1ブロック、空行で区切る\n- 統一表記ルールの記号変換を適用`;
+    // 抽出プロンプトはテキスト不要（後から画像を送信する）
+    const prompt = generateExtractionPrompt(
+      store.symbolRules,
+      store.currentProofRules,
+      store.options,
+      store.numberRules,
+    );
     await navigator.clipboard.writeText(prompt); showCopied("抽出"); gemini();
   };
   const formatting = async () => {
-    const prompt = `以下のルールに従って、テキストを整形してください。\n\n【統一表記ルール】\n${buildSymbolRulesText() || "（なし）"}\n\n【対象テキスト】\n${getTextContent() || "（未読み込み）"}\n\n【指示】\n- 記号変換を適用\n- 吹き出し区切り（空行）を維持`;
+    // 整形プロンプトはルールのみ（テキストは添付ファイルとしてGeminiに送る想定）
+    const prompt = generateFormattingPrompt(
+      store.symbolRules,
+      store.currentProofRules,
+      store.options,
+      store.numberRules,
+    );
     await navigator.clipboard.writeText(prompt); showCopied("整形"); gemini();
   };
   const correctness = async () => {

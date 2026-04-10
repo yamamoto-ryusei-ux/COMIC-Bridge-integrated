@@ -366,35 +366,48 @@
 **フォルダ検出** (`detect_psd_folders` Rustコマンド):
 - 指定フォルダ内のPSDファイルを含むサブフォルダを検出
 
-### 20. 差分ビューアー / 分割ビューアー（v3.5.0でKENBANから完全移植）
+### 20. 差分ビューアー / 分割ビューアー（v3.5.0でKENBANから完全移植、v3.6.0で大幅改善）
 - **配置**: 統合ビューアータブ内のサブタブ（差分モード / 分割ビューアー）
 - **差分ビューアー** (`src/components/diff-viewer/DiffViewerView.tsx` + `src/store/diffStore.ts`)
-  - **比較モード**: tiff-tiff / psd-psd / pdf-pdf / psd-tiff
+  - **比較モード**: tiff-tiff / psd-psd / pdf-pdf / psd-tiff（PSD/TIFFは順序問わず双方向対応）
   - **表示モード**: 原稿A / 原稿B / 差分（ピクセル差分のヒートマップ・マーカー表示）
   - **ペアリング**: ファイル順 / 名前順
   - **オプション**: 差分のみ表示、マーカー表示、しきい値調整
-  - **自動差分計算**: ペア選択時に自動でRust側`compute_diff_simple`/`compute_diff_heatmap`を呼び出し
+  - **プレビューキャッシュ**: `previewMap` (filePath→URL) で全ファイルを並行プレビュー取得 → 差分計算前から表示
+  - **自動差分計算**: ペア選択時に自動で Rust側 `compute_diff_simple`/`compute_diff_heatmap` を呼び出し（失敗してもプレビューは残る）
+  - **不適切な組み合わせ判定**: `isValidPairCombination()` で compareMode に合わない場合は差分計算をスキップし、A単独表示。B側は赤いエラーカード表示
+  - **タブ移動時の自動セットアップ**: 差分タブを開いた瞬間に `kenbanPathA/B` から filesA/B を自動読み込み + `computeCompareMode()` で compareMode 自動判定
 - **分割ビューアー** (`src/components/parallel-viewer/ParallelViewerView.tsx` + `src/store/parallelStore.ts`)
   - **2パネル並列表示**: 左右独立にフォルダ/ファイル管理
   - **同期/独立モード**: 同期=両パネル同時ページング、独立=アクティブパネルのみ
   - **対応形式**: PSD/PSB/TIFF/JPG/PNG/BMP/PDF
-  - **PDF見開き分割**: PDF1ファイルを複数ページエントリに展開
+  - **PDF全ページ自動展開**: PDF読み込み時に `kenban_get_pdf_page_count` で全ページを個別エントリ化（1ページずつページ送り可能）
 - **キーボード**: ↑↓ペア/ページ移動、Space表示モード切替、Ctrl+/-ズーム、S同期切替（分割）
+- **TopNav A/B との双方向同期**: ビューアー内でフォルダ/ファイル選択 → `viewStore.kenbanPathA/B` に書き戻し、TopNavから変更 → ビューアー再読み込み（最新優先）
+- **PDF ページ番号**: Rust側は0-indexed、フロント側は1-indexed → `pdfPage - 1` で変換
 - **Rust連携**: `kenban_*` 21コマンドはそのまま流用（変更なし）
 
-### 21. ProGen（React統合済み）
+### 21. ProGen（React統合済み、v3.6.0で旧プロンプト完全互換移植）
 - **3モード**: 抽出プロンプト / 整形プロンプト / 校正プロンプト — ドットメニューから直接モード選択可能
 - **React完全移植済み**: iframe/バニラJS廃止、Zustand + Tailwind CSSで本体と統合
 - **画面ルーター**: `progenStore.screen` で6画面を切替（landing/extraction/proofreading/admin/comicpot/resultViewer）
 - **ProgenView**: `viewStore.progenMode` → `progenStore.screen` 自動マッピング + ラベル自動読み込み
 - **主要コンポーネント**:
-  - `ProgenRuleView` — ルール編集（サイドバー6カテゴリ+カードグリッド+Gemini連携）
+  - `ProgenRuleView` — ルール編集（サイドバー7カテゴリ[symbol/notation/auxiliary/difficult/number/pronoun/character]+カードグリッド+Gemini連携 4種）
   - `ProgenProofreadingView` — 校正チェック（正誤/提案+XMLプロンプト生成）
   - `ProgenJsonBrowser` — GドライブJSONフォルダツリー（検索・読込・保存・新規作成）
   - `ProgenResultViewer` — 校正結果表示（3タブ+ピックアップ+CSV貼り付け）
   - `ProgenCalibrationSave` — 校正データ保存（TXTフォルダ選択→巻数入力）
   - `ComicPotEditor` — COMIC-POTテキスト編集（チャンク表示+D&D+ルビ+形式変換）
   - `ProgenAdminView` — パスワード付き管理画面（レーベルCRUD+ルール編集）
+- **JSON 自動反映**: TopNav の作品情報JSON / `loadPresetJson` / `currentJsonFilePath` 変更時に proofRules を `progenStore.applyJsonRules` で自動適用 (basic/recommended/auxiliary/difficult/number/pronoun/character + symbol + options)
+- **プロンプト生成 (`progenPrompts.ts`)**:
+  - 旧 progen-xml-templates.js / progen-xml-gen.js / progen-check-simple.js / progen-check-variation.js を **TypeScript に完全移植** (生成XMLバイト単位で旧版と一致)
+  - **抽出プロンプト** (`generateExtractionPrompt`): PDF only モード相当、3ステップ構成 (Text Extraction → Proofreading → Self-Check + final_output)
+  - **整形プロンプト** (`generateFormattingPrompt`): TXT only モード相当
+  - **正誤チェック** (`generateSimpleCheckPrompt`): フル版 7-8項目 (誤字/脱字/人名ルビ/単位/伏字/人物名/熟字訓 + 常用外漢字) + 統一表記ルール反映確認
+  - **提案チェック** (`generateVariationCheckPrompt`): 10項目 (文字種/送り仮名/外来語/数字/略称/異体字/文体/固有名詞/専門用語/未成年表現)
+  - **共通**: NGワードリスト (26語)、`escapeHtml` (旧版完全互換: `'`→`&#039;`、falsy判定)、`numberSubRules` / `categories` 定数も旧版互換
 - **ScanPsdEditView統合**: 各機能をモーダルとして起動可能（ルール一覧/校正チェック/JSONブラウザ/結果ビューア/COMIC-POTエディタ）
 - 全コマンドは `progen_` プレフィックス付き（Rust側変更なし）
 

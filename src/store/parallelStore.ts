@@ -201,12 +201,13 @@ export const useParallelStore = create<ParallelStore>((set, get) => ({
 
     try {
       if (file.isPdf) {
-        // PDF: Rustでレンダリング → { src, width, height } を返却
+        // PDF: Rust側は0-indexedなので pdfPage(1-indexed) - 1 で渡す
+        const pageZeroIndexed = (file.pdfPage || 1) - 1;
         const result = await invoke<{ src: string; width: number; height: number }>(
           "kenban_render_pdf_page",
           {
             path: file.filePath,
-            page: file.pdfPage || 1,
+            page: pageZeroIndexed,
             dpi: 150,
             splitSide: file.spreadSide || null,
           },

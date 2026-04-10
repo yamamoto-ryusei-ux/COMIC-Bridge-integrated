@@ -9,7 +9,7 @@
 import { useEffect, useRef, useCallback, useMemo } from "react";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
-import { useDiffStore, type CompareMode, type ViewMode, type FilePair } from "../../store/diffStore";
+import { useDiffStore, isValidPairCombination, type CompareMode, type ViewMode, type FilePair } from "../../store/diffStore";
 import { useViewStore } from "../../store/viewStore";
 
 interface Props {
@@ -36,31 +36,55 @@ export function DiffViewerView({ externalPathA, externalPathB }: Props = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
 
-  // ── 外部パス自動読み込み ──
+  // ── 外部パス自動読み込み（既に同じパスなら再読み込みしない）──
   useEffect(() => {
-    if (externalPathA) store.loadFolderSide(externalPathA, "A");
+    if (externalPathA && externalPathA !== store.folderA) {
+      store.loadFolderSide(externalPathA, "A");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalPathA]);
 
   useEffect(() => {
-    if (externalPathB) store.loadFolderSide(externalPathB, "B");
+    if (externalPathB && externalPathB !== store.folderB) {
+      store.loadFolderSide(externalPathB, "B");
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalPathB]);
 
   // ── 現在のペア ──
   const currentPair: FilePair | undefined = store.pairs[store.selectedIndex];
 
-  // ── 表示画像URL（done時のみ表示、フォールバック対応）──
+  // ── ペアの組み合わせ妥当性 ──
+  const pairValidity = useMemo(() => {
+    if (!currentPair?.fileA || !currentPair?.fileB) return { valid: true };
+    return isValidPairCombination(currentPair.fileA.filePath, currentPair.fileB.filePath, store.compareMode);
+  }, [currentPair, store.compareMode]);
+
+  // ── 表示画像URL（previewMapから直接取得、差分結果が優先）──
   const displayImageUrl = useMemo(() => {
-    if (!currentPair || currentPair.status !== "done") return null;
+    if (!currentPair) return null;
+    // プレビュー（previewMapから常に取得可能）
+    const previewA = currentPair.fileA ? store.previewMap[currentPair.fileA.filePath] : undefined;
+    const previewB = currentPair.fileB ? store.previewMap[currentPair.fileB.filePath] : undefined;
+
     if (store.viewMode === "diff") {
-      // 差分が無い（A or B 単独）場合はAを表示
-      return currentPair.diffSrc || currentPair.processedA || currentPair.srcA || currentPair.srcB || null;
+      // 不適切な組み合わせの場合は A だけ表示
+      if (!pairValidity.valid) {
+        return currentPair.processedA || currentPair.srcA || previewA || null;
+      }
+      // 差分結果があれば優先、なければプレビューにフォールバック
+      return currentPair.diffSrc || currentPair.processedA || currentPair.srcA || previewA || previewB || null;
     }
-    if (store.viewMode === "A") return currentPair.processedA || currentPair.srcA || null;
-    if (store.viewMode === "B") return currentPair.srcB || null;
+    if (store.viewMode === "A") {
+      return currentPair.processedA || currentPair.srcA || previewA || null;
+    }
+    if (store.viewMode === "B") {
+      // 不適切な組み合わせの場合は B を表示しない（エラー表示に切り替わる）
+      if (!pairValidity.valid) return null;
+      return currentPair.srcB || previewB || null;
+    }
     return null;
-  }, [currentPair, store.viewMode]);
+  }, [currentPair, store.viewMode, store.previewMap, pairValidity]);
 
   // ── フィルタされたペア（差分のみ表示時）──
   const visiblePairs = useMemo(() => {
@@ -140,10 +164,13 @@ export function DiffViewerView({ externalPathA, externalPathB }: Props = {}) {
     else store.zoomOut();
   }, [store]);
 
-  // ── フォルダ選択 ──
+  // ── フォルダ選択（TopNavのkenbanPathA/Bにも書き戻し）──
   const handleSelectFolder = useCallback(async (side: "A" | "B") => {
     const path = await dialogOpen({ directory: true, multiple: false });
     if (path && typeof path === "string") {
+      // viewStore に同期（最新を優先）
+      if (side === "A") useViewStore.getState().setKenbanPathA(path);
+      else useViewStore.getState().setKenbanPathB(path);
       await store.loadFolderSide(path, side);
     }
   }, [store]);
@@ -152,6 +179,9 @@ export function DiffViewerView({ externalPathA, externalPathB }: Props = {}) {
     const exts = ["psd", "psb", "tif", "tiff", "jpg", "jpeg", "png", "bmp", "pdf"];
     const path = await dialogOpen({ multiple: false, filters: [{ name: "対応ファイル", extensions: exts }] });
     if (path && typeof path === "string") {
+      // viewStore に同期（最新を優先）
+      if (side === "A") useViewStore.getState().setKenbanPathA(path);
+      else useViewStore.getState().setKenbanPathB(path);
       await store.loadFolderSide(path, side);
     }
   }, [store]);
@@ -286,6 +316,7 @@ export function DiffViewerView({ externalPathA, externalPathB }: Props = {}) {
               visiblePairs.map((pair) => {
                 const realIdx = store.pairs.indexOf(pair);
                 const isSelected = realIdx === store.selectedIndex;
+                const validity = isValidPairCombination(pair.fileA?.filePath, pair.fileB?.filePath, store.compareMode);
                 return (
                   <button
                     key={pair.index}
@@ -294,8 +325,9 @@ export function DiffViewerView({ externalPathA, externalPathB }: Props = {}) {
                   >
                     <div className="flex items-center gap-1">
                       {pair.status === "loading" && <span className="text-[8px] text-yellow-400">⌛</span>}
-                      {pair.status === "done" && pair.hasDiff && <span className="text-[8px] text-red-400">⚠</span>}
-                      {pair.status === "done" && !pair.hasDiff && <span className="text-[8px] text-emerald-400">✓</span>}
+                      {!validity.valid && <span className="text-[8px] text-red-400" title={validity.reason}>⚠</span>}
+                      {validity.valid && pair.status === "done" && pair.hasDiff && <span className="text-[8px] text-red-400">⚠</span>}
+                      {validity.valid && pair.status === "done" && !pair.hasDiff && <span className="text-[8px] text-emerald-400">✓</span>}
                       {pair.status === "error" && <span className="text-[8px] text-red-400">✕</span>}
                       <span className="truncate flex-1">
                         {pair.fileA?.name || pair.fileB?.name || "(no file)"}
@@ -376,22 +408,33 @@ export function DiffViewerView({ externalPathA, externalPathB }: Props = {}) {
           onWheel={handleWheel}
           style={{ cursor: store.isDragging ? "grabbing" : "grab" }}
         >
-          {currentPair?.status === "loading" && (
-            <div className="absolute inset-0 flex items-center justify-center text-text-muted text-xs">
+          {currentPair?.status === "loading" && !displayImageUrl && (
+            <div className="absolute inset-0 flex items-center justify-center text-text-muted text-xs pointer-events-none">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
                 解析中...
               </div>
             </div>
           )}
-          {currentPair?.status === "error" && (
-            <div className="absolute inset-0 flex items-center justify-center text-red-400 text-xs">
-              エラー: {currentPair.error}
-            </div>
-          )}
           {!currentPair && (
             <div className="absolute inset-0 flex items-center justify-center text-text-muted text-xs">
               ファイルを選択してください
+            </div>
+          )}
+          {/* 不適切な組み合わせ時のエラー表示（B側 or 差分） */}
+          {currentPair && !pairValidity.valid && (store.viewMode === "B") && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-6 py-4 max-w-md text-center">
+                <div className="text-red-400 text-sm font-medium mb-2">⚠ 不適切なファイル組み合わせ</div>
+                <div className="text-red-300/80 text-[10px] mb-2">{pairValidity.reason || "差分計算ができません"}</div>
+                <div className="text-text-muted text-[10px]">比較モード: <span className="text-text-secondary">{COMPARE_MODE_LABELS[store.compareMode]}</span></div>
+                <div className="text-text-muted text-[9px] mt-1">A原稿側へ切り替えるか、比較モードを変更してください</div>
+              </div>
+            </div>
+          )}
+          {currentPair && !displayImageUrl && currentPair.status !== "loading" && pairValidity.valid && (
+            <div className="absolute inset-0 flex items-center justify-center text-text-muted text-xs">
+              プレビュー読み込み中...
             </div>
           )}
           {displayImageUrl && (
@@ -440,6 +483,7 @@ export function DiffViewerView({ externalPathA, externalPathB }: Props = {}) {
           {currentPair?.fileB && <span>B: {currentPair.fileB.name}</span>}
           {currentPair?.diffCount !== undefined && <span>差分ピクセル: {currentPair.diffCount.toLocaleString()}</span>}
           {currentPair?.diffProbability !== undefined && <span>差分率: {currentPair.diffProbability.toFixed(1)}%</span>}
+          {!pairValidity.valid && <span className="text-red-400">⚠ {pairValidity.reason}</span>}
           <div className="flex-1" />
           <span>↑↓: ペア / Space: 表示切替 / Ctrl+/-: ズーム</span>
         </div>

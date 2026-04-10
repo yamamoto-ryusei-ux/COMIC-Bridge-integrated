@@ -2,6 +2,7 @@ import { useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { useScanPsdStore } from "../store/scanPsdStore";
+import { useProgenStore } from "../store/progenStore";
 import type {
   ScanData,
   ScanGuideSet,
@@ -1115,9 +1116,24 @@ export function useScanPsdProcessor() {
 
     try {
       const content = await invoke<string>("read_text_file", { filePath });
-      const data = JSON.parse(content) as PresetJsonData;
+      const data = JSON.parse(content) as PresetJsonData & { proofRules?: any };
       store.loadFromPresetJson(data);
       store.setCurrentJsonFilePath(filePath);
+
+      // ── ProGen 校正ルールも自動反映 ──
+      const progenStore = useProgenStore.getState();
+      progenStore.setCurrentLoadedJson(data);
+      progenStore.setCurrentJsonPath(filePath);
+      if (data?.proofRules) {
+        // JSON直下に proofRules がある場合
+        progenStore.applyJsonRules(data);
+      } else if ((data as any)?.presetData?.proofRules) {
+        // 旧形式: presetData の中に proofRules
+        progenStore.applyJsonRules((data as any).presetData);
+      } else if (data?.presetData?.workInfo?.label) {
+        // proofRules なし → レーベルからマスタールール読み込み
+        await progenStore.loadMasterRule(data.presetData.workInfo.label);
+      }
 
       // リンクされたscandataを自動読み込み（全ガイドセット等を復元するため）
       const pd = data.presetData;

@@ -76,6 +76,17 @@ export function TopNav() {
             ...(wi.author ? { author: wi.author } : {}),
           });
         }
+        // ── ProGen 校正ルールも自動反映（proofRules があれば優先、なければラベルからマスタールール）──
+        const progenStore = useProgenStore.getState();
+        progenStore.setCurrentLoadedJson(data);
+        progenStore.setCurrentJsonPath(filePath);
+        if (data?.proofRules) {
+          progenStore.applyJsonRules(data);
+        } else if (data?.presetData?.proofRules) {
+          progenStore.applyJsonRules(data.presetData);
+        } else if (wi?.label) {
+          await progenStore.loadMasterRule(wi.label);
+        }
       }
     } catch { /* ignore */ }
     setJsonBrowserMode(null);
@@ -105,10 +116,11 @@ export function TopNav() {
           if (hasData) {
             setShowResetConfirm(true);
           } else {
-            // データがなくてもフォルダパス等をクリア
+            // データがなくてもフォルダパス等をクリア + サムネイル表示にリセット
             psd.clearFiles();
             psd.setCurrentFolderPath(null);
             psd.setContentLocked(false);
+            psd.setSpecViewMode("thumbnails");
             setActiveView("specCheck");
           }
         }}
@@ -261,6 +273,7 @@ export function TopNav() {
                   usePsdStore.getState().clearFiles();
                   usePsdStore.getState().setCurrentFolderPath(null);
                   usePsdStore.getState().setContentLocked(false);
+                  usePsdStore.getState().setSpecViewMode("thumbnails");
                   const uv = useUnifiedViewerStore.getState();
                   uv.setTextContent(""); uv.setTextFilePath(null); uv.setTextHeader([]); uv.setTextPages([]); uv.setIsDirty(false);
                   uv.setFontPresets([]); uv.setPresetJsonPath(null);
@@ -541,6 +554,7 @@ function TopNavToolMenu() {
             return (
               <button key={btn.id} className="w-full text-left px-3 py-1.5 text-[11px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors" onClick={() => {
                 if (btn.id === "layers") { setActiveView("specCheck"); usePsdStore.getState().setSpecViewMode("layers"); }
+                else if (btn.id === "specCheck") { setActiveView("specCheck"); usePsdStore.getState().setSpecViewMode("thumbnails"); }
                 else setActiveView(btn.id as any);
                 setHover(false);
               }}>{btn.label}</button>
@@ -578,6 +592,10 @@ function NavBarButtons() {
               if (btn.id === "layers") {
                 setActiveView("specCheck");
                 usePsdStore.getState().setSpecViewMode("layers");
+              } else if (btn.id === "specCheck") {
+                // ホーム（仕様チェック）に戻る時は常にサムネイル表示
+                setActiveView("specCheck");
+                usePsdStore.getState().setSpecViewMode("thumbnails");
               } else {
                 setActiveView(btn.id as any);
               }

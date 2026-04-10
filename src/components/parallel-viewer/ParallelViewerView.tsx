@@ -20,14 +20,18 @@ export function ParallelViewerView({ externalPathA, externalPathB }: Props = {})
   const store = useParallelStore();
   const isFullscreen = useViewStore((s) => s.isViewerFullscreen);
 
-  // ── 外部パス自動読み込み ──
+  // ── 外部パス自動読み込み（既に同じパスなら再読み込みしない）──
   useEffect(() => {
-    if (externalPathA) store.loadFolderSide("A", externalPathA);
+    if (externalPathA && externalPathA !== store.A.folder) {
+      store.loadFolderSide("A", externalPathA);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalPathA]);
 
   useEffect(() => {
-    if (externalPathB) store.loadFolderSide("B", externalPathB);
+    if (externalPathB && externalPathB !== store.B.folder) {
+      store.loadFolderSide("B", externalPathB);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalPathB]);
 
@@ -62,10 +66,13 @@ export function ParallelViewerView({ externalPathA, externalPathB }: Props = {})
     return () => window.removeEventListener("keydown", handler);
   }, [store]);
 
-  // ── フォルダ/ファイル選択 ──
+  // ── フォルダ/ファイル選択（TopNavのkenbanPathA/Bにも書き戻し）──
   const handleSelectFolder = useCallback(async (side: "A" | "B") => {
     const path = await dialogOpen({ directory: true, multiple: false });
     if (path && typeof path === "string") {
+      // viewStore に同期（最新を優先）
+      if (side === "A") useViewStore.getState().setKenbanPathA(path);
+      else useViewStore.getState().setKenbanPathB(path);
       await store.loadFolderSide(side, path);
     }
   }, [store]);
@@ -76,6 +83,9 @@ export function ParallelViewerView({ externalPathA, externalPathB }: Props = {})
       filters: [{ name: "対応ファイル", extensions: ["pdf", "psd", "psb", "tif", "tiff", "jpg", "jpeg", "png", "bmp"] }],
     });
     if (path && typeof path === "string") {
+      // viewStore に同期（最新を優先）
+      if (side === "A") useViewStore.getState().setKenbanPathA(path);
+      else useViewStore.getState().setKenbanPathB(path);
       await store.loadFolderSide(side, path);
     }
   }, [store]);
