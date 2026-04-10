@@ -180,17 +180,24 @@ export const useParallelStore = create<ParallelStore>((set, get) => ({
 
     try {
       if (file.isPdf) {
-        // PDF: Rustでレンダリング
-        const dataUrl = await invoke<string>("kenban_render_pdf_page", {
-          path: file.filePath,
-          page: file.pdfPage || 1,
-          dpi: 150,
-        });
-        set((s) => ({ [side]: { ...s[side], imageUrl: dataUrl } } as any));
+        // PDF: Rustでレンダリング → { src, width, height } を返却
+        const result = await invoke<{ src: string; width: number; height: number }>(
+          "kenban_render_pdf_page",
+          {
+            path: file.filePath,
+            page: file.pdfPage || 1,
+            dpi: 150,
+            splitSide: file.spreadSide || null,
+          },
+        );
+        set((s) => ({ [side]: { ...s[side], imageUrl: convertFileSrc(result.src) } } as any));
       } else if (getExt(file.filePath) === "psd" || getExt(file.filePath) === "psb") {
-        // PSD: kenban_parse_psdでJPEG変換
-        const result = await invoke<{ jpeg_path: string }>("kenban_parse_psd", { path: file.filePath });
-        set((s) => ({ [side]: { ...s[side], imageUrl: convertFileSrc(result.jpeg_path) } } as any));
+        // PSD: kenban_parse_psd → { file_url, width, height } を返却
+        const result = await invoke<{ file_url: string; width: number; height: number }>(
+          "kenban_parse_psd",
+          { path: file.filePath },
+        );
+        set((s) => ({ [side]: { ...s[side], imageUrl: convertFileSrc(result.file_url) } } as any));
       } else {
         // 通常画像: convertFileSrcで直接表示
         set((s) => ({ [side]: { ...s[side], imageUrl: convertFileSrc(file.filePath) } } as any));
