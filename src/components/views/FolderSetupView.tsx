@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { usePsdStore } from "../../store/psdStore";
@@ -7,6 +8,7 @@ import { useProgenStore } from "../../store/progenStore";
 import { usePsdLoader } from "../../hooks/usePsdLoader";
 import { GENRE_LABELS } from "../../types/scanPsd";
 import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
+import { JsonFileBrowser } from "../scanPsd/JsonFileBrowser";
 
 const DEFAULT_COPY_DEST = "1_原稿";
 
@@ -47,6 +49,8 @@ export function FolderSetupView() {
   const [newJsonGenre, setNewJsonGenre] = useState("");
   const [newJsonLabel, setNewJsonLabel] = useState("");
   const [newJsonTitle, setNewJsonTitle] = useState("");
+  const [showJsonBrowser, setShowJsonBrowser] = useState(false);
+  const jsonFolderPath = useScanPsdStore((s) => s.jsonFolderPath);
 
   // コピー完了後のファイル確認結果
   const [fileCheck, setFileCheck] = useState<{
@@ -427,11 +431,11 @@ export function FolderSetupView() {
             <span className="text-xs font-medium text-text-primary">フォルダ種別</span>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setMode("new")}
+            <button onClick={() => { setMode("new"); setJsonMode("new"); }}
               className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all ${mode === "new" ? "bg-accent/15 text-accent border border-accent/30" : "bg-bg-tertiary text-text-secondary border border-border/50 hover:bg-bg-elevated"}`}>
               新作<div className="text-[9px] text-text-muted mt-0.5">{newStructure.length}フォルダ</div>
             </button>
-            <button onClick={() => setMode("sequel")}
+            <button onClick={() => { setMode("sequel"); setJsonMode("select"); }}
               className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all ${mode === "sequel" ? "bg-accent-secondary/15 text-accent-secondary border border-accent-secondary/30" : "bg-bg-tertiary text-text-secondary border border-border/50 hover:bg-bg-elevated"}`}>
               続話<div className="text-[9px] text-text-muted mt-0.5">{sequelStructure.length}フォルダ</div>
             </button>
@@ -446,27 +450,27 @@ export function FolderSetupView() {
             <span className="text-[9px] text-text-muted">（ProGen校正ルール連携）</span>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => setJsonMode("select")}
-              className={`flex-1 py-2 rounded-lg text-[10px] font-medium transition-all ${jsonMode === "select" ? "bg-purple-500/15 text-purple-500 border border-purple-500/30" : "bg-bg-tertiary text-text-secondary border border-border/50 hover:bg-bg-elevated"}`}>
-              既存JSONを選択
-            </button>
             <button onClick={() => setJsonMode("new")}
               className={`flex-1 py-2 rounded-lg text-[10px] font-medium transition-all ${jsonMode === "new" ? "bg-accent/15 text-accent border border-accent/30" : "bg-bg-tertiary text-text-secondary border border-border/50 hover:bg-bg-elevated"}`}>
               新規作成
+            </button>
+            <button onClick={() => setJsonMode("select")}
+              className={`flex-1 py-2 rounded-lg text-[10px] font-medium transition-all ${jsonMode === "select" ? "bg-purple-500/15 text-purple-500 border border-purple-500/30" : "bg-bg-tertiary text-text-secondary border border-border/50 hover:bg-bg-elevated"}`}>
+              既存JSONを選択
             </button>
           </div>
 
           {jsonMode === "select" && (
             <div className="space-y-1.5">
-              <div className="flex gap-2">
-                <input type="text" value={selectedJsonPath} onChange={(e) => setSelectedJsonPath(e.target.value)}
-                  className="flex-1 text-[10px] px-2 py-1.5 bg-bg-primary border border-border/50 rounded text-text-primary outline-none font-mono" placeholder="JSONファイルパス..." />
-                <button onClick={async () => {
-                  const path = await dialogOpen({ multiple: false, filters: [{ name: "JSON", extensions: ["json"] }], title: "作品情報JSONを選択", defaultPath: "G:/共有ドライブ/CLLENN/編集部フォルダ/編集企画部/編集企画_C班(AT業務推進)/DTP制作部/JSONフォルダ" });
-                  if (path) setSelectedJsonPath(path as string);
-                }} className="px-2 py-1.5 text-[10px] bg-bg-tertiary border border-border/50 rounded hover:bg-bg-elevated text-text-secondary">参照</button>
-              </div>
-              {selectedJsonPath && <div className="text-[9px] text-purple-500">✓ {selectedJsonPath.split(/[/\\]/).pop()}</div>}
+              <button
+                onClick={() => setShowJsonBrowser(true)}
+                className="w-full px-3 py-2 text-[10px] bg-purple-500/10 hover:bg-purple-500/20 text-purple-500 border border-purple-500/30 rounded-lg transition-colors"
+              >
+                {selectedJsonPath ? `✓ ${selectedJsonPath.split(/[/\\]/).pop()}` : "作品情報JSONを選択..."}
+              </button>
+              {selectedJsonPath && (
+                <div className="text-[9px] text-text-muted font-mono truncate">{selectedJsonPath}</div>
+              )}
             </div>
           )}
 
@@ -597,6 +601,33 @@ export function FolderSetupView() {
           </div>
         )}
       </div>
+
+      {/* 作品情報JSON ブラウザモーダル */}
+      {showJsonBrowser && createPortal(
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/40" onMouseDown={(e) => { if (e.target === e.currentTarget) setShowJsonBrowser(false); }}>
+          <div className="bg-bg-secondary rounded-xl shadow-2xl w-[500px] max-h-[70vh] flex flex-col overflow-hidden" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+              <h3 className="text-sm font-medium">作品情報JSONを選択</h3>
+              <button onClick={() => setShowJsonBrowser(false)} className="text-text-muted hover:text-text-primary">✕</button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              {jsonFolderPath ? (
+                <JsonFileBrowser
+                  basePath={jsonFolderPath}
+                  onSelect={(filePath) => { setSelectedJsonPath(filePath); setShowJsonBrowser(false); }}
+                  onCancel={() => setShowJsonBrowser(false)}
+                  mode="open"
+                />
+              ) : (
+                <div className="p-4 text-center text-text-muted text-xs">
+                  JSONフォルダパスが設定されていません。Scan PSDから設定してください。
+                </div>
+              )}
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

@@ -151,10 +151,9 @@ function ResultSaveModal() {
             ? useProgenStore.getState().currentJsonPath.replace(/[/\\][^/\\]+$/, "")
             : "";
         }
-        // ファイル名に巻数を含める
+        // ファイル名は巻数
         const volStr = volume || "1";
-        const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, "").slice(0, 14);
-        const fileName = `calibration_${volStr}巻_${timestamp}.json`;
+        const fileName = `${volStr}巻.json`;
         let filePath: string | null = null;
         if (defaultPath) {
           try {

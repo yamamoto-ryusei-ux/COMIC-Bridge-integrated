@@ -398,7 +398,7 @@
   - `ProgenJsonBrowser` — GドライブJSONフォルダツリー（検索・読込・保存・新規作成）
   - `ProgenResultViewer` — 校正結果表示（3タブ+ピックアップ+CSV貼り付け）
   - `ProgenCalibrationSave` — 校正データ保存（TXTフォルダ選択→巻数入力）
-  - `ResultSaveModal`（ProgenView内） — 校正結果保存モーダル。`parseCheckText()`でCSV・Markdownテーブル両対応→`{ checks: { simple, variation }, volume, savedAt }`形式で構造化保存。巻数入力付き、ファイル名`calibration_{N}巻_{timestamp}.json`。保存後にunifiedViewerStore.checkDataへ自動読み込み
+  - `ResultSaveModal`（ProgenView内） — 校正結果保存モーダル。`parseCheckText()`でCSV・Markdownテーブル両対応→`{ checks: { simple, variation }, volume, savedAt }`形式で構造化保存。巻数入力付き、ファイル名`{N}巻.json`（v3.6.2でtimestamp廃止）。保存後にunifiedViewerStore.checkDataへ自動読み込み
   - `ComicPotEditor` — COMIC-POTテキスト編集（チャンク表示+D&D+ルビ+形式変換）
   - `ProgenAdminView` — パスワード付き管理画面（レーベルCRUD+ルール編集）
 - **JSON 自動反映**: TopNav の作品情報JSON / `loadPresetJson` / `currentJsonFilePath` 変更時に proofRules を `progenStore.applyJsonRules` で自動適用 (basic/recommended/auxiliary/difficult/number/pronoun/character + symbol + options)
@@ -446,7 +446,8 @@
 - **ナンバリング自動検出**: フォルダ名から数字を抽出して番号フォルダを作成（手動修正可能）
 - **テンプレート設定2種類**: アドレス指定（フォルダコピー）/ フォルダ構造（クリック取得、localStorage保存）
 - **デフォルト構造**: 新作9フォルダ / 続話6フォルダ（アドレス未指定）
-- **作品情報JSON**: 新規作成時はGENRE_LABELS（scanPsd.ts）による2段階ドロップダウン（ジャンル→レーベル）で選択。既存JSON選択も可能
+- **作品情報JSON**: 新規作成時はGENRE_LABELS（scanPsd.ts）による2段階ドロップダウン（ジャンル→レーベル）で選択。既存JSON選択は`JsonFileBrowser`モーダル（TopNavの作品情報ボタンと同じUI、scanPsdStore.jsonFolderPathをベースにしたツリー表示）
+- **モード自動連動**: 新作選択時は`jsonMode="new"`、続話選択時は`jsonMode="select"`を自動セット（続話は前巻JSONの再利用が多いため）
 - **create_directory / copy_folder Rustコマンド**: .keepファイル不使用
 
 ### 24b. 依頼準備ツール
@@ -1204,45 +1205,73 @@ pdfium-renderによるPDFプレビュー/サムネイル生成:
 - ビット深度: 8bit
 - αチャンネル: なし
 
-## UIテーマ（ライトテーマ）
+## UIテーマ（ライトテーマ / WCAG AA対応）
 
-明るくポップな漫画風UIを採用:
+明るくポップな漫画風UIをベースに、v3.6.2でWCAG AA（4.5:1以上）準拠の配色に調整:
 
 ### カラーパレット
 ```javascript
-// 背景
-bg-primary: "#faf8f5"    // クリームホワイト（メイン背景）
+// 背景（ライトテーマ）
+bg-primary: "#fbfaf7"    // クリームホワイト（メイン背景）
 bg-secondary: "#ffffff"  // 純白（パネル）
-bg-tertiary: "#f5f3f0"   // 柔らかいグレー（カード）
+bg-tertiary: "#f1eee9"   // 柔らかいグレー（カード、コントラスト強化）
 
-// テキスト
-text-primary: "#2d2d3a"  // ダークパープル
-text-secondary: "#5a5a6e"
-text-muted: "#9090a0"
+// テキスト（WCAG AA: 4.5:1以上を確保）
+text-primary: "#1f1f2c"  // 主要テキスト（19.4:1、AAA）
+text-secondary: "#4a4a5c" // 副次テキスト（9.6:1、AAA）
+text-muted: "#6b6b7a"    // 控えめテキスト（5.5:1、AA）
 
-// アクセント
-accent: "#ff5a8a"        // ビビッドピンク
-accent-secondary: "#7c5cff" // パープル
-accent-tertiary: "#00c9a7"  // ミントグリーン
+// アクセント（テキストとしてもAA合格に調整）
+accent: "#d6336c"        // ピンク（4.7:1）
+accent-hover: "#b8265a"
+accent-secondary: "#6d28d9" // パープル（6.7:1）
+accent-tertiary: "#0d8a6f"  // ミントグリーン（4.7:1）
+accent-warm: "#c2680a"      // オレンジ（4.7:1）
 
-// ステータス
-success: "#22c55e"       // 鮮やかな緑
-error: "#ef4444"         // 鮮やかな赤
-warning: "#f59e0b"       // オレンジ
+// ステータス（AA合格）
+success: "#15803d"       // 緑（5.5:1）
+warning: "#b45309"       // オレンジ（5.4:1）
+error: "#b91c1c"         // 赤（6.4:1）
+
+// ボーダー（視認性向上）
+border: "#d1d1d9"        // 標準ボーダー
+border-light: "#e3e3eb"  // 薄ボーダー
+
+// 漫画的装飾カラー（パステル、背景用）
+manga-pink: "#ffcce5", manga-mint: "#c5ffe0",
+manga-lavender: "#e0d5ff", manga-peach: "#ffe5d5",
+manga-sky: "#d5f0ff", manga-yellow: "#fff9c4"
 ```
 
-### フォント
+### フォント（globals.css）
 - **UI本文**: `--font-ui` = Noto Sans JP
 - **見出し**: `--font-display` = Zen Maru Gothic
+- **ベースサイズ**: 15px / line-height 1.65 / font-weight 450 / letter-spacing 0.005em
+
+### フォントサイズ強制引き上げ（v3.6.2）
+globals.cssで`text-[Npx]`アービトラリ値クラスを上書き。小さすぎるフォントを最低11px以上に:
+```css
+.text-\[8px\]  { font-size: 11px !important; line-height: 1.45 !important; }
+.text-\[9px\]  { font-size: 11.5px !important; line-height: 1.45 !important; }
+.text-\[10px\] { font-size: 12px !important; line-height: 1.5 !important; }
+.text-\[11px\] { font-size: 12.5px !important; line-height: 1.5 !important; }
+.text-\[12px\] { font-size: 13px !important; line-height: 1.55 !important; }
+```
+- レイアウト・構造・コンポーネント配置は変更せず、フォントサイズと行間のみ調整
+- `button, a, label` の最低 font-weight を 500 に強制
+
+### 特殊な可読性ルール（globals.css）
+- **TopNav 左タブ**: `nav button.text-text-secondary` の文字色を`#1f1f2c`に濃色化、ホバー時`#d6336c`。背景・枠線は付与せずミニマルなフラットデザイン維持
+- **text-manga-* クラス**: パステル背景用色は維持、テキスト用途のみ濃色に上書き（`text-manga-pink: #be185d`, `text-manga-lavender: #6d28d9`等）。原稿仕様パネル内のバッジ数値が読めるようになる
 
 ### デザイン要素
 - 角丸の大きいカード・ボタン（rounded-xl, rounded-2xl）
 - ソフトシャドウ（shadow-soft, shadow-card）
-- グラデーション（gradient-pop: #ff6b9d → #7c5cff）
+- グラデーション（gradient-pop: #d6336c → #6d28d9）
 - グロー効果（shadow-glow-pink, shadow-glow-error）
-- スクロールバー: ピンク→パープルのグラデーションサム
-- フォーカスリング: 2px solid #ff6b9d
-- 選択色: 半透明ピンク背景
+- スクロールバー: 10px幅、#c1a4b4 → #b1a0c8の濃色グラデ
+- フォーカスリング: 2px solid #d6336c
+- 選択色: 半透明ピンク背景（rgba(214,51,108,0.25)）
 
 ## 主要依存関係
 

@@ -8,18 +8,19 @@
   --font-ui: "Noto Sans JP", "Yu Gothic UI", "Meiryo", sans-serif;
   --font-display: "Zen Maru Gothic", "M PLUS Rounded 1c", sans-serif;
 
-  /* グラデーション */
-  --gradient-pop: linear-gradient(135deg, #ff6b9d, #7c5cff);
-  --gradient-fresh: linear-gradient(135deg, #00d4aa, #7c5cff);
-  --gradient-warm: linear-gradient(135deg, #ffb347, #ff6b9d);
+  /* グラデーション（WCAG AA対応の濃色） */
+  --gradient-pop: linear-gradient(135deg, #d6336c, #6d28d9);
+  --gradient-fresh: linear-gradient(135deg, #0d8a6f, #6d28d9);
+  --gradient-warm: linear-gradient(135deg, #c2680a, #d6336c);
 
   font-family: var(--font-ui);
-  font-size: 14px;
-  line-height: 1.5;
-  font-weight: 400;
+  font-size: 15px;
+  line-height: 1.65;
+  font-weight: 450;
+  letter-spacing: 0.005em;
 
-  color: #f5f3f0;
-  background-color: #1e1e2e;
+  color: #1f1f2c;
+  background-color: #fbfaf7;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -40,10 +41,10 @@ body,
   overflow: hidden;
 }
 
-/* ===== スクロールバー（上品ポップ）===== */
+/* ===== スクロールバー（視認性向上）===== */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -51,22 +52,22 @@ body,
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, #e0c4d4, #cfc0e8);
-  border-radius: 4px;
+  background: linear-gradient(180deg, #c1a4b4, #b1a0c8);
+  border-radius: 5px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, #d4a8c0, #bea8e0);
+  background: linear-gradient(180deg, #a8889c, #9888c0);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 
 /* ===== 選択時のスタイル ===== */
 ::selection {
-  background: rgba(255, 107, 157, 0.3);
-  color: #f5f3f0;
+  background: rgba(214, 51, 108, 0.25);
+  color: #1f1f2c;
 }
 
 /* ===== ドラッグ無効化 ===== */
@@ -75,12 +76,56 @@ img {
   -webkit-user-drag: none;
 }
 
-/* ===== フォーカスリング ===== */
+/* ===== フォーカスリング（視認性向上）===== */
 :focus-visible {
-  outline: 2px solid #ff6b9d;
+  outline: 2px solid #d6336c;
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* ===== 小さすぎるフォントサイズの可読性向上（WCAG準拠）=====
+   既存のtext-[Npx]アービトラリ値クラスを上書き。
+   レイアウト・構造・コンポーネント配置は変更せず、
+   フォントサイズと行間のみ調整。 */
+.text-\[8px\]  { font-size: 11px !important; line-height: 1.45 !important; }
+.text-\[9px\]  { font-size: 11.5px !important; line-height: 1.45 !important; }
+.text-\[10px\] { font-size: 12px !important; line-height: 1.5 !important; }
+.text-\[11px\] { font-size: 12.5px !important; line-height: 1.5 !important; }
+.text-\[12px\] { font-size: 13px !important; line-height: 1.55 !important; }
+
+/* 主要テキストの可読性: 全体的な文字色トーンを統一 */
+body, #root {
+  color: #1f1f2c;
+  background-color: #fbfaf7;
+}
+
+/* リンク・ボタンの最低フォント太さ確保 */
+button, a, label {
+  font-weight: 500;
+}
+
+/* ===== TopNav 左タブ（NavBarButtons）のテキスト視認性 =====
+   レイアウト・装飾は変更せず、文字色のみ濃色化して可読性を確保。
+   背景や枠線は付与しない（元のミニマルなデザインを維持）。 */
+nav button.text-text-secondary {
+  color: #1f1f2c !important;
+}
+
+nav button.text-text-secondary:hover {
+  color: #d6336c !important;
+}
+
+/* ===== text-manga-* クラスの可読性向上 =====
+   manga-* はパステルカラーで背景用として設計されているが、
+   原稿仕様パネル等で text-manga-* としても使用されている。
+   text 用途には濃色を割り当て、bg 用途のパステルは維持。
+   bg-manga-* はそのまま、text-manga-* のみ濃色化。 */
+.text-manga-pink     { color: #be185d !important; }  /* ピンク（背景用#ffcce5に対するテキスト） */
+.text-manga-mint     { color: #0d8a6f !important; }  /* ミントグリーン */
+.text-manga-lavender { color: #6d28d9 !important; }  /* ラベンダー（パープル） */
+.text-manga-peach    { color: #c2680a !important; }  /* ピーチ（オレンジ） */
+.text-manga-sky      { color: #1e6091 !important; }  /* スカイブルー */
+.text-manga-yellow   { color: #a16207 !important; }  /* イエロー */
 
 /* ===== コンポーネントスタイル ===== */
 @layer components {
@@ -93,12 +138,12 @@ img {
 
   .btn-primary {
     @apply text-white;
-    background: linear-gradient(135deg, #ff6b9d, #7c5cff);
-    box-shadow: 0 4px 15px rgba(255, 107, 157, 0.3);
+    background: linear-gradient(135deg, #d6336c, #6d28d9);
+    box-shadow: 0 4px 15px rgba(214, 51, 108, 0.35);
   }
 
   .btn-primary:hover {
-    box-shadow: 0 6px 20px rgba(255, 107, 157, 0.4);
+    box-shadow: 0 6px 20px rgba(214, 51, 108, 0.45);
     transform: translateY(-2px);
   }
 
@@ -120,8 +165,8 @@ img {
 
   .btn-success {
     @apply text-white;
-    background: linear-gradient(135deg, #00d4aa, #7c5cff);
-    box-shadow: 0 4px 15px rgba(0, 212, 170, 0.3);
+    background: linear-gradient(135deg, #0d8a6f, #6d28d9);
+    box-shadow: 0 4px 15px rgba(13, 138, 111, 0.35);
   }
 
   /* ===== アイコンボタン ===== */
@@ -176,7 +221,7 @@ img {
 
   .input:focus {
     @apply border-accent outline-none;
-    box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.15);
+    box-shadow: 0 0 0 3px rgba(214, 51, 108, 0.18);
   }
 
   /* ===== バッジ ===== */
@@ -226,7 +271,7 @@ img {
 
   .tab-active {
     @apply text-white;
-    background: linear-gradient(135deg, #ff6b9d, #7c5cff);
+    background: linear-gradient(135deg, #d6336c, #6d28d9);
   }
 
   /* ===== ツールチップ ===== */
@@ -257,7 +302,7 @@ img {
 
   .progress-bar-fill {
     @apply h-full rounded-full transition-all duration-300;
-    background: linear-gradient(90deg, #ff6b9d, #7c5cff);
+    background: linear-gradient(90deg, #d6336c, #6d28d9);
   }
 
   /* ===== モーダル ===== */
@@ -328,15 +373,15 @@ img {
 
   /* ===== グロー効果 ===== */
   .glow-pink {
-    box-shadow: 0 0 20px rgba(255, 107, 157, 0.3);
+    box-shadow: 0 0 20px rgba(214, 51, 108, 0.3);
   }
 
   .glow-purple {
-    box-shadow: 0 0 20px rgba(124, 92, 255, 0.3);
+    box-shadow: 0 0 20px rgba(109, 40, 217, 0.3);
   }
 
   .glow-mint {
-    box-shadow: 0 0 20px rgba(0, 212, 170, 0.3);
+    box-shadow: 0 0 20px rgba(13, 138, 111, 0.3);
   }
 }
 
@@ -359,7 +404,7 @@ img {
   }
 
   .hover-glow:hover {
-    box-shadow: 0 0 25px rgba(255, 107, 157, 0.25);
+    box-shadow: 0 0 25px rgba(214, 51, 108, 0.25);
   }
 
   /* スクリーントーン風背景 */
@@ -370,7 +415,7 @@ img {
 
   /* グラデーションテキスト */
   .text-gradient-pop {
-    background: linear-gradient(135deg, #ff6b9d, #7c5cff);
+    background: linear-gradient(135deg, #d6336c, #6d28d9);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
