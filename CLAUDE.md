@@ -408,7 +408,7 @@
   - `ProgenJsonBrowser` — GドライブJSONフォルダツリー（検索・読込・保存・新規作成）
   - `ProgenResultViewer` — 校正結果表示（3タブ+ピックアップ+CSV貼り付け）
   - `ProgenCalibrationSave` — 校正データ保存（TXTフォルダ選択→巻数入力）
-  - `ResultSaveModal`（ProgenView内） — 校正結果保存モーダル。`parseCheckText()`でCSV・Markdownテーブル両対応→`{ checks: { simple, variation }, volume, savedAt }`形式で構造化保存。巻数入力付き、ファイル名`{N}巻.json`（v3.6.2でtimestamp廃止）。保存後にunifiedViewerStore.checkDataへ自動読み込み。**テキスト保存時のdesktopDir()末尾スラッシュ正規化済み（v3.6.4）**
+  - `ResultSaveModal`（ProgenView内） — 校正結果保存モーダル。`parseCheckText()`でCSV・Markdownテーブル両対応→`{ checks: { simple, variation }, volume, savedAt }`形式で構造化保存。巻数入力付き、ファイル名`{N}巻.json`（v3.6.2でtimestamp廃止）。保存後にunifiedViewerStore.checkDataへ自動読み込み。**テキスト保存時のdesktopDir()末尾スラッシュ正規化済み（v3.6.4）**。**v3.6.6: テキスト保存後に COMIC-POT パース → unifiedViewerStore に textHeader/textPages も自動セット**（テキストタブで即座にページ別表示が可能）。**ファイル名フォーマット `{title}_YYYYMMDD_HHMMSS.txt`**（時刻まで含む）+ **同名ファイル存在時は `_2`, `_3`… の連番付与で重複回避**
   - `ComicPotEditor` — COMIC-POTテキスト編集（チャンク表示+D&D+ルビ+形式変換）
   - `ProgenAdminView` — パスワード付き管理画面（レーベルCRUD+ルール編集）
 - **JSON 自動反映**: TopNav の作品情報JSON / `loadPresetJson` / `currentJsonFilePath` 変更時に proofRules を `progenStore.applyJsonRules` で自動適用 (basic/recommended/auxiliary/difficult/number/pronoun/character + symbol + options)
@@ -470,7 +470,7 @@
 **アドレスバー行（WorkflowDescriptionBar）**:
 - WFアクティブ時は `GlobalAddressBar` を完全置換
 - 構成: `[N/M] | ステップ名 | ステップ説明 | プログレスバー N%`
-- グラデーション背景（accent/8 → accent-secondary/5 → accent/8）
+- **v3.6.6: 背景を `bg-bg-secondary`（純白の不透明）に変更**（旧: 半透明グラデーションだったため、AppLayout 全画面の `bg-tone` ドットパターンが透けて見えていた問題を解消）
 - ディスパッチャパターン: `GlobalAddressBar` が wfActive で `WorkflowDescriptionBar` / `NormalAddressBar` を返す（hooks順序を保証）
 
 **WF中も表示継続（v3.6.5）**:
@@ -551,7 +551,7 @@
     - ◀▶で`logicalPage ± 1`するだけで前半分→後半分→次ファイル前半分と自動進行
     - PDFキャッシュキー: `f.pdfPage`を含める（`${path}#p${page}`）で同一PDF別ページを区別
   - **右パネル**: 同上の共通タブ
-  - **テキストタブ**: 選択/編集モード切替、フォント割当ドロップダウン、DTPビューアー風フォント一覧（全ファイル集約、クリックでページ移動サイクル）、COMIC-POTテキスト表示、D&Dリオーダー。編集モードは確定ボタン方式（editBuffer + カーソル位置保持）。**v3.6.4: 「確定」ボタン押下で元のテキストファイルに自動上書き保存**（`write_text_file` 呼び出し + `isDirty: false` にマーク）
+  - **テキストタブ**: 選択/編集モード切替、フォント割当ドロップダウン、DTPビューアー風フォント一覧（全ファイル集約、クリックでページ移動サイクル）、COMIC-POTテキスト表示、D&Dリオーダー。編集モードは確定ボタン方式（editBuffer + カーソル位置保持）。**v3.6.4: 「確定」ボタン押下で元のテキストファイルに自動上書き保存**（`write_text_file` 呼び出し + `isDirty: false` にマーク）。**v3.6.6: Ctrl+S 対応**（textarea内でも有効）+ **editBuffer-aware handleSave**（編集中の未確定変更も Ctrl+S で直接保存可能）+ **ページ同期スクロールを行ベースに変更**（旧: 文字数比例で密度差によりずれる → 新: `lineIdx × lineHeight - paddingTop` で正確）
   - **テキスト照合タブ**: KENBAN版LCS文字レベルdiff移植。PSDレイヤー↔テキストブロックのリンクマッピング。差異ありのみ2カラム、一致はPSD/テキスト切替で1カラム。漫画読み順ソート。`normalizeTextForComparison` + `computeLineSetDiff` + `buildUnifiedDiff`。ファイル一覧に✓/⚠アイコン
   - **校正JSONタブ**: 正誤/提案/全て切替、カテゴリフィルタ、ページ連動
   - **キーボード**: ←→ページ送り、Ctrl±ズーム、Ctrl+0フィット、Ctrl+S保存、Pキーで現在のファイルをPhotoshop起動

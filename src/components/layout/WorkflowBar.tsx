@@ -235,7 +235,7 @@ export function WorkflowDescriptionBar() {
   const progress = ((currentStep + 1) / total) * 100;
 
   return (
-    <div className="h-9 flex-shrink-0 bg-gradient-to-r from-accent/8 via-accent-secondary/5 to-accent/8 border-b border-accent/20 flex items-center px-3 gap-3">
+    <div className="h-9 flex-shrink-0 bg-bg-secondary border-b border-accent/20 flex items-center px-3 gap-3 relative z-10">
       {/* ステップ番号 */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
         <span className="text-[10px] text-text-muted tabular-nums">

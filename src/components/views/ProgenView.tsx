@@ -14,6 +14,7 @@ import { ProgenResultViewer } from "../progen/ProgenResultViewer";
 import { ProgenAdminView } from "../progen/ProgenAdminView";
 import type { ProgenScreen } from "../../types/progen";
 import { GENRE_LABELS } from "../../types/scanPsd";
+import { parseComicPotText } from "../unified-viewer/utils";
 
 // ─── 結果保存モーダル ────────────────────────────────────────────
 
@@ -99,23 +100,47 @@ function ResultSaveModal() {
         const scan = useScanPsdStore.getState();
         const title = scan.workInfo.title || "gemini_output";
         const safeTitle = title.replace(/[\\/:*?"<>|]/g, "_");
-        const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+        // ファイル名: タイトル_YYYYMMDD_HHMMSS.txt
+        const now = new Date();
+        const pad = (n: number) => String(n).padStart(2, "0");
+        const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
         let filePath: string | null = null;
         try {
           // desktopDir() は末尾スラッシュなしで返すため正規化
           const desktop = (await desktopDir()).replace(/[\\/]$/, "") + "\\";
           const outputDir = `${desktop}Script_Output\\テキスト抽出`;
           await invoke("create_directory", { path: outputDir });
-          filePath = `${outputDir}\\${safeTitle}_${timestamp}.txt`;
+          // 同名ファイルが存在する場合は連番付与で重複回避
+          const baseName = `${safeTitle}_${timestamp}`;
+          let candidate = `${outputDir}\\${baseName}.txt`;
+          let counter = 2;
+          while (await invoke<boolean>("path_exists", { path: candidate }).catch(() => false)) {
+            candidate = `${outputDir}\\${baseName}_${counter}.txt`;
+            counter++;
+          }
+          filePath = candidate;
           await writeTextFile(filePath, pasteText);
         } catch {
           filePath = await showSaveTextDialog(`${safeTitle}_${timestamp}.txt`);
           if (filePath) await writeTextFile(filePath, pasteText);
         }
         if (filePath) {
+          // 統合ビューアーへ自動読み込み（テキスト + COMIC-POTパース）
+          // 保存後にユーザーが手動操作なしですぐ確認・編集できるようにする
           const viewer = useUnifiedViewerStore.getState();
           viewer.setTextContent(pasteText);
           viewer.setTextFilePath(filePath);
+          viewer.setIsDirty(false);
+          // COMIC-POT 形式をパースして textHeader / textPages にセット
+          try {
+            const { header, pages } = parseComicPotText(pasteText);
+            viewer.setTextHeader(header);
+            viewer.setTextPages(pages);
+          } catch {
+            // パース失敗時はクリア
+            viewer.setTextHeader([]);
+            viewer.setTextPages([]);
+          }
           setSaved(true);
         }
       } else {

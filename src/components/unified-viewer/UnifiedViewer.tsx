@@ -461,7 +461,7 @@ export function UnifiedViewer() {
   }, [store.textContent, parseChunks]);
 
   // ═══ File operations (extracted to useViewerFileOps) ═══
-  const { openFolder, openTextFile, handleJsonFileSelect, handleSave, handleSaveAs } = useViewerFileOps({
+  const { openFolder, openTextFile, handleJsonFileSelect, handleSave: handleSaveBase, handleSaveAs } = useViewerFileOps({
     expandPdf,
     parseChunks,
     cache,
@@ -469,6 +469,30 @@ export function UnifiedViewer() {
     jsonBrowserMode,
     setJsonBrowserMode,
   });
+
+  // 編集バッファ対応の保存ハンドラ
+  // 編集中（editBuffer != null）の場合は editBuffer をファイルに書き込み、ストアにも反映
+  // それ以外は通常の handleSave を呼ぶ
+  const handleSave = useCallback(async () => {
+    const s = useUnifiedViewerStore.getState();
+    if (!s.textFilePath) return;
+    // 編集中で未確定の変更がある場合は editBuffer を保存
+    if (editBuffer !== null && editBuffer !== s.textContent) {
+      try {
+        await invoke("write_text_file", { filePath: s.textFilePath, content: editBuffer });
+        // ストアにも反映
+        s.setTextContent(editBuffer);
+        parseChunks(editBuffer);
+        const { header, pages } = parseComicPotText(editBuffer);
+        s.setTextHeader(header);
+        s.setTextPages(pages);
+        s.setIsDirty(false);
+      } catch { /* ignore */ }
+      return;
+    }
+    // 編集していない場合は通常保存
+    await handleSaveBase();
+  }, [editBuffer, parseChunks, handleSaveBase]);
 
   const syncToPage = useCallback(
     (pageNum: number) => {
@@ -478,20 +502,36 @@ export function UnifiedViewer() {
         const lines = ta.value.split("\n");
         let pg = 0;
         let charPos = 0;
+        let lineIdx = 0;
         for (const line of lines) {
           const m = line.match(/<<(\d+)Page>>/);
           if (m) pg = parseInt(m[1], 10);
           if (pg >= pageNum) {
             ta.focus();
             ta.setSelectionRange(charPos, charPos);
-            ta.scrollTop = (charPos / ta.value.length) * ta.scrollHeight;
+            // 行ベースのスクロール計算（character-proportional は不正確なため使わない）
+            const cs = getComputedStyle(ta);
+            const lineHeight =
+              parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.5 || 18;
+            const paddingTop = parseFloat(cs.paddingTop) || 0;
+            ta.scrollTop = Math.max(0, lineIdx * lineHeight - paddingTop);
             return;
           }
           charPos += line.length + 1;
+          lineIdx++;
         }
       } else {
+        // view モード: chunks の選択を更新
         const ci = chunks.findIndex((c) => c.page >= pageNum);
         if (ci >= 0) setSelectedChunk(ci);
+        // textPages 一覧で対応ページを画面内にスクロール
+        // requestAnimationFrame で次フレームに実行（DOM更新後）
+        requestAnimationFrame(() => {
+          const el = document.querySelector(`[data-text-page="${pageNum}"]`);
+          if (el && typeof (el as HTMLElement).scrollIntoView === "function") {
+            (el as HTMLElement).scrollIntoView({ block: "start", behavior: "smooth" });
+          }
+        });
       }
     },
     [store.editMode, chunks],
@@ -769,12 +809,17 @@ export function UnifiedViewer() {
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement).tagName;
+      // Ctrl+S は INPUT/TEXTAREA/SELECT 内でも動作させる（編集中のテキスト保存）
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        handleSave();
+        return;
+      }
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (e.ctrlKey || e.metaKey) {
         if (e.key === "=" || e.key === "+") { e.preventDefault(); zoomIn(); }
         else if (e.key === "-") { e.preventDefault(); zoomOut(); }
         else if (e.key === "0") { e.preventDefault(); zoomFit(); }
-        else if (e.key === "s") { e.preventDefault(); handleSave(); }
         return;
       }
       if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); goPrev(); }
@@ -1383,7 +1428,7 @@ export function UnifiedViewer() {
                       const isActivePage = page.pageNumber === idx + 1;
                       const hasReorder = page.blocks.some((b, i) => b.originalIndex !== i);
                       return (
-                        <div key={page.pageNumber} className="mb-2">
+                        <div key={page.pageNumber} data-text-page={page.pageNumber} className="mb-2">
                           <div
                             className={`flex items-center gap-2 text-[10px] font-mono border-t border-border/40 pt-1 mt-1 mb-1 cursor-pointer ${
                               isActivePage ? "text-accent font-medium" : "text-text-muted/60"
@@ -1685,7 +1730,11 @@ export function UnifiedViewer() {
     >
       {/* ─── Top toolbar ─── */}
       <div className="flex-shrink-0 h-7 bg-bg-secondary border-b border-border flex items-center px-2 gap-1 text-xs">
-        <ToolBtn onClick={handleSave} disabled={!store.isDirty || !store.textFilePath} title="上書き保存">
+        <ToolBtn
+          onClick={handleSave}
+          disabled={!store.textFilePath || (!store.isDirty && (editBuffer === null || editBuffer === store.textContent))}
+          title="上書き保存 (Ctrl+S)"
+        >
           保存
         </ToolBtn>
         <ToolBtn onClick={handleSaveAs} disabled={!store.textContent} title="名前を付けて保存">
