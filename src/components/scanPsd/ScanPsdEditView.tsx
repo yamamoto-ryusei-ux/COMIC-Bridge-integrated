@@ -12,7 +12,9 @@ import { GuideLinesTab } from "./tabs/GuideLinesTab";
 import { TextRubyTab } from "./tabs/TextRubyTab";
 import { FontBookView } from "../views/FontBookView";
 import { ProgenRuleView } from "../progen/ProgenRuleView";
-import { ProgenProofreadingView } from "../progen/ProgenProofreadingView";
+// 注意: ProgenProofreadingView は隔離済み（意図的にインポートしていません）。
+// 校正は ProGen 画面の popup 方式（正誤+提案ボタン）で処理します。
+// import { ProgenProofreadingView } from "../progen/ProgenProofreadingView";
 import { ProgenJsonBrowser } from "../progen/ProgenJsonBrowser";
 import { ProgenResultViewer } from "../progen/ProgenResultViewer";
 import { ProgenCalibrationSave } from "../progen/ProgenCalibrationSave";
@@ -117,7 +119,10 @@ export function ScanPsdEditView() {
   const [showScanDialog, setShowScanDialog] = useState(false);
   const [showFontBook, setShowFontBook] = useState(false);
   const [showProgenJson, setShowProgenJson] = useState(false);
-  const [showProofreading, setShowProofreading] = useState(false);
+  // 隔離済み: showProofreading は常に false。setShowProofreading(true) は無効化される。
+  // ProgenProofreadingView は使用されないため、モーダルは表示されません。
+  const [, setShowProofreading] = useState(false);
+  const showProofreading = false as const;
   const [showJsonBrowser, setShowJsonBrowser] = useState(false);
   const [showResultViewer, setShowResultViewer] = useState(false);
   const [showComicPotEditor, setShowComicPotEditor] = useState(false);
@@ -497,19 +502,10 @@ export function ScanPsdEditView() {
       )}
 
       {/* 校正チェックモーダル */}
-      {showProofreading && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowProofreading(false)}>
-          <div className="bg-bg-primary rounded-xl shadow-2xl w-[90vw] h-[85vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-bg-secondary">
-              <h3 className="text-sm font-medium">校正チェック</h3>
-              <button onClick={() => setShowProofreading(false)} className="text-text-muted hover:text-text-primary text-lg">✕</button>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <ProgenProofreadingView />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 隔離済み: showProofreading は常に false のため、このモーダルは描画されません。
+          ProgenProofreadingView は意図的に使用しない方針です。
+          校正は ProGen 画面の popup（正誤+提案ボタン）で処理します。 */}
+      {showProofreading && null}
 
       {/* JSONブラウザモーダル */}
       {showJsonBrowser && (

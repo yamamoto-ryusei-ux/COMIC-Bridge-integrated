@@ -390,15 +390,25 @@
 ### 21. ProGen（React統合済み、v3.6.0で旧プロンプト完全互換移植）
 - **3モード**: 抽出プロンプト / 整形プロンプト / 校正プロンプト — ドットメニューから直接モード選択可能
 - **React完全移植済み**: iframe/バニラJS廃止、Zustand + Tailwind CSSで本体と統合
-- **画面ルーター**: `progenStore.screen` で6画面を切替（landing/extraction/proofreading/admin/comicpot/resultViewer）
+- **画面ルーター**: `progenStore.screen` で画面を切替（landing/extraction/formatting/admin/comicpot/resultViewer）
+  - **注意**: v3.6.4で `proofreading` screen は廃止。校正モードも extraction screen（ProgenRuleView）を使用し、popup で正誤/提案ボタンを表示
 - **ProgenView**: `viewStore.progenMode` → `progenStore.screen` 自動マッピング + ラベル自動読み込み
+- **ツールメニュー連携（v3.6.4）**: TopNav ツール → ProGen の3モードから直接アクセス可能
+  - `progenStore.toolMode` で現在のツールモード管理（"extraction" / "formatting" / "proofreading" / null）
+  - TopNav click 時に toolMode + screen を同期的に設定（race condition 回避）
+  - WFフラグ（`folderSetup_progenMode` / `progen_wfCheckMode`）を明示的にクリア
+  - `extraction` screen に popup（下部固定）を表示:
+    - `toolMode === "extraction"` → 🟠 抽出プロンプトボタン
+    - `toolMode === "formatting"` → テキストなしならエラー、あれば 🔵 整形ボタン
+    - `toolMode === "proofreading"` → テキストなしならエラー、あれば 🟢正誤 + 🟠提案 の2ボタン並列
+- **新規作成のレーベル選択（v3.6.4）**: GENRE_LABELS（scanPsd.ts）による 2段階ドロップダウン（ジャンル → レーベル）。既存JSON読み込み時は従来の単一ドロップダウン
 - **主要コンポーネント**:
   - `ProgenRuleView` — ルール編集（サイドバー7カテゴリ[symbol/notation/auxiliary/difficult/number/pronoun/character]+カードグリッド+Gemini連携 4種）
-  - `ProgenProofreadingView` — 校正チェック（正誤/提案+XMLプロンプト生成）
+  - ~~`ProgenProofreadingView`~~ — **v3.6.4で厳重隔離**（ファイルは残すが、どこからもレンダリングされない）。校正は ProgenRuleView の popup で処理
   - `ProgenJsonBrowser` — GドライブJSONフォルダツリー（検索・読込・保存・新規作成）
   - `ProgenResultViewer` — 校正結果表示（3タブ+ピックアップ+CSV貼り付け）
   - `ProgenCalibrationSave` — 校正データ保存（TXTフォルダ選択→巻数入力）
-  - `ResultSaveModal`（ProgenView内） — 校正結果保存モーダル。`parseCheckText()`でCSV・Markdownテーブル両対応→`{ checks: { simple, variation }, volume, savedAt }`形式で構造化保存。巻数入力付き、ファイル名`{N}巻.json`（v3.6.2でtimestamp廃止）。保存後にunifiedViewerStore.checkDataへ自動読み込み
+  - `ResultSaveModal`（ProgenView内） — 校正結果保存モーダル。`parseCheckText()`でCSV・Markdownテーブル両対応→`{ checks: { simple, variation }, volume, savedAt }`形式で構造化保存。巻数入力付き、ファイル名`{N}巻.json`（v3.6.2でtimestamp廃止）。保存後にunifiedViewerStore.checkDataへ自動読み込み。**テキスト保存時のdesktopDir()末尾スラッシュ正規化済み（v3.6.4）**
   - `ComicPotEditor` — COMIC-POTテキスト編集（チャンク表示+D&D+ルビ+形式変換）
   - `ProgenAdminView` — パスワード付き管理画面（レーベルCRUD+ルール編集）
 - **JSON 自動反映**: TopNav の作品情報JSON / `loadPresetJson` / `currentJsonFilePath` 変更時に proofRules を `progenStore.applyJsonRules` で自動適用 (basic/recommended/auxiliary/difficult/number/pronoun/character + symbol + options)
@@ -504,7 +514,7 @@
     - ◀▶で`logicalPage ± 1`するだけで前半分→後半分→次ファイル前半分と自動進行
     - PDFキャッシュキー: `f.pdfPage`を含める（`${path}#p${page}`）で同一PDF別ページを区別
   - **右パネル**: 同上の共通タブ
-  - **テキストタブ**: 選択/編集モード切替、フォント割当ドロップダウン、DTPビューアー風フォント一覧（全ファイル集約、クリックでページ移動サイクル）、COMIC-POTテキスト表示、D&Dリオーダー。編集モードは確定ボタン方式（editBuffer + カーソル位置保持）
+  - **テキストタブ**: 選択/編集モード切替、フォント割当ドロップダウン、DTPビューアー風フォント一覧（全ファイル集約、クリックでページ移動サイクル）、COMIC-POTテキスト表示、D&Dリオーダー。編集モードは確定ボタン方式（editBuffer + カーソル位置保持）。**v3.6.4: 「確定」ボタン押下で元のテキストファイルに自動上書き保存**（`write_text_file` 呼び出し + `isDirty: false` にマーク）
   - **テキスト照合タブ**: KENBAN版LCS文字レベルdiff移植。PSDレイヤー↔テキストブロックのリンクマッピング。差異ありのみ2カラム、一致はPSD/テキスト切替で1カラム。漫画読み順ソート。`normalizeTextForComparison` + `computeLineSetDiff` + `buildUnifiedDiff`。ファイル一覧に✓/⚠アイコン
   - **校正JSONタブ**: 正誤/提案/全て切替、カテゴリフィルタ、ページ連動
   - **キーボード**: ←→ページ送り、Ctrl±ズーム、Ctrl+0フィット、Ctrl+S保存、Pキーで現在のファイルをPhotoshop起動

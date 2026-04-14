@@ -1347,14 +1347,26 @@ export function UnifiedViewer() {
                       リセット
                     </button>
                     <button
-                      onClick={() => {
-                        if (editBuffer !== null) {
-                          store.setTextContent(editBuffer);
-                          parseChunks(editBuffer);
+                      onClick={async () => {
+                        if (editBuffer === null) return;
+                        // ストア更新
+                        store.setTextContent(editBuffer);
+                        parseChunks(editBuffer);
+                        const { header, pages } = parseComicPotText(editBuffer);
+                        store.setTextHeader(header);
+                        store.setTextPages(pages);
+                        // 元ファイルに上書き保存（textFilePath がある場合）
+                        if (store.textFilePath) {
+                          try {
+                            await invoke("write_text_file", { filePath: store.textFilePath, content: editBuffer });
+                            store.setIsDirty(false);
+                          } catch {
+                            // 書き込み失敗時はダーティフラグを立てる
+                            store.setIsDirty(true);
+                          }
+                        } else {
+                          // ファイルパスがない場合はダーティマークのみ
                           store.setIsDirty(true);
-                          const { header, pages } = parseComicPotText(editBuffer);
-                          store.setTextHeader(header);
-                          store.setTextPages(pages);
                         }
                       }}
                       disabled={editBuffer === null || editBuffer === store.textContent}

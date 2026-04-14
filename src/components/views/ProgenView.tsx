@@ -7,11 +7,13 @@ import { useScanPsdStore } from "../../store/scanPsdStore";
 import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
 import { readJsonFile, getMasterLabelList, showSaveTextDialog, writeTextFile, showSaveJsonDialog, writeJsonFile } from "../../hooks/useProgenTauri";
 import { ProgenRuleView } from "../progen/ProgenRuleView";
-import { ProgenProofreadingView } from "../progen/ProgenProofreadingView";
+// 注意: ProgenProofreadingView は意図的にインポートしていません（隔離済み）。
+// 校正モードは extraction 画面 + popup の 正誤/提案 ボタンで処理します。
 import ComicPotEditor from "../progen/comicpot/ComicPotEditor";
 import { ProgenResultViewer } from "../progen/ProgenResultViewer";
 import { ProgenAdminView } from "../progen/ProgenAdminView";
 import type { ProgenScreen } from "../../types/progen";
+import { GENRE_LABELS } from "../../types/scanPsd";
 
 // ─── 結果保存モーダル ────────────────────────────────────────────
 
@@ -100,7 +102,8 @@ function ResultSaveModal() {
         const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
         let filePath: string | null = null;
         try {
-          const desktop = await desktopDir();
+          // desktopDir() は末尾スラッシュなしで返すため正規化
+          const desktop = (await desktopDir()).replace(/[\\/]$/, "") + "\\";
           const outputDir = `${desktop}Script_Output\\テキスト抽出`;
           await invoke("create_directory", { path: outputDir });
           filePath = `${outputDir}\\${safeTitle}_${timestamp}.txt`;
@@ -332,6 +335,8 @@ function LandingScreen() {
   const [labels, setLabels] = useState<{ key: string; displayName?: string }[]>([]);
   const [selectedLabel, setSelectedLabel] = useState(currentLabel || "");
   const [labelsLoaded, setLabelsLoaded] = useState(false);
+  // 新規作成用: ジャンル→レーベル 2段階選択（スキャナーと同じ）
+  const [newGenre, setNewGenre] = useState("");
 
   useEffect(() => {
     if (labelsLoaded) return;
@@ -371,25 +376,57 @@ function LandingScreen() {
       <h1 className="text-2xl font-bold text-text-primary">ProGen</h1>
       <p className="text-sm text-text-secondary">テキスト校正プロンプト生成ツール</p>
 
-      {/* ── レーベル選択（常時表示）── */}
-      {labels.length > 0 && (
+      {/* ── レーベル選択 ── */}
+      {/* 新規作成: スキャナーと同じ GENRE_LABELS による 2段階ドロップダウン */}
+      {isNew ? (
         <div className="flex items-center gap-3 px-5 py-3 bg-bg-secondary border border-border rounded-xl">
+          <span className="text-[10px] text-text-muted">ジャンル:</span>
+          <select
+            value={newGenre}
+            onChange={(e) => {
+              const g = e.target.value;
+              setNewGenre(g);
+              const firstLabel = GENRE_LABELS[g]?.[0] || "";
+              setSelectedLabel(firstLabel);
+            }}
+            className="px-3 py-1.5 text-xs bg-bg-tertiary border border-border/50 rounded-lg text-text-primary focus:outline-none focus:border-accent/50 min-w-[140px]"
+          >
+            <option value="">選択...</option>
+            {Object.keys(GENRE_LABELS).map((g) => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+          </select>
           <span className="text-[10px] text-text-muted">レーベル:</span>
           <select
             value={selectedLabel}
             onChange={(e) => setSelectedLabel(e.target.value)}
-            className="px-3 py-1.5 text-xs bg-bg-tertiary border border-border/50 rounded-lg text-text-primary focus:outline-none focus:border-accent/50 min-w-[220px]"
+            disabled={!newGenre}
+            className="px-3 py-1.5 text-xs bg-bg-tertiary border border-border/50 rounded-lg text-text-primary focus:outline-none focus:border-accent/50 min-w-[180px] disabled:opacity-40"
           >
-            {labels.map((l) => (
-              <option key={l.key} value={l.key}>{l.displayName || l.key}</option>
+            <option value="">選択...</option>
+            {(GENRE_LABELS[newGenre] || []).map((l) => (
+              <option key={l} value={l}>{l}</option>
             ))}
           </select>
-          {currentLoadedJson ? (
-            <span className="text-[9px] text-text-muted">{currentJsonPath ? `(${currentJsonPath.split(/[/\\]/).pop()})` : "JSON読み込み済み"}</span>
-          ) : (
-            <span className="text-[9px] text-accent font-medium">新規作成</span>
-          )}
+          <span className="text-[9px] text-accent font-medium">新規作成</span>
         </div>
+      ) : (
+        /* 既存JSON読み込み済み: マスタールールのレーベル一覧 */
+        labels.length > 0 && (
+          <div className="flex items-center gap-3 px-5 py-3 bg-bg-secondary border border-border rounded-xl">
+            <span className="text-[10px] text-text-muted">レーベル:</span>
+            <select
+              value={selectedLabel}
+              onChange={(e) => setSelectedLabel(e.target.value)}
+              className="px-3 py-1.5 text-xs bg-bg-tertiary border border-border/50 rounded-lg text-text-primary focus:outline-none focus:border-accent/50 min-w-[220px]"
+            >
+              {labels.map((l) => (
+                <option key={l.key} value={l.key}>{l.displayName || l.key}</option>
+              ))}
+            </select>
+            <span className="text-[9px] text-text-muted">{currentJsonPath ? `(${currentJsonPath.split(/[/\\]/).pop()})` : "JSON読み込み済み"}</span>
+          </div>
+        )
       )}
 
       {/* ── 新規作成: レーベル選択 + 「次へ」のみ（3モード選択なし）── */}
@@ -461,6 +498,9 @@ function ProgenViewInner() {
   const screen = useProgenStore((s) => s.screen);
   const setScreen = useProgenStore((s) => s.setScreen);
   const progenModeFromStore = useViewStore((s) => s.progenMode);
+  // ツールメニューから抽出/整形/校正リンクでアクセスした場合のモード（progenStore から取得）
+  const toolMode = useProgenStore((s) => s.toolMode);
+  const setToolMode = useProgenStore((s) => s.setToolMode);
 
   // Mode initialization — progenMode が変わるたびに実行
   useEffect(() => {
@@ -468,11 +508,21 @@ function ProgenViewInner() {
     if (!progenMode) return;
     useViewStore.getState().setProgenMode(null);
 
+    // WFフラグがある場合は toolMode をクリア（WF優先）
+    const isWfMode = !!localStorage.getItem("folderSetup_progenMode") ||
+                     !!localStorage.getItem("progen_wfCheckMode");
+    if (isWfMode) {
+      setToolMode(null);
+    }
+    // ツールメニュー経由の場合は既に TopNav で toolMode がセット済みなので何もしない
+
     // Map mode to screen
+    // 注意: proofreading は extraction/formatting と同じ画面（ProgenRuleView）を使用。
+    // toolMode === "proofreading" の場合は popup で 正誤+提案 ボタンを表示する。
     const screenMap: Record<string, ProgenScreen> = {
       extraction: "extraction",
       formatting: "formatting",
-      proofreading: "proofreading",
+      proofreading: "extraction",
     };
 
     // ── ラベル取得（複数ソースからフォールバック）──
@@ -490,10 +540,14 @@ function ProgenViewInner() {
     const jsonPath = scan.currentJsonFilePath || viewer.presetJsonPath || "";
 
     // ── JSON/ラベルどちらもない場合 → ランディング画面に留まる（レーベル選択が必要）──
+    // ただし、ツールメニュー経由 (toolMode がセット済み) の場合は screen を上書きしない
+    // （TopNav で既に正しい screen がセット済み、popup を表示させるため）
     if (!jsonPath && !label) {
-      useProgenStore.getState().setScreen("landing");
-      // pendingMode を localStorage に保存（ランディング画面でモード選択時に使用）
-      try { localStorage.setItem("progen_pendingMode", progenMode); } catch { /* ignore */ }
+      if (!useProgenStore.getState().toolMode) {
+        useProgenStore.getState().setScreen("landing");
+        // pendingMode を localStorage に保存（ランディング画面でモード選択時に使用）
+        try { localStorage.setItem("progen_pendingMode", progenMode); } catch { /* ignore */ }
+      }
       return;
     }
 
@@ -530,7 +584,10 @@ function ProgenViewInner() {
   const wfCheckMode = (() => {
     try { return localStorage.getItem("progen_wfCheckMode"); } catch { return null; }
   })();
-  const showWfPopup = (screen === "extraction" || screen === "formatting") && (!!wfProgenMode || !!wfCheckMode);
+  // 抽出/整形画面のpopup表示条件
+  // toolMode === "proofreading" も extraction/formatting 画面で表示（正誤+提案ボタン）
+  const showWfPopup = (screen === "extraction" || screen === "formatting")
+    && (!!wfProgenMode || !!wfCheckMode || !!toolMode);
 
   // Render current screen
   switch (screen) {
@@ -542,7 +599,148 @@ function ProgenViewInner() {
           {/* WF進行中: テキスト有無に応じたアクションポップアップ */}
           {showWfPopup && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">
-              {wfCheckMode ? (
+              {toolMode === "proofreading" && !hasText ? (
+                /* 校正モードだがテキスト未読み込み → エラー表示 */
+                <div className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-error text-white shadow-xl shadow-error/30">
+                  <span className="text-2xl">⚠</span>
+                  <div className="text-left flex-1">
+                    <div className="text-sm font-bold">テキストが読み込まれていません</div>
+                    <div className="text-[10px] opacity-90">校正プロンプトを使うには、TopNavの「テキスト」ボタンからテキストを読み込んでください</div>
+                  </div>
+                  <button
+                    onClick={() => setToolMode(null)}
+                    className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors"
+                    title="閉じる"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ) : toolMode === "proofreading" ? (
+                /* 校正モード: 正誤 + 提案 両方のボタンを並列表示 */
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      const store = useProgenStore.getState();
+                      const text = useUnifiedViewerStore.getState().textContent;
+                      if (!text) return;
+                      import("../../lib/progenPrompts").then(({ generateSimpleCheckPrompt }) => {
+                        const prompt = generateSimpleCheckPrompt(text, store.symbolRules, store.currentProofRules, store.options, store.numberRules);
+                        navigator.clipboard.writeText(prompt).then(() => {
+                          import("../../hooks/useProgenTauri").then(({ openExternalUrl }) => {
+                            openExternalUrl("https://gemini.google.com/app");
+                          });
+                          useProgenStore.getState().setResultSaveMode("json");
+                          setToolMode(null);
+                        });
+                      });
+                    }}
+                    className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-emerald-500 hover:bg-emerald-600 text-white shadow-xl shadow-emerald-500/30 transition-all hover:scale-105"
+                  >
+                    <span className="text-2xl">✓</span>
+                    <div className="text-left">
+                      <div className="text-sm font-bold">正誤チェック</div>
+                      <div className="text-[10px] opacity-80">誤字・脱字・人名ルビ</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      const store = useProgenStore.getState();
+                      const text = useUnifiedViewerStore.getState().textContent;
+                      if (!text) return;
+                      import("../../lib/progenPrompts").then(({ generateVariationCheckPrompt }) => {
+                        const prompt = generateVariationCheckPrompt(text, store.symbolRules, store.currentProofRules, store.options, store.numberRules);
+                        navigator.clipboard.writeText(prompt).then(() => {
+                          import("../../hooks/useProgenTauri").then(({ openExternalUrl }) => {
+                            openExternalUrl("https://gemini.google.com/app");
+                          });
+                          useProgenStore.getState().setResultSaveMode("json");
+                          setToolMode(null);
+                        });
+                      });
+                    }}
+                    className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white shadow-xl shadow-orange-500/30 transition-all hover:scale-105"
+                  >
+                    <span className="text-2xl">💡</span>
+                    <div className="text-left">
+                      <div className="text-sm font-bold">提案チェック</div>
+                      <div className="text-[10px] opacity-80">表記ゆれ・固有名詞等</div>
+                    </div>
+                  </button>
+                </div>
+              ) : toolMode === "formatting" && !hasText ? (
+                /* 整形モードだがテキスト未読み込み → エラー表示 */
+                <div className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-error text-white shadow-xl shadow-error/30">
+                  <span className="text-2xl">⚠</span>
+                  <div className="text-left flex-1">
+                    <div className="text-sm font-bold">テキストが読み込まれていません</div>
+                    <div className="text-[10px] opacity-90">整形プロンプトを使うには、TopNavの「テキスト」ボタンからテキストを読み込んでください</div>
+                  </div>
+                  <button
+                    onClick={() => setToolMode(null)}
+                    className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/20 transition-colors"
+                    title="閉じる"
+                  >
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ) : toolMode === "formatting" ? (
+                /* ツールメニュー: 整形プロンプトボタン */
+                <button
+                  onClick={() => {
+                    const store = useProgenStore.getState();
+                    const viewer = useUnifiedViewerStore.getState();
+                    const textContent = viewer.textContent;
+                    const textFileName = viewer.textFilePath?.split(/[/\\]/).pop() || "text.txt";
+                    import("../../lib/progenPrompts").then(({ generateFormattingPrompt }) => {
+                      const prompt = generateFormattingPrompt(store.symbolRules, store.currentProofRules, store.options, store.numberRules, {
+                        manuscriptTxtFiles: textContent ? [{ name: textFileName, content: textContent, size: textContent.length }] : [],
+                      });
+                      navigator.clipboard.writeText(prompt).then(() => {
+                        import("../../hooks/useProgenTauri").then(({ openExternalUrl }) => {
+                          openExternalUrl("https://gemini.google.com/app");
+                        });
+                        useProgenStore.getState().setResultSaveMode("text");
+                        setToolMode(null);
+                      });
+                    });
+                  }}
+                  className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-blue-500 hover:bg-blue-600 text-white shadow-xl shadow-blue-500/30 transition-all hover:scale-105"
+                >
+                  <span className="text-2xl">📝</span>
+                  <div className="text-left">
+                    <div className="text-sm font-bold">整形プロンプトをコピーして Gemini を開く</div>
+                    <div className="text-[10px] opacity-80">テキストを統一表記ルールで整形</div>
+                  </div>
+                </button>
+              ) : toolMode === "extraction" ? (
+                /* ツールメニュー: 抽出プロンプトボタン */
+                <button
+                  onClick={() => {
+                    const store = useProgenStore.getState();
+                    import("../../lib/progenPrompts").then(({ generateExtractionPrompt }) => {
+                      const prompt = generateExtractionPrompt(store.symbolRules, store.currentProofRules, store.options, store.numberRules);
+                      navigator.clipboard.writeText(prompt).then(() => {
+                        import("../../hooks/useProgenTauri").then(({ openExternalUrl }) => {
+                          openExternalUrl("https://gemini.google.com/app");
+                        });
+                        useProgenStore.getState().setResultSaveMode("text");
+                        setToolMode(null);
+                      });
+                    });
+                  }}
+                  className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white shadow-xl shadow-orange-500/30 transition-all hover:scale-105"
+                >
+                  <span className="text-2xl">🔍</span>
+                  <div className="text-left">
+                    <div className="text-sm font-bold">抽出プロンプトをコピーして Gemini を開く</div>
+                    <div className="text-[10px] opacity-80">画像を送信してセリフを抽出</div>
+                  </div>
+                </button>
+              ) : wfCheckMode ? (
                 /* 正誤チェックボタン（校正プロンプトWF時） */
                 <button
                   onClick={() => {
@@ -624,8 +822,9 @@ function ProgenViewInner() {
           )}
         </div>
       );
-    case "proofreading":
-      return <ProgenProofreadingView />;
+    // 注意: case "proofreading" は廃止しました。
+    // 校正モードは extraction 画面を使用し、popup で 正誤+提案 ボタンを表示します。
+    // ProgenProofreadingView コンポーネントは隔離済み（意図的にレンダリングしない）
     case "admin":
       return <ProgenAdminView onBack={() => setScreen("landing")} />;
     case "comicpot":

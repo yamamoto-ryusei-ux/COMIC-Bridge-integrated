@@ -563,7 +563,23 @@ function TopNavToolMenu() {
           <div className="border-t border-border/40 my-1" />
           <div className="px-3 py-0.5 text-[9px] text-text-muted/50 font-medium">ProGen</div>
           {TOOL_PROGEN_MODES.map((mode) => (
-            <button key={mode.id} className="w-full text-left px-3 py-1.5 text-[11px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors" onClick={() => { useViewStore.getState().setProgenMode(mode.id); const _lbl = useScanPsdStore.getState().workInfo.label || (() => { const jp = useScanPsdStore.getState().currentJsonFilePath || useUnifiedViewerStore.getState().presetJsonPath || ""; if (!jp) return ""; const ps = jp.replace(/\//g, "\\").split("\\"); return ps.length >= 2 ? ps[ps.length - 2] : ""; })(); if (_lbl) useProgenStore.getState().loadMasterRule(_lbl); setActiveView("progen"); setHover(false); }}>
+            <button key={mode.id} className="w-full text-left px-3 py-1.5 text-[11px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary transition-colors" onClick={() => {
+              // ツールメニュー経由の場合、前回のWFフラグを必ずクリア
+              try {
+                localStorage.removeItem("folderSetup_progenMode");
+                localStorage.removeItem("progen_wfCheckMode");
+              } catch { /* ignore */ }
+              // toolMode + screen を progenStore に直接セット（race condition 回避）
+              // 初回レンダリング前に screen を更新することで古い画面の popup が表示されるのを防ぐ
+              // 注意: proofreading モードでも画面は extraction（ProgenRuleView）を使用
+              useProgenStore.getState().setToolMode(mode.id);
+              useProgenStore.getState().setScreen(mode.id === "proofreading" ? "extraction" : mode.id);
+              useViewStore.getState().setProgenMode(mode.id);
+              const _lbl = useScanPsdStore.getState().workInfo.label || (() => { const jp = useScanPsdStore.getState().currentJsonFilePath || useUnifiedViewerStore.getState().presetJsonPath || ""; if (!jp) return ""; const ps = jp.replace(/\//g, "\\").split("\\"); return ps.length >= 2 ? ps[ps.length - 2] : ""; })();
+              if (_lbl) useProgenStore.getState().loadMasterRule(_lbl);
+              setActiveView("progen");
+              setHover(false);
+            }}>
               {mode.label}
               {!hasWorkJson && <span className="text-[9px] text-text-muted/50 ml-1">新規</span>}
             </button>

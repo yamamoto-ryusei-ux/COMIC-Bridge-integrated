@@ -98,6 +98,8 @@ export function WorkflowBar() {
   const executeStepNav = (step: WorkflowStep) => {
     if (!step.nav) return;
     const vs = useViewStore.getState();
+    // WFステップ経由の場合、ツールメニューの toolMode をクリア
+    useProgenStore.getState().setToolMode(null);
     if (step.progenMode) {
       // "_auto" の場合はフォルダセットアップのテキスト有無フラグから判定
       let resolvedMode = step.progenMode;

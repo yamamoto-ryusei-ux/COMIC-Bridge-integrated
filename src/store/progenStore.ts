@@ -62,6 +62,10 @@ interface ProgenStore {
   /** "text" = テキスト保存（整形/抽出）, "json" = JSON保存（正誤/提案）, null = 非表示 */
   resultSaveMode: "text" | "json" | null;
 
+  // ===== ツールメニュー経由のモード =====
+  /** ツールメニューから抽出/整形/校正リンクでアクセスした場合のモード */
+  toolMode: "extraction" | "formatting" | "proofreading" | null;
+
   // ===== Actions: 画面 =====
   setScreen: (screen: ProgenScreen) => void;
 
@@ -102,6 +106,7 @@ interface ProgenStore {
 
   // ===== Actions: 結果保存 =====
   setResultSaveMode: (mode: "text" | "json" | null) => void;
+  setToolMode: (mode: "extraction" | "formatting" | "proofreading" | null) => void;
 
   // ===== Actions: リセット =====
   reset: () => void;
@@ -149,6 +154,7 @@ export const useProgenStore = create<ProgenStore>((set, get) => ({
   pendingWorkTitle: "",
   txtFolderBasePath: "",
   resultSaveMode: null,
+  toolMode: null,
 
   // ===== Actions =====
 
@@ -269,6 +275,7 @@ export const useProgenStore = create<ProgenStore>((set, get) => ({
 
   // --- 結果保存 ---
   setResultSaveMode: (mode) => set({ resultSaveMode: mode }),
+  setToolMode: (mode) => set({ toolMode: mode }),
 
   // --- リセット ---
   reset: () => set({
