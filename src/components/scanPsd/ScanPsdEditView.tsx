@@ -495,7 +495,7 @@ export function ScanPsdEditView() {
               <button onClick={() => setShowProgenJson(false)} className="text-text-muted hover:text-text-primary text-lg">✕</button>
             </div>
             <div className="flex-1 overflow-hidden">
-              <ProgenRuleView />
+              <ProgenRuleView listMode />
             </div>
           </div>
         </div>

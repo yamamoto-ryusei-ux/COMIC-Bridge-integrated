@@ -72,6 +72,8 @@ import {
 } from "./UnifiedSubComponents";
 import { useViewerFileOps } from "./useViewerFileOps";
 import { LayerTree as FullLayerTree } from "../metadata/LayerTree";
+import { useFontBookStore } from "../../store/fontBookStore";
+import type { FontBookEntry } from "../../types/fontBook";
 
 // (utils, helpers, sub-components are imported from ./utils and ./UnifiedSubComponents)
 
@@ -166,6 +168,73 @@ export function UnifiedViewer() {
   const [activeFontFilter, setActiveFontFilter] = useState<string | null>(null);
   const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [activeTabId, setActiveTabId] = useState<PanelTab>("text");
+  const [captureStatus, setCaptureStatus] = useState<string | null>(null);
+
+  // フォント帳の自動読み込み（作品情報JSON読み込み時）
+  useEffect(() => {
+    const scan = useScanPsdStore.getState();
+    if (scan.workInfo.label && scan.workInfo.title && scan.textLogFolderPath) {
+      useFontBookStore.getState().loadFontBook(scan.textLogFolderPath, scan.workInfo.label, scan.workInfo.title);
+    }
+  }, [store.presetJsonPath]);
+
+  // フォント帳スクショキャプチャ: ドラッグ範囲選択 → 画像として保存
+  const [captureMode, setCaptureMode] = useState(false);
+  const [captureDrag, setCaptureDrag] = useState<{ startX: number; startY: number; endX: number; endY: number } | null>(null);
+
+  const handleFontBookCapture = useCallback(async (bounds: { left: number; top: number; right: number; bottom: number }) => {
+    if (!activeFontFilter) return;
+    const fontBookDir = useFontBookStore.getState().fontBookDir;
+    if (!fontBookDir) {
+      setCaptureStatus("フォント帳フォルダ未設定（作品情報JSONを読み込んでください）");
+      setTimeout(() => setCaptureStatus(null), 3000);
+      return;
+    }
+    try {
+      // asset://プロトコルはtainted canvasになるため、新しいImageをcrossOrigin付きで読み込む
+      const srcUrl = imgRef.current?.src;
+      if (!srcUrl) return;
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Image load failed"));
+        img.src = srcUrl;
+      });
+
+      const scaleX = img.naturalWidth / dims.w;
+      const scaleY = img.naturalHeight / dims.h;
+      const sx = Math.round(bounds.left * scaleX);
+      const sy = Math.round(bounds.top * scaleY);
+      const sw = Math.max(1, Math.round((bounds.right - bounds.left) * scaleX));
+      const sh = Math.max(1, Math.round((bounds.bottom - bounds.top) * scaleY));
+      const canvas = document.createElement("canvas");
+      canvas.width = sw;
+      canvas.height = sh;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/jpeg", 0.92);
+      });
+      const arrayBuffer = await blob.arrayBuffer();
+      const curFile = useUnifiedViewerStore.getState().files[useUnifiedViewerStore.getState().currentFileIndex];
+      const entry: FontBookEntry = {
+        id: `${activeFontFilter}-${Date.now()}`,
+        fontPostScript: activeFontFilter,
+        fontDisplayName: getFontLabel(activeFontFilter),
+        subName: "",
+        sourceFile: curFile?.name || "viewer",
+        capturedAt: new Date().toISOString(),
+      };
+      await useFontBookStore.getState().addEntry(entry, new Uint8Array(arrayBuffer));
+      setCaptureStatus("保存しました");
+      setTimeout(() => setCaptureStatus(null), 2000);
+    } catch (e) {
+      console.error("Capture failed:", e);
+      setCaptureStatus("キャプチャ失敗");
+      setTimeout(() => setCaptureStatus(null), 2000);
+    }
+  }, [activeFontFilter, dims]);
 
   // Text diff display mode: 一致ペアの表示 ("psd" = PSDレイヤーのみ, "text" = テキストのみ)
   const [diffMatchDisplay, setDiffMatchDisplay] = useState<"psd" | "text">("text");
@@ -1257,7 +1326,26 @@ export function UnifiedViewer() {
           <div className="select-none">
             {postScriptNames.length > 0 && (
               <div className="px-2 py-1.5 border-b border-border/30">
-                <div className="text-[10px] text-text-muted mb-1">使用フォント ({postScriptNames.length}種)</div>
+                <div className="flex items-center gap-1 mb-1">
+                  <span className="text-[10px] text-text-muted flex-1">使用フォント ({postScriptNames.length}種)</span>
+                  {/* スクショボタン: キャプチャモード切替 */}
+                  {activeFontFilter && (
+                    <button
+                      onClick={() => setCaptureMode(!captureMode)}
+                      className={`text-[9px] px-1.5 py-0.5 rounded flex items-center gap-0.5 transition-colors ${
+                        captureMode ? "bg-accent-secondary text-white" : "bg-accent-secondary/15 text-accent-secondary hover:bg-accent-secondary/25"
+                      }`}
+                      title={captureMode ? "スクショモード OFF" : "ビューアー上でドラッグして範囲選択 → フォント帳に保存"}
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      {captureMode ? "スクショ中" : "スクショ"}
+                    </button>
+                  )}
+                  {captureStatus && <span className="text-[9px] text-success">{captureStatus}</span>}
+                </div>
                 <div className="flex flex-wrap gap-1">
                   {postScriptNames.map((ps) => (
                     <button
@@ -1319,26 +1407,6 @@ export function UnifiedViewer() {
                       </div>
                     );
                   })}
-              </div>
-            )}
-            {store.fontPresets.length > 0 && (
-              <div className="border-t border-border/30 px-2 py-1.5">
-                <div className="text-[10px] text-text-muted mb-1">フォントプリセット ({store.fontPresets.length})</div>
-                <div className="flex flex-wrap gap-1">
-                  {store.fontPresets.map((fp, i) => (
-                    <button
-                      key={i}
-                      className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary text-text-secondary hover:bg-accent/10 hover:text-accent transition-colors truncate max-w-full"
-                      onClick={() => {
-                        const sel = store.selectedBlockIds;
-                        if (sel.size > 0) store.assignFontToBlocks([...sel], fp.font);
-                      }}
-                      title={`${fp.font}\n${fp.name}${fp.subName ? ` (${fp.subName})` : ""}`}
-                    >
-                      {fp.name || fp.font}{fp.subName ? <span className="opacity-60 ml-0.5">({fp.subName})</span> : null}
-                    </button>
-                  ))}
-                </div>
               </div>
             )}
             {textDiffResults && (
@@ -1862,7 +1930,7 @@ export function UnifiedViewer() {
         return null;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [files, idx, cur, layerTree, textLayers, postScriptNames, allFilesFontMap, activeFontFilter, highlightBounds, store.fontPresets, store.textContent, store.editMode, store.textPages, store.selectedBlockIds, store.checkTabMode, textDiffResults, diffMatchDisplay, diffSplitMode, fileDiffStatusMap, editBuffer, checkData, filteredCheckItems, activeCheckItems, categories, checkFilterCategory, chunks, selectedChunk, pageSync, navigateToTextPage, fontResolveMap, fontResolved, handleAddBlock, handleDeleteBlocks, handleEditBlock, selectedLayerId]);
+  }, [files, idx, cur, layerTree, textLayers, postScriptNames, allFilesFontMap, activeFontFilter, highlightBounds, store.fontPresets, store.textContent, store.editMode, store.textPages, store.selectedBlockIds, store.checkTabMode, textDiffResults, diffMatchDisplay, diffSplitMode, fileDiffStatusMap, editBuffer, checkData, filteredCheckItems, activeCheckItems, categories, checkFilterCategory, chunks, selectedChunk, pageSync, navigateToTextPage, fontResolveMap, fontResolved, handleAddBlock, handleDeleteBlocks, handleEditBlock, selectedLayerId, captureMode, captureStatus]);
 
   // ═══════════════════════════════════════════════════════
   // RENDER
@@ -2063,9 +2131,43 @@ export function UnifiedViewer() {
           <div
             ref={canvasRef}
             className={`relative flex-1 overflow-auto flex items-center justify-center bg-[#1a1a1e] ${
-              zoom > 0 ? (dragging ? "cursor-grabbing" : "cursor-grab") : ""
+              captureMode ? "cursor-crosshair" : zoom > 0 ? (dragging ? "cursor-grabbing" : "cursor-grab") : ""
             } ${dragOver ? "ring-2 ring-inset ring-accent/50" : ""}`}
-            onMouseDown={onCanvasMouseDown}
+            onMouseDown={(e) => {
+              if (captureMode && imgRef.current && dims.w > 0) {
+                e.preventDefault();
+                const rect = imgRef.current.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * dims.w;
+                const y = ((e.clientY - rect.top) / rect.height) * dims.h;
+                setCaptureDrag({ startX: x, startY: y, endX: x, endY: y });
+                const onMove = (me: MouseEvent) => {
+                  const mx = ((me.clientX - rect.left) / rect.width) * dims.w;
+                  const my = ((me.clientY - rect.top) / rect.height) * dims.h;
+                  setCaptureDrag((prev) => prev ? { ...prev, endX: mx, endY: my } : null);
+                };
+                const onUp = () => {
+                  window.removeEventListener("mousemove", onMove);
+                  window.removeEventListener("mouseup", onUp);
+                  setCaptureDrag((prev) => {
+                    if (prev) {
+                      const left = Math.min(prev.startX, prev.endX);
+                      const top = Math.min(prev.startY, prev.endY);
+                      const right = Math.max(prev.startX, prev.endX);
+                      const bottom = Math.max(prev.startY, prev.endY);
+                      if (right - left > 5 && bottom - top > 5) {
+                        handleFontBookCapture({ left, top, right, bottom });
+                      }
+                    }
+                    return null;
+                  });
+                  setCaptureMode(false);
+                };
+                window.addEventListener("mousemove", onMove);
+                window.addEventListener("mouseup", onUp);
+              } else {
+                onCanvasMouseDown(e);
+              }
+            }}
             style={{ userSelect: "none" }}
           >
             {/* Reload button (top-right): clears cache and reloads currently displayed file */}
@@ -2140,6 +2242,34 @@ export function UnifiedViewer() {
                       rx={2}
                     />
                   </svg>
+                )}
+                {/* キャプチャ範囲選択オーバーレイ */}
+                {captureDrag && dims.w > 0 && imgRef.current && (
+                  <svg
+                    className="absolute inset-0 pointer-events-none z-30"
+                    viewBox={`0 0 ${dims.w} ${dims.h}`}
+                    style={{ width: "100%", height: "100%" }}
+                    preserveAspectRatio="xMidYMid meet"
+                  >
+                    <rect x={0} y={0} width={dims.w} height={dims.h} fill="rgba(0,0,0,0.3)" />
+                    <rect
+                      x={Math.min(captureDrag.startX, captureDrag.endX)}
+                      y={Math.min(captureDrag.startY, captureDrag.endY)}
+                      width={Math.abs(captureDrag.endX - captureDrag.startX)}
+                      height={Math.abs(captureDrag.endY - captureDrag.startY)}
+                      fill="rgba(255,255,255,0.1)"
+                      stroke="#ff5a8a"
+                      strokeWidth={Math.max(2, dims.w / 300)}
+                      strokeDasharray="6 3"
+                      rx={2}
+                    />
+                  </svg>
+                )}
+                {/* キャプチャモードラベル */}
+                {captureMode && (
+                  <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 px-3 py-1 rounded-lg bg-accent-secondary text-white text-[10px] font-medium shadow-lg pointer-events-none">
+                    ドラッグで範囲選択 → フォント帳に保存
+                  </div>
                 )}
               </div>
             ) : null}

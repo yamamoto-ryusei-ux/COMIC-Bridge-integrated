@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useCallback, useRef, type DragEvent } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { convertFileSrc } from "@tauri-apps/api/core";
+import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
+import { readFile } from "@tauri-apps/plugin-fs";
 import { useFontBookStore } from "../../store/fontBookStore";
 import { useScanPsdStore } from "../../store/scanPsdStore";
 import { SUB_NAME_PALETTE, FONT_SUB_NAME_MAP } from "../../types/scanPsd";
@@ -251,6 +253,57 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
       await removeEntry(id);
     },
     [removeEntry],
+  );
+
+  // 画像追加: ファイル選択 or ドロップ or ペーストから画像をフォント帳に追加
+  const addImageToFont = useCallback(
+    async (fontPostScript: string, fontDisplayName: string, subName: string, imageBytes: Uint8Array, sourceFileName: string) => {
+      const addEntry = useFontBookStore.getState().addEntry;
+      const entry: FontBookEntry = {
+        id: `${fontPostScript}-${Date.now()}`,
+        fontPostScript,
+        fontDisplayName,
+        subName,
+        sourceFile: sourceFileName,
+        capturedAt: new Date().toISOString(),
+      };
+      await addEntry(entry, imageBytes);
+    },
+    [],
+  );
+
+  // ファイル選択ダイアログから画像追加
+  const handleAddImageFromFile = useCallback(
+    async (fontPostScript: string, fontDisplayName: string, subName: string) => {
+      const path = await dialogOpen({
+        filters: [{ name: "画像", extensions: ["jpg", "jpeg", "png", "bmp", "gif", "webp"] }],
+        multiple: false,
+      });
+      if (!path) return;
+      try {
+        const bytes = await readFile(path as string);
+        const fileName = (path as string).replace(/\\/g, "/").split("/").pop() || "image";
+        await addImageToFont(fontPostScript, fontDisplayName, subName, new Uint8Array(bytes), fileName);
+      } catch (e) { console.error("Image add failed:", e); }
+    },
+    [addImageToFont],
+  );
+
+  // ドロップで画像追加
+  const handleImageDrop = useCallback(
+    async (e: DragEvent, fontPostScript: string, fontDisplayName: string, subName: string) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const files = e.dataTransfer.files;
+      if (!files || files.length === 0) return;
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.startsWith("image/")) continue;
+        const arrayBuffer = await file.arrayBuffer();
+        await addImageToFont(fontPostScript, fontDisplayName, subName, new Uint8Array(arrayBuffer), file.name);
+      }
+    },
+    [addImageToFont],
   );
 
   // 画像URL取得
@@ -632,15 +685,24 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
                           )}
                         </>
                       )}
-                      <span className="text-[8px] text-text-muted ml-auto flex-shrink-0">
-                        {group.entries.length > 0 ? `${group.entries.length}` : "0"}
-                      </span>
+                      <div className="ml-auto flex items-center gap-1 flex-shrink-0">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleAddImageFromFile(group.font.font, group.font.name, group.font.subName || ""); }}
+                          className="text-[8px] text-text-muted/40 hover:text-accent transition-colors"
+                          title="画像を追加"
+                        >＋</button>
+                        <span className="text-[8px] text-text-muted">
+                          {group.entries.length > 0 ? `${group.entries.length}` : "0"}
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Screenshots */}
+                    {/* Screenshots + image drop zone */}
                     {group.entries.length > 0 ? (
                       <div
                         className={`p-1.5 grid gap-1.5 flex-1 ${previewSize === "S" ? "grid-cols-3" : "grid-cols-2"}`}
+                        onDragOver={(e) => { if (e.dataTransfer.types.includes("Files")) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } }}
+                        onDrop={(e) => { if (e.dataTransfer.files.length > 0) handleImageDrop(e, group.font.font, group.font.name, group.font.subName || ""); }}
                       >
                         {group.entries.map((entry) => (
                           <div
@@ -737,8 +799,18 @@ export function FontBookView({ onNavigateToViewer }: FontBookViewProps = {}) {
                         ))}
                       </div>
                     ) : (
-                      <div className="py-3 text-center text-[9px] text-text-muted/40">
-                        スクショなし
+                      <div
+                        className="py-3 text-center text-[9px] text-text-muted/40 border-2 border-dashed border-border/30 rounded m-1.5 hover:border-accent/30 hover:text-text-muted/60 transition-colors cursor-pointer"
+                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; }}
+                        onDrop={(e) => handleImageDrop(e, group.font.font, group.font.name, group.font.subName || "")}
+                        onClick={() => handleAddImageFromFile(group.font.font, group.font.name, group.font.subName || "")}
+                        title="画像をドロップ or クリックで追加"
+                      >
+                        <svg className="w-5 h-5 mx-auto mb-1 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        画像を追加（D&amp;D / クリック）
                       </div>
                     )}
                   </div>

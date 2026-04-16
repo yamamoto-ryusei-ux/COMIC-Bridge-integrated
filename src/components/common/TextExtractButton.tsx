@@ -21,6 +21,9 @@ export function TextExtractButton({
     setSortMode,
     includeHidden,
     setIncludeHidden,
+    splitByFolder,
+    setSplitByFolder,
+    hasMultipleFolders,
     result,
     setResult,
     handleExtract,
@@ -96,6 +99,31 @@ export function TextExtractButton({
               </div>
               <span className="text-xs text-text-secondary">非表示レイヤーも含める</span>
             </label>
+
+            {/* 複数フォルダ時の分割オプション */}
+            {hasMultipleFolders && (
+              <label className="flex items-center gap-2 cursor-pointer">
+                <div
+                  role="checkbox"
+                  aria-checked={splitByFolder}
+                  tabIndex={0}
+                  className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                    splitByFolder ? "bg-accent border-accent" : "border-border hover:border-accent/50"
+                  }`}
+                  onClick={() => setSplitByFolder(!splitByFolder)}
+                  onKeyDown={(e) => {
+                    if (e.key === " " || e.key === "Enter") setSplitByFolder(!splitByFolder);
+                  }}
+                >
+                  {splitByFolder && (
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <span className="text-xs text-text-secondary">フォルダごとに分けて作成</span>
+              </label>
+            )}
 
             {/* 実行ボタン */}
             <button

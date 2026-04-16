@@ -22,32 +22,33 @@ import { parseComicPotText } from "../unified-viewer/utils";
 function parseCheckText(text: string): { items: any[]; kind: "correctness" | "proposal" } {
   const allItems: any[] = [];
   let currentKind: "correctness" | "proposal" = "correctness";
+  let kindDetected = false;
   const lines = text.split("\n");
+
+  // 提案チェック特有のカテゴリキーワード
+  const proposalCategories = ["文字種", "送り仮名", "外来語", "数字", "略称", "異体字", "文体", "固有名詞", "専門用語", "未成年"];
+  // 正誤チェック特有のカテゴリキーワード
+  const correctnessCategories = ["誤字", "脱字", "人名ルビ", "単位", "伏字", "人物名", "熟字訓", "常用外漢字"];
+
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
-    // セパレータ行（---）をスキップ
     if (/^[\|\s\-:]+$/.test(trimmed)) continue;
-    // CSV or Markdown テーブルを自動判定
     let cols: string[];
     if (trimmed.startsWith("|")) {
       cols = trimmed.split("|").map((c) => c.trim()).filter(Boolean);
     } else {
-      // CSV（カンマ区切り）
       cols = trimmed.split(",").map((c) => c.trim());
     }
     if (cols.length < 3) continue;
-    // ヘッダー行を検出
     const first = cols[0];
+    // ヘッダー行からkindを判定
     if (first === "種別" || first === "チェック項目" || first === "ページ" || first.includes("該当箇所") || first.includes("セリフ")) {
-      // ヘッダーの列名からcheckKindを判定
-      if (first === "チェック項目" || cols.some((c) => c === "チェック項目")) currentKind = "proposal";
-      else currentKind = "correctness";
+      if (first === "チェック項目" || cols.some((c) => c === "チェック項目")) { currentKind = "proposal"; kindDetected = true; }
+      else { currentKind = "correctness"; kindDetected = true; }
       continue;
     }
-    // 正誤: ページ,種別,セリフ,指摘  or  種別,ページ,セリフ,指摘
-    // 提案: チェック項目,ページ,セリフ,指摘
-    // ページ列の自動検出（数字やN巻/Nページを含む列）
+    // ページ列の自動検出
     const pagePattern = /\d+\s*[巻ページpP]/;
     let page: string, category: string;
     if (pagePattern.test(cols[0])) {
@@ -55,16 +56,26 @@ function parseCheckText(text: string): { items: any[]; kind: "correctness" | "pr
     } else {
       category = cols[0]; page = cols[1] || "";
     }
+    // ヘッダーでkindが検出されなかった場合、カテゴリ名から推定
+    let itemKind = currentKind;
+    if (!kindDetected) {
+      if (proposalCategories.some((k) => category.includes(k))) itemKind = "proposal";
+      else if (correctnessCategories.some((k) => category.includes(k))) itemKind = "correctness";
+    }
     allItems.push({
       picked: false,
       category,
       page,
       excerpt: cols[2] || "",
       content: cols.length >= 4 ? cols[3] : "",
-      checkKind: currentKind,
+      checkKind: itemKind,
     });
   }
-  // 重複除去（後方優先=最終統合リスト優先）
+  // 全体のkind推定: 過半数のitemKindで決定
+  const corCount = allItems.filter((i) => i.checkKind === "correctness").length;
+  const proCount = allItems.filter((i) => i.checkKind === "proposal").length;
+  const finalKind = proCount > corCount ? "proposal" : "correctness";
+  // 重複除去
   const seen = new Set<string>();
   const unique: typeof allItems = [];
   for (let i = allItems.length - 1; i >= 0; i--) {
@@ -72,7 +83,7 @@ function parseCheckText(text: string): { items: any[]; kind: "correctness" | "pr
     const key = `${item.category}|${item.page}|${item.excerpt}|${item.content}`;
     if (!seen.has(key)) { seen.add(key); unique.unshift(item); }
   }
-  return { items: unique, kind: currentKind };
+  return { items: unique, kind: finalKind };
 }
 
 function ResultSaveModal() {
@@ -282,8 +293,21 @@ function ResultSaveModal() {
               <p className="text-[10px] text-text-muted">
                 {isText
                   ? "Geminiで生成されたテキストを貼り付けて保存してください。保存後、テキストは自動で読み込まれます。"
-                  : "Geminiで生成された校正結果を貼り付けてJSON保存してください。保存後、校正データとして自動で読み込まれます。"}
+                  : "Geminiで生成された校正結果を貼り付けてJSON保存してください。正誤/提案はヘッダーやカテゴリ名から自動判定されます。"}
               </p>
+              {!isText && pasteText.trim() && (() => {
+                const { items, kind } = parseCheckText(pasteText);
+                const corCount = items.filter((i: any) => i.checkKind === "correctness").length;
+                const proCount = items.filter((i: any) => i.checkKind === "proposal").length;
+                return items.length > 0 ? (
+                  <div className="flex items-center gap-2 text-[9px]">
+                    <span className="text-text-muted">検出: {items.length}件</span>
+                    {corCount > 0 && <span className="px-1 py-px rounded bg-emerald-100 text-emerald-700">正誤 {corCount}</span>}
+                    {proCount > 0 && <span className="px-1 py-px rounded bg-orange-100 text-orange-700">提案 {proCount}</span>}
+                    <span className="text-text-muted/50">({kind === "correctness" ? "正誤チェック" : "提案チェック"}として保存)</span>
+                  </div>
+                ) : null;
+              })()}
               {!isText && (
                 <div className="flex items-center gap-2">
                   <label className="text-[10px] text-text-muted">巻数:</label>

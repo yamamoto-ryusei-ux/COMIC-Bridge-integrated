@@ -327,9 +327,23 @@ export function TopNav() {
 // ─── データ読み込みボタン（TopNav内、右寄せ） ───
 function TopNavDataButtons() {
   const textLoaded = useUnifiedViewerStore((s) => s.textContent.length > 0);
+  const textFilePath = useUnifiedViewerStore((s) => s.textFilePath);
+  const presetJsonPath = useUnifiedViewerStore((s) => s.presetJsonPath);
   // presetJsonPath があれば新規作成JSON(presets空)でもロード済みとみなす
   const presetsLoaded = useUnifiedViewerStore((s) => s.fontPresets.length > 0 || !!s.presetJsonPath);
   const checkLoaded = useUnifiedViewerStore((s) => !!s.checkData);
+  const checkData = useUnifiedViewerStore((s) => s.checkData);
+
+  // ツールチップ: 読み込み中のフォルダ名/ファイル名
+  const textTooltip = textFilePath
+    ? `テキスト: ${textFilePath.replace(/\//g, "\\").split("\\").slice(-2).join("\\")}`
+    : "テキスト読み込み";
+  const presetTooltip = presetJsonPath
+    ? `作品情報JSON: ${presetJsonPath.replace(/\//g, "\\").split("\\").slice(-2).join("\\")}`
+    : "作品情報JSON";
+  const checkTooltip = checkData
+    ? `校正JSON: ${checkData.title || ""}${checkData.fileName ? ` (${checkData.fileName})` : ""}`
+    : "校正JSON";
   const kenbanPathA = useViewStore((s) => s.kenbanPathA);
   const kenbanPathB = useViewStore((s) => s.kenbanPathB);
   const wfActive = useWorkflowStore((s) => s.activeWorkflow !== null);
@@ -404,18 +418,21 @@ function TopNavDataButtons() {
             cCls="text-accent-tertiary hover:bg-accent-tertiary/15" bCls="border-accent-tertiary/50"
             onLoad={handleOpenText}
             onClear={() => { const v = useUnifiedViewerStore.getState(); v.setTextContent(""); v.setTextFilePath(null); v.setTextHeader([]); v.setTextPages([]); v.setIsDirty(false); }}
+            tooltip={textTooltip}
           />
           {/* 作品情報 */}
           <SmallBtn loaded={presetsLoaded} label="作品情報" title="作品情報JSON" clearTitle="クリア"
             cCls="text-accent-secondary hover:bg-accent-secondary/15" bCls="border-accent-secondary/50"
             onLoad={() => useViewStore.getState().setJsonBrowserMode("preset")}
             onClear={() => { useUnifiedViewerStore.getState().setFontPresets([]); useUnifiedViewerStore.getState().setPresetJsonPath(null); }}
+            tooltip={presetTooltip}
           />
           {/* 校正JSON */}
           <SmallBtn loaded={checkLoaded} label="校正JSON" title="校正JSON" clearTitle="クリア"
             cCls="text-warning hover:bg-warning/15" bCls="border-warning/50"
             onLoad={() => useViewStore.getState().setJsonBrowserMode("check")}
             onClear={() => useUnifiedViewerStore.getState().setCheckData(null)}
+            tooltip={checkTooltip}
           />
         </>
       )}
@@ -427,13 +444,14 @@ function TopNavDataButtons() {
 }
 
 // ─── 小さなデータ読み込みボタン ───
-function SmallBtn({ loaded, label, title, clearTitle, cCls, bCls, onLoad, onClear }: {
+function SmallBtn({ loaded, label, title, clearTitle, cCls, bCls, onLoad, onClear, tooltip }: {
   loaded: boolean; label: string; title: string; clearTitle: string;
   cCls: string; bCls: string; onLoad: () => void; onClear: () => void;
+  tooltip?: string;
 }) {
   return (
     <div className="flex items-center gap-0">
-      <button onClick={onLoad} className="px-1.5 py-0.5 text-[9px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary rounded-l transition-colors" title={title}>{label}</button>
+      <button onClick={onLoad} className="px-1.5 py-0.5 text-[9px] text-text-secondary hover:text-text-primary hover:bg-bg-tertiary rounded-l transition-colors" title={tooltip || title}>{label}</button>
       {loaded ? (
         <button onClick={onClear} className={`w-3.5 h-3.5 flex items-center justify-center rounded-r transition-colors ${cCls}`} title={clearTitle}>
           <svg className="w-2 h-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
