@@ -10,7 +10,59 @@ import { GENRE_LABELS } from "../../types/scanPsd";
 import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
 import { JsonFileBrowser } from "../scanPsd/JsonFileBrowser";
 
-const DEFAULT_COPY_DEST = "1_原稿";
+const DEFAULT_COPY_DEST = "1_入稿";
+
+// ═══ 組み込みデフォルトフォルダ構造 ═══
+// 外部テンプレートパスに依存せず、コード内に直接定義した階層構造。
+// 新作モード: {destBase}\{title}\ 配下にtitle階層フォルダ + {destBase}\{title}\{volume}\ 配下にvolume階層フォルダ
+// 続話モード: {destBase}\{volume}\ 配下にvolume階層フォルダのみ
+// 注: create_dir_all が中間ディレクトリを自動作成するので、リーフのみ記載すれば中間フォルダも生成される
+
+/** 新作モード: タイトル階層（{destBase}\{title}\）に作成するフォルダ */
+const NEW_TITLE_LEVEL_FOLDERS = ["#BS依頼用"];
+
+/** 新作モード: 巻数階層（{destBase}\{title}\{volume}\）に作成するフォルダ */
+const NEW_VOLUME_LEVEL_FOLDERS = [
+  "1_入稿",
+  "2_写植",
+  "3_校正",
+  "4_白消し素材",
+  "5_校了・TIFF/TIFF",
+  "5_校了・TIFF/校了PSD",
+  "5_校了・TIFF/表紙・サンプル",
+  "6_BS/1_初校戻し",
+  "6_BS/2_再校戻し",
+  "6_BS/3_三校戻し",
+];
+
+/** 続話モード: 巻数階層（{destBase}\{volume}\）に作成するフォルダ */
+const SEQUEL_VOLUME_LEVEL_FOLDERS = [
+  "1_入稿",
+  "2_写植",
+  "3_校正",
+  "4_白消し素材",
+  "5_校了・TIFF/TIFF",
+  "5_校了・TIFF/校了PSD",
+  "6_BS/1_初校戻し",
+  "6_BS/2_再校戻し",
+  "6_BS/3_三校戻し",
+];
+
+// localStorage migration: 旧テンプレートパスを全て削除（V5）
+// コード内定義の組み込み構造を使用するため、外部パス設定は不要
+const TEMPLATE_MIGRATION_KEY = "folderSetup_templateMigrationV5";
+(function migrateTemplateDefaults() {
+  try {
+    if (typeof window === "undefined") return;
+    if (localStorage.getItem(TEMPLATE_MIGRATION_KEY) === "done") return;
+    // V5: 外部テンプレートパス依存を廃止
+    localStorage.removeItem("folderSetup_newTemplatePath");
+    localStorage.removeItem("folderSetup_sequelTemplatePath");
+    localStorage.removeItem("folderSetup_struct_new");
+    localStorage.removeItem("folderSetup_struct_sequel");
+    localStorage.setItem(TEMPLATE_MIGRATION_KEY, "done");
+  } catch { /* ignore */ }
+})();
 
 function loadSetting(key: string, fallback: string): string {
   try { return localStorage.getItem(`folderSetup_${key}`) || fallback; } catch { return fallback; }
@@ -18,23 +70,26 @@ function loadSetting(key: string, fallback: string): string {
 function saveSetting(key: string, value: string) {
   try { localStorage.setItem(`folderSetup_${key}`, value); } catch { /* ignore */ }
 }
-function loadStructure(key: string): string[] {
-  try {
-    const raw = localStorage.getItem(`folderSetup_struct_${key}`);
-    if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
-  return [];
-}
-function saveStructure(key: string, folders: string[]) {
-  try { localStorage.setItem(`folderSetup_struct_${key}`, JSON.stringify(folders)); } catch { /* ignore */ }
-}
+// loadStructure/saveStructure は廃止（組み込み構造を使用するため）
 
 // デフォルト構造
-const DEFAULT_NEW = ["1_原稿","2_写植","3_写植校了","4_TIFF","5_校正","6_白消しPSD","7_次回予告","8_あらすじ","9_表紙"];
-const DEFAULT_SEQUEL = ["1_原稿","2_写植","3_写植校了","4_TIFF","5_校正","6_白消しPSD"];
+// 旧デフォルト（DEFAULT_NEW / DEFAULT_SEQUEL）は廃止。
+// 組み込み構造 NEW_TITLE_LEVEL_FOLDERS / NEW_VOLUME_LEVEL_FOLDERS / SEQUEL_VOLUME_LEVEL_FOLDERS を使用。
+
+interface AdditionalItem {
+  path: string;
+  name: string;
+  isFolder: boolean;
+}
 
 export function FolderSetupView() {
   const [sourcePath, setSourcePath] = useState("");
+  // ソース種別: 単一メイン(default) or 複数メイン
+  const [sourceMode, setSourceMode] = useState<"single" | "multiple">("single");
+  // 単一モード: 追加のサブフォルダ/ファイル
+  const [additionalItems, setAdditionalItems] = useState<AdditionalItem[]>([]);
+  // 複数モード: 複数のメインフォルダ
+  const [multipleSources, setMultipleSources] = useState<string[]>([]);
   const [mode, setMode] = useState<"new" | "sequel">("new");
   const [destBase, setDestBase] = useState("");
   const [extractedNumber, setExtractedNumber] = useState("");
@@ -64,43 +119,74 @@ export function FolderSetupView() {
   } | null>(null);
 
   // 設定
-  const [newTemplatePath, setNewTemplatePath] = useState(loadSetting("newTemplatePath", ""));
-  const [sequelTemplatePath, setSequelTemplatePath] = useState(loadSetting("sequelTemplatePath", ""));
-  const [newStructure, setNewStructure] = useState<string[]>(() => {
-    const saved = loadStructure("new");
-    return saved.length > 0 ? saved : DEFAULT_NEW;
-  });
-  const [sequelStructure, setSequelStructure] = useState<string[]>(() => {
-    const saved = loadStructure("sequel");
-    return saved.length > 0 ? saved : DEFAULT_SEQUEL;
-  });
+  // 新作時のタイトル入力（newJsonTitleと同期、新作モード時の番号フォルダ名として使用）
+  const [newWorkTitle, setNewWorkTitle] = useState("");
   const [copyDest, setCopyDest] = useState(loadSetting("copyDest", DEFAULT_COPY_DEST));
+  // 注: newTemplatePath / sequelTemplatePath / newStructure / sequelStructure は廃止。
+  // 組み込み構造 NEW_TITLE_LEVEL_FOLDERS / NEW_VOLUME_LEVEL_FOLDERS / SEQUEL_VOLUME_LEVEL_FOLDERS を直接使用。
 
-  // D&Dでフォルダ構造を取得
-  const handleDropStructure = useCallback(async (type: "new" | "sequel", folderPath: string) => {
-    try {
-      const contents = await invoke<{ folders: string[]; json_files: string[] }>("list_folder_contents", { folderPath });
-      const folders = contents.folders.sort();
-      if (folders.length === 0) { alert("サブフォルダが見つかりませんでした"); return; }
-      if (type === "new") {
-        setNewStructure(folders);
-        saveStructure("new", folders);
+  // フォルダパス変更: フォルダ名から数字を自動抽出 + 新作/続話を自動判定
+  // - 抽出された数字が "1" or "01" → 新作 + JSON新規作成
+  // - それ以外（"2", "10", "11" など） → 続話 + JSON既存選択
+  // - 数字が抽出できない → モードは変更しない
+  // ※ "10" や "11" は「1」ではないため新作にならない
+  const handleSourceChange = useCallback((val: string) => {
+    const trimmed = val.trim();
+    setSourcePath(trimmed);
+    // フォルダ名から数字を抽出
+    const folderName = trimmed.replace(/\\/g, "/").split("/").pop() || "";
+    const match = folderName.match(/(\d+)/);
+    if (match) {
+      const num = match[1];
+      setExtractedNumber(num);
+      // 新作判定: "1" または "01" のみ（"10", "11" などは除外）
+      if (num === "1" || num === "01") {
+        setMode("new");
+        setJsonMode("new");
       } else {
-        setSequelStructure(folders);
-        saveStructure("sequel", folders);
+        setMode("sequel");
+        setJsonMode("select");
       }
-    } catch (e) {
-      alert("フォルダ構造の取得に失敗しました: " + String(e));
     }
+    setStatus({ type: "idle", message: "" });
   }, []);
 
-  // アドレスペースト時にフォルダ名から数字を抽出
-  const handleSourceChange = useCallback((val: string) => {
-    setSourcePath(val.trim());
-    const folderName = val.trim().replace(/\\/g, "/").split("/").pop() || "";
-    const match = folderName.match(/(\d+)/);
-    setExtractedNumber(match ? match[1] : "");
-    setStatus({ type: "idle", message: "" });
+  // 追加アイテム: フォルダ追加
+  const handleAddAdditionalFolder = useCallback(async () => {
+    const p = await dialogOpen({ directory: true, multiple: false, title: "追加フォルダを選択" });
+    if (!p) return;
+    const path = p as string;
+    const name = path.replace(/\\/g, "/").split("/").pop() || "";
+    setAdditionalItems((prev) => [...prev, { path, name, isFolder: true }]);
+  }, []);
+
+  // 追加アイテム: ファイル追加
+  const handleAddAdditionalFile = useCallback(async () => {
+    const p = await dialogOpen({ directory: false, multiple: true, title: "追加ファイルを選択" });
+    if (!p) return;
+    const paths = Array.isArray(p) ? p : [p];
+    const newItems = paths.map((pp) => {
+      const path = pp as string;
+      const name = path.replace(/\\/g, "/").split("/").pop() || "";
+      return { path, name, isFolder: false };
+    });
+    setAdditionalItems((prev) => [...prev, ...newItems]);
+  }, []);
+
+  const handleRemoveAdditional = useCallback((idx: number) => {
+    setAdditionalItems((prev) => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  // 複数モード: メインフォルダ追加
+  const handleAddMultipleSource = useCallback(async () => {
+    const p = await dialogOpen({ directory: true, multiple: true, title: "メインフォルダを選択（複数可）" });
+    if (!p) return;
+    const paths = Array.isArray(p) ? p : [p];
+    setMultipleSources((prev) => [...prev, ...paths.map((pp) => pp as string)]);
+  }, []);
+
+  const handleRemoveMultipleSource = useCallback((idx: number) => {
+    setMultipleSources((prev) => prev.filter((_, i) => i !== idx));
   }, []);
 
   const handlePaste = useCallback(async () => {
@@ -119,49 +205,127 @@ export function FolderSetupView() {
 
   // 実行
   const handleExecute = useCallback(async () => {
-    if (!sourcePath || !destBase) { setStatus({ type: "error", message: "コピー元とコピー先を指定してください" }); return; }
-    const number = extractedNumber || "0";
-    const structure = mode === "new" ? newStructure : sequelStructure;
-    const templatePath = mode === "new" ? newTemplatePath : sequelTemplatePath;
-
+    // 入力チェック（モードごと）
+    if (sourceMode === "single") {
+      if (!sourcePath || !destBase) { setStatus({ type: "error", message: "コピー元とコピー先を指定してください" }); return; }
+      if (mode === "new" && !newWorkTitle.trim()) {
+        setStatus({ type: "error", message: "新作の場合はタイトルを入力してください" });
+        return;
+      }
+    } else {
+      if (multipleSources.length === 0 || !destBase) { setStatus({ type: "error", message: "コピー元(複数)とコピー先を指定してください" }); return; }
+    }
     setProcessing(true);
     setStatus({ type: "idle", message: "処理中..." });
 
-    try {
-      const numberFolder = `${destBase}\\${number}`;
-
-      if (templatePath) {
-        // テンプレートフォルダからコピー
-        await invoke<number>("copy_folder", { source: templatePath, destination: numberFolder });
+    // 複数モード用: 処理すべきソースのリストを作成
+    // 単一モード: [{ source: sourcePath, number: (新作時はタイトル or 続話時はextractedNumber) }]
+    // 複数モード: 各ソースフォルダをそれぞれ処理、番号フォルダ名はフォルダ名を使用
+    type Job = { source: string; numberFolder: string };
+    const jobs: Job[] = [];
+    const safeTitle = newWorkTitle.trim().replace(/[\\/:*?"<>|]/g, "_");
+    if (sourceMode === "single") {
+      if (mode === "new") {
+        // 新作: {destBase}\{title}\{巻数} の階層を作成
+        // 巻数はコピー元フォルダ名から自動抽出（extractedNumber）、空なら "1" をデフォルト
+        const volume = extractedNumber || "1";
+        jobs.push({ source: sourcePath, numberFolder: `${destBase}\\${safeTitle}\\${volume}` });
       } else {
-        // 保存済み構造からフォルダ作成（.keepファイルは作成しない）
-        for (const folder of structure) {
-          await invoke("create_directory", { path: `${numberFolder}\\${folder}` });
+        // 続話: {destBase}\{巻数}
+        jobs.push({ source: sourcePath, numberFolder: `${destBase}\\${extractedNumber || "0"}` });
+      }
+    } else {
+      for (const src of multipleSources) {
+        const baseName = src.replace(/\\/g, "/").split("/").pop() || "folder";
+        jobs.push({ source: src, numberFolder: `${destBase}\\${baseName}` });
+      }
+    }
+
+    // 最初のジョブから取得される値（スキャン・PSD自動読み込み用）
+    let firstNumberFolder = "";
+    let firstCopyDestFolder = "";
+    let totalCopied = 0;
+
+    try {
+      for (let ji = 0; ji < jobs.length; ji++) {
+        const job = jobs[ji];
+        const { source, numberFolder } = job;
+        if (ji === 0) firstNumberFolder = numberFolder;
+
+        // フォルダ階層の構築（組み込み構造を使用、外部テンプレートパス依存なし）
+        if (sourceMode === "single" && mode === "new") {
+          // 新作: タイトル階層 + 巻数階層 に分けて作成
+          const titleFolder = `${destBase}\\${safeTitle}`;
+          for (const f of NEW_TITLE_LEVEL_FOLDERS) {
+            await invoke("create_directory", { path: `${titleFolder}\\${f}` });
+          }
+          for (const f of NEW_VOLUME_LEVEL_FOLDERS) {
+            await invoke("create_directory", { path: `${numberFolder}\\${f}` });
+          }
+        } else if (sourceMode === "single" && mode === "sequel") {
+          // 続話: 巻数階層のみ
+          for (const f of SEQUEL_VOLUME_LEVEL_FOLDERS) {
+            await invoke("create_directory", { path: `${numberFolder}\\${f}` });
+          }
+        } else {
+          // 複数モード: 各フォルダに新作/続話の該当階層を作成
+          // 複数モードでは単一ジョブとしてタイトル名が無いため、続話階層（巻数レベルのみ）を使用
+          const folders = mode === "new" ? NEW_VOLUME_LEVEL_FOLDERS : SEQUEL_VOLUME_LEVEL_FOLDERS;
+          for (const f of folders) {
+            await invoke("create_directory", { path: `${numberFolder}\\${f}` });
+          }
+        }
+
+        // ソースフォルダをフォルダ名ごと指定サブフォルダにコピー
+        const sourceFolderName = source.replace(/\\/g, "/").split("/").pop() || "";
+        const copyDestFolder = `${numberFolder}\\${copyDest}\\${sourceFolderName}`;
+        const copiedCount = await invoke<number>("copy_folder", { source, destination: copyDestFolder });
+        totalCopied += copiedCount;
+        if (ji === 0) firstCopyDestFolder = copyDestFolder;
+
+        // 単一モード時: 追加アイテムを copyDestFolder の親（同じレベル）にコピー
+        if (sourceMode === "single" && additionalItems.length > 0) {
+          const itemsParent = `${numberFolder}\\${copyDest}`;
+          for (const item of additionalItems) {
+            const itemDest = `${itemsParent}\\${item.name}`;
+            try {
+              if (item.isFolder) {
+                const n = await invoke<number>("copy_folder", { source: item.path, destination: itemDest });
+                totalCopied += n;
+              } else {
+                // 単一ファイルコピー（Rust側の copy_file コマンドで対応）
+                await invoke("copy_file", { source: item.path, destination: itemDest });
+                totalCopied += 1;
+              }
+            } catch (e) {
+              console.error("追加アイテムコピー失敗:", item.path, e);
+            }
+          }
         }
       }
 
-      // ソースフォルダをフォルダ名ごと指定サブフォルダにコピー
-      const sourceFolderName = sourcePath.replace(/\\/g, "/").split("/").pop() || "";
-      const copyDestFolder = `${numberFolder}\\${copyDest}\\${sourceFolderName}`;
-      const copiedCount = await invoke<number>("copy_folder", { source: sourcePath, destination: copyDestFolder });
+      // 以降は最初のジョブを基準にスキャン・自動読み込み
+      const numberFolder = firstNumberFolder;
+      const copyDestFolder = firstCopyDestFolder;
+      const copiedCount = totalCopied;
 
-      // ── 番号フォルダ全体をスキャン（kenban_list_files_in_folder で全拡張子取得）──
-      // ※ list_folder_files は PSD/TIFF しか返さないため、kenban_list_files_in_folder を使用
+      // ── 番号フォルダ全体を**再帰スキャン**（全階層のサブフォルダまでチェック）──
+      // list_files_by_extension_recursive で全階層のファイルをフルパスで取得
       const normalizedNumberFolder = numberFolder.replace(/\//g, "\\");
       let scanResult = { hasPsd: false, hasPdfOrImage: false, hasText: false, psdCount: 0, pdfImageCount: 0, textCount: 0 };
       const textFilePaths: string[] = [];
       let psdFolderPath = "";
       let scanError = "";
 
-      // 全対象拡張子で一括検索
+      // 全対象拡張子で再帰検索
       const ALL_SCAN_EXTS = ["psd", "psb", "pdf", "jpg", "jpeg", "png", "bmp", "tif", "tiff", "txt"];
 
-      // copyDestFolder 内を検索（ソースがコピーされた場所）
+      // copyDestFolder 内を再帰検索（ソースがコピーされた場所、サブフォルダ全階層）
       const scanFolders = [copyDestFolder, normalizedNumberFolder];
       for (const scanTarget of scanFolders) {
         try {
-          const foundFiles = await invoke<string[]>("kenban_list_files_in_folder", {
-            path: scanTarget,
+          const foundFiles = await invoke<string[]>("list_files_by_extension_recursive", {
+            folderPath: scanTarget,
             extensions: ALL_SCAN_EXTS,
           });
           if (foundFiles && foundFiles.length > 0) {
@@ -172,6 +336,7 @@ export function FolderSetupView() {
               if (ext === "psd" || ext === "psb") {
                 scanResult.psdCount++;
                 if (!psdFolderPath) {
+                  // PSDの親フォルダパスを記録（最初に見つかったPSDの所属フォルダ）
                   const sep = Math.max(f.lastIndexOf("\\"), f.lastIndexOf("/"));
                   if (sep >= 0) psdFolderPath = f.substring(0, sep);
                 }
@@ -252,6 +417,22 @@ export function FolderSetupView() {
           if (wi) {
             scanStore.setWorkInfo({ ...scanStore.workInfo, ...(wi.genre ? { genre: wi.genre } : {}), ...(wi.label ? { label: wi.label } : {}), ...(wi.title ? { title: wi.title } : {}), ...(wi.author ? { author: wi.author } : {}) });
           }
+          // unifiedViewerStore にも反映（TopNav「作品情報」ボタンが読み込み済みと表示される）
+          const viewerStore = useUnifiedViewerStore.getState();
+          viewerStore.setPresetJsonPath(selectedJsonPath);
+          const presets = data?.presetData?.presets;
+          if (presets && typeof presets === "object") {
+            // presets を配列化（既存JSON browser と同じ処理）
+            const presetArr: any[] = [];
+            for (const [font, list] of Object.entries(presets)) {
+              if (Array.isArray(list)) {
+                for (const p of list as any[]) {
+                  presetArr.push({ font, name: p?.name || "", subName: p?.subName || "", ...p });
+                }
+              }
+            }
+            viewerStore.setFontPresets(presetArr);
+          }
           // ProGenルール適用
           const ps = useProgenStore.getState();
           ps.setCurrentLoadedJson(data);
@@ -260,10 +441,12 @@ export function FolderSetupView() {
           else if (data?.presetData?.proofRules) ps.applyJsonRules(data.presetData);
           else if (wi?.label) await ps.loadMasterRule(wi.label);
         } catch (e) { console.error("JSON load error:", e); }
-      } else if (jsonMode === "new" && newJsonLabel && newJsonTitle) {
+      } else if (jsonMode === "new" && newJsonLabel && (newJsonTitle || newWorkTitle)) {
         // 新規JSON作成
+        // 新作モードで newWorkTitle が入力されていれば、それを優先してタイトルに使用
+        const effectiveTitle = newJsonTitle.trim() || newWorkTitle.trim();
         const safeLabel = newJsonLabel.replace(/[\\/:*?"<>|]/g, "_");
-        const safeTitle = newJsonTitle.replace(/[\\/:*?"<>|]/g, "_");
+        const safeTitle = effectiveTitle.replace(/[\\/:*?"<>|]/g, "_");
         const jsonBasePath = "G:/共有ドライブ/CLLENN/編集部フォルダ/編集企画部/編集企画_C班(AT業務推進)/DTP制作部/JSONフォルダ";
         const jsonDir = `${jsonBasePath}/${safeLabel}`;
         const jsonFilePath = `${jsonDir}/${safeTitle}.json`;
@@ -275,14 +458,23 @@ export function FolderSetupView() {
           await invoke("create_directory", { path: calibrationDir });
           // 新規JSON生成
           const newJson = {
-            presetData: { presets: {}, fontSizeStats: {}, guides: [], workInfo: { label: newJsonLabel, title: newJsonTitle } },
+            presetData: { presets: {}, fontSizeStats: {}, guides: [], workInfo: { genre: newJsonGenre, label: newJsonLabel, title: effectiveTitle } },
             proofRules: { proof: [], symbol: [], options: {} },
           };
           await invoke("write_text_file", { filePath: jsonFilePath, content: JSON.stringify(newJson, null, 2) });
           // ストアに反映
           const scanStore = useScanPsdStore.getState();
           scanStore.setCurrentJsonFilePath(jsonFilePath);
-          scanStore.setWorkInfo({ ...scanStore.workInfo, label: newJsonLabel, title: newJsonTitle });
+          scanStore.setWorkInfo({
+            ...scanStore.workInfo,
+            ...(newJsonGenre ? { genre: newJsonGenre } : {}),
+            label: newJsonLabel,
+            title: effectiveTitle,
+          });
+          // unifiedViewerStore にも反映（TopNav「作品情報」ボタンが読み込み済みと表示される）
+          const viewerStore = useUnifiedViewerStore.getState();
+          viewerStore.setPresetJsonPath(jsonFilePath);
+          viewerStore.setFontPresets([]); // 新規は空
           const ps = useProgenStore.getState();
           ps.setCurrentLoadedJson(newJson);
           ps.setCurrentJsonPath(jsonFilePath);
@@ -295,14 +487,10 @@ export function FolderSetupView() {
       setStatus({ type: "error", message: `エラー: ${String(e)}` });
     }
     setProcessing(false);
-  }, [sourcePath, destBase, extractedNumber, mode, newStructure, sequelStructure, newTemplatePath, sequelTemplatePath, copyDest, loadFolder, jsonMode, selectedJsonPath, newJsonGenre, newJsonLabel, newJsonTitle]);
+  }, [sourcePath, destBase, extractedNumber, mode, copyDest, loadFolder, jsonMode, selectedJsonPath, newJsonGenre, newJsonLabel, newJsonTitle, sourceMode, multipleSources, additionalItems, newWorkTitle]);
 
   const saveAllSettings = () => {
-    saveSetting("newTemplatePath", newTemplatePath);
-    saveSetting("sequelTemplatePath", sequelTemplatePath);
     saveSetting("copyDest", copyDest);
-    saveStructure("new", newStructure);
-    saveStructure("sequel", sequelStructure);
     setShowSettings(false);
   };
 
@@ -326,71 +514,44 @@ export function FolderSetupView() {
         {/* 設定パネル */}
         {showSettings && (
           <div className="p-4 rounded-xl bg-bg-secondary border border-border space-y-4">
-            <h3 className="text-xs font-bold text-text-primary">テンプレート設定</h3>
+            <h3 className="text-xs font-bold text-text-primary">設定</h3>
 
-            {/* 新作 */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-medium text-text-primary">新作</label>
-              <div>
-                <label className="text-[9px] text-text-muted block mb-1">テンプレートフォルダ（空ならフォルダ構造を使用）</label>
-                <input type="text" value={newTemplatePath} onChange={(e) => setNewTemplatePath(e.target.value)}
-                  className="w-full text-[10px] px-2 py-1.5 bg-bg-primary border border-border/50 rounded text-text-primary outline-none font-mono" placeholder="未指定（フォルダ構造を使用）" />
+            {/* 組み込み構造の説明 */}
+            <div className="p-3 bg-bg-tertiary rounded-lg space-y-2">
+              <div className="text-[10px] font-medium text-text-primary">組み込みフォルダ階層（固定）</div>
+              <div className="text-[9px] text-text-muted leading-relaxed">
+                外部テンプレートフォルダへの依存を廃止し、コード内の定義を使用します。
+                新作時はタイトル階層と巻数階層を、続話時は巻数階層のみを作成します。
               </div>
-              <div>
-                <label className="text-[9px] text-text-muted block mb-1">フォルダ構造（クリックでフォルダから取得）</label>
-                <div
-                  className="p-2 bg-bg-primary border border-dashed border-border rounded cursor-pointer hover:border-accent/40 hover:bg-accent/5 transition-colors"
-                  onClick={async () => {
-                    const path = await dialogOpen({ directory: true, multiple: false, title: "新作用: フォルダ構造を取得" });
-                    if (path) handleDropStructure("new", path as string);
-                  }}
-                >
-                  {newStructure.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {newStructure.map((f) => (
-                        <span key={f} className="px-1.5 py-0.5 text-[9px] bg-accent/10 text-accent rounded">{f}</span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-[9px] text-text-muted text-center py-2">クリックしてフォルダ構造を取得</p>
-                  )}
+
+              <div className="pt-2 border-t border-border/30">
+                <div className="text-[9px] font-bold text-accent mb-1">新作 — タイトル階層</div>
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {NEW_TITLE_LEVEL_FOLDERS.map((f) => (
+                    <span key={f} className="px-1.5 py-0.5 text-[9px] bg-accent/10 text-accent rounded">{f}</span>
+                  ))}
+                </div>
+                <div className="text-[9px] font-bold text-accent mb-1">新作 — 巻数階層</div>
+                <div className="flex flex-wrap gap-1">
+                  {NEW_VOLUME_LEVEL_FOLDERS.map((f) => (
+                    <span key={f} className="px-1.5 py-0.5 text-[9px] bg-accent/10 text-accent rounded">{f}</span>
+                  ))}
                 </div>
               </div>
-            </div>
 
-            {/* 続話 */}
-            <div className="space-y-2">
-              <label className="text-[10px] font-medium text-text-primary">続話</label>
-              <div>
-                <label className="text-[9px] text-text-muted block mb-1">テンプレートフォルダ（空ならフォルダ構造を使用）</label>
-                <input type="text" value={sequelTemplatePath} onChange={(e) => setSequelTemplatePath(e.target.value)}
-                  className="w-full text-[10px] px-2 py-1.5 bg-bg-primary border border-border/50 rounded text-text-primary outline-none font-mono" placeholder="未指定（フォルダ構造を使用）" />
-              </div>
-              <div>
-                <label className="text-[9px] text-text-muted block mb-1">フォルダ構造（クリックでフォルダから取得）</label>
-                <div
-                  className="p-2 bg-bg-primary border border-dashed border-border rounded cursor-pointer hover:border-accent-secondary/40 hover:bg-accent-secondary/5 transition-colors"
-                  onClick={async () => {
-                    const path = await dialogOpen({ directory: true, multiple: false, title: "続話用: フォルダ構造を取得" });
-                    if (path) handleDropStructure("sequel", path as string);
-                  }}
-                >
-                  {sequelStructure.length > 0 ? (
-                    <div className="flex flex-wrap gap-1">
-                      {sequelStructure.map((f) => (
-                        <span key={f} className="px-1.5 py-0.5 text-[9px] bg-accent-secondary/10 text-accent-secondary rounded">{f}</span>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-[9px] text-text-muted text-center py-2">クリックしてフォルダ構造を取得</p>
-                  )}
+              <div className="pt-2 border-t border-border/30">
+                <div className="text-[9px] font-bold text-accent-secondary mb-1">続話 — 巻数階層</div>
+                <div className="flex flex-wrap gap-1">
+                  {SEQUEL_VOLUME_LEVEL_FOLDERS.map((f) => (
+                    <span key={f} className="px-1.5 py-0.5 text-[9px] bg-accent-secondary/10 text-accent-secondary rounded">{f}</span>
+                  ))}
                 </div>
               </div>
             </div>
 
             {/* コピー先サブフォルダ */}
             <div>
-              <label className="text-[9px] text-text-muted block mb-1">コピー先サブフォルダ名</label>
+              <label className="text-[9px] text-text-muted block mb-1">コピー先サブフォルダ名（1_入稿 の子階層に配置）</label>
               <input type="text" value={copyDest} onChange={(e) => setCopyDest(e.target.value)}
                 className="w-full text-[10px] px-2 py-1.5 bg-bg-primary border border-border/50 rounded text-text-primary outline-none font-mono" placeholder="例: 1_原稿" />
             </div>
@@ -406,21 +567,94 @@ export function FolderSetupView() {
         <div className="p-4 rounded-xl bg-bg-secondary border border-border space-y-2">
           <div className="flex items-center gap-2">
             <span className="w-6 h-6 rounded-full bg-accent/15 text-accent text-xs font-bold flex items-center justify-center">1</span>
-            <span className="text-xs font-medium text-text-primary">コピー元フォルダ</span>
-          </div>
-          <div className="flex gap-2">
-            <input type="text" value={sourcePath} onChange={(e) => handleSourceChange(e.target.value)}
-              className="flex-1 text-[10px] px-2 py-1.5 bg-bg-primary border border-border/50 rounded text-text-primary outline-none font-mono" placeholder="フォルダパスを貼り付け..." />
-            <button onClick={handlePaste} className="px-2 py-1.5 text-[10px] bg-bg-tertiary border border-border/50 rounded hover:bg-bg-elevated text-text-secondary">貼付</button>
-            <button onClick={handleBrowseSource} className="px-2 py-1.5 text-[10px] bg-bg-tertiary border border-border/50 rounded hover:bg-bg-elevated text-text-secondary">参照</button>
-          </div>
-          {extractedNumber && (
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-text-muted">検出番号:</span>
-              <span className="px-2 py-0.5 rounded bg-accent/10 text-accent font-bold">{extractedNumber}</span>
-              <input type="text" value={extractedNumber} onChange={(e) => setExtractedNumber(e.target.value)}
-                className="w-16 text-[10px] px-2 py-0.5 border border-border/50 rounded text-text-primary outline-none text-center" title="番号を手動修正" />
+            <span className="text-xs font-medium text-text-primary">コピー元</span>
+            {/* ソース種別切替 */}
+            <div className="ml-auto flex bg-bg-tertiary rounded-lg p-0.5">
+              <button
+                onClick={() => setSourceMode("single")}
+                className={`px-2 py-0.5 text-[10px] rounded-md transition-colors ${sourceMode === "single" ? "bg-accent text-white font-medium" : "text-text-muted hover:text-text-primary"}`}
+              >
+                単一メイン
+              </button>
+              <button
+                onClick={() => setSourceMode("multiple")}
+                className={`px-2 py-0.5 text-[10px] rounded-md transition-colors ${sourceMode === "multiple" ? "bg-accent-secondary text-white font-medium" : "text-text-muted hover:text-text-primary"}`}
+              >
+                複数メイン
+              </button>
             </div>
+          </div>
+
+          {sourceMode === "single" ? (
+            <>
+              {/* 単一モード: メインフォルダ */}
+              <div className="flex gap-2">
+                <input type="text" value={sourcePath} onChange={(e) => handleSourceChange(e.target.value)}
+                  className="flex-1 text-[10px] px-2 py-1.5 bg-bg-primary border border-border/50 rounded text-text-primary outline-none font-mono" placeholder="フォルダパスを貼り付け..." />
+                <button onClick={handlePaste} className="px-2 py-1.5 text-[10px] bg-bg-tertiary border border-border/50 rounded hover:bg-bg-elevated text-text-secondary">貼付</button>
+                <button onClick={handleBrowseSource} className="px-2 py-1.5 text-[10px] bg-bg-tertiary border border-border/50 rounded hover:bg-bg-elevated text-text-secondary">参照</button>
+              </div>
+              {/* 巻数入力（新作・続話 両モードで表示、フォルダ名から自動抽出） */}
+              <div className="flex items-center gap-2 text-[10px]">
+                <span className="text-text-muted">巻数:</span>
+                <input type="text" value={extractedNumber} onChange={(e) => setExtractedNumber(e.target.value)}
+                  className="w-20 px-2 py-0.5 border border-border/50 rounded text-text-primary outline-none text-center" placeholder={mode === "new" ? "1" : "1"} />
+                <span className="text-text-muted/60 text-[9px]">※ コピー元フォルダ名から自動抽出（手動修正可）</span>
+              </div>
+              {/* 追加アイテムセクション */}
+              <div className="pt-2 mt-2 border-t border-border/30 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-text-muted font-medium">追加アイテム（任意）</span>
+                  <span className="text-[9px] text-text-muted/60">メインフォルダと同じ階層にコピー</span>
+                  <div className="ml-auto flex gap-1">
+                    <button onClick={handleAddAdditionalFolder} className="px-2 py-0.5 text-[9px] bg-accent/10 hover:bg-accent/20 text-accent border border-accent/20 rounded transition-colors">+ フォルダ</button>
+                    <button onClick={handleAddAdditionalFile} className="px-2 py-0.5 text-[9px] bg-accent-secondary/10 hover:bg-accent-secondary/20 text-accent-secondary border border-accent-secondary/20 rounded transition-colors">+ ファイル</button>
+                  </div>
+                </div>
+                {additionalItems.length > 0 && (
+                  <div className="space-y-0.5 max-h-24 overflow-y-auto">
+                    {additionalItems.map((item, i) => (
+                      <div key={i} className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] bg-bg-tertiary">
+                        <span className="text-[10px]">{item.isFolder ? "📁" : "📄"}</span>
+                        <span className="text-text-primary truncate flex-1">{item.name}</span>
+                        <span className="text-text-muted/60 truncate max-w-[200px] text-[8px]">{item.path}</span>
+                        <button onClick={() => handleRemoveAdditional(i)} className="w-3.5 h-3.5 flex items-center justify-center text-text-muted/40 hover:text-error rounded">
+                          <svg className="w-2 h-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* 複数モード: 複数メインフォルダリスト */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-text-muted">メインフォルダ ({multipleSources.length}件)</span>
+                <span className="text-[9px] text-text-muted/60">各フォルダに同じ階層構造を作成</span>
+                <button onClick={handleAddMultipleSource} className="ml-auto px-2 py-0.5 text-[9px] bg-accent-secondary/10 hover:bg-accent-secondary/20 text-accent-secondary border border-accent-secondary/20 rounded transition-colors">+ フォルダ追加</button>
+              </div>
+              {multipleSources.length > 0 ? (
+                <div className="space-y-0.5 max-h-32 overflow-y-auto">
+                  {multipleSources.map((src, i) => {
+                    const baseName = src.replace(/\\/g, "/").split("/").pop() || "";
+                    return (
+                      <div key={i} className="flex items-center gap-1.5 px-2 py-1 rounded text-[9px] bg-bg-tertiary">
+                        <span className="text-[10px]">📁</span>
+                        <span className="text-text-primary font-medium truncate">{baseName}</span>
+                        <span className="text-text-muted/60 truncate max-w-[260px] text-[8px]">{src}</span>
+                        <button onClick={() => handleRemoveMultipleSource(i)} className="ml-auto w-3.5 h-3.5 flex items-center justify-center text-text-muted/40 hover:text-error rounded">
+                          <svg className="w-2 h-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-[9px] text-text-muted/60 italic">「+ フォルダ追加」で複数のメインフォルダを指定</div>
+              )}
+            </>
           )}
         </div>
 
@@ -433,13 +667,33 @@ export function FolderSetupView() {
           <div className="flex gap-2">
             <button onClick={() => { setMode("new"); setJsonMode("new"); }}
               className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all ${mode === "new" ? "bg-accent/15 text-accent border border-accent/30" : "bg-bg-tertiary text-text-secondary border border-border/50 hover:bg-bg-elevated"}`}>
-              新作<div className="text-[9px] text-text-muted mt-0.5">{newStructure.length}フォルダ</div>
+              新作<div className="text-[9px] text-text-muted mt-0.5">タイトル+巻数階層</div>
             </button>
             <button onClick={() => { setMode("sequel"); setJsonMode("select"); }}
               className={`flex-1 py-2.5 rounded-lg text-xs font-medium transition-all ${mode === "sequel" ? "bg-accent-secondary/15 text-accent-secondary border border-accent-secondary/30" : "bg-bg-tertiary text-text-secondary border border-border/50 hover:bg-bg-elevated"}`}>
-              続話<div className="text-[9px] text-text-muted mt-0.5">{sequelStructure.length}フォルダ</div>
+              続話<div className="text-[9px] text-text-muted mt-0.5">巻数階層のみ</div>
             </button>
           </div>
+          {/* 新作時: タイトル入力（フォルダ名 + JSON新規作成時のタイトル兼用） */}
+          {mode === "new" && sourceMode === "single" && (
+            <div className="space-y-1 pt-2 border-t border-border/30">
+              <label className="text-[10px] text-text-muted font-medium block">作品タイトル <span className="text-error">*</span></label>
+              <input
+                type="text"
+                value={newWorkTitle}
+                onChange={(e) => {
+                  setNewWorkTitle(e.target.value);
+                  // JSON新規作成時のタイトルフィールドも同期
+                  setNewJsonTitle(e.target.value);
+                }}
+                placeholder="作品のタイトルを入力..."
+                className="w-full text-[11px] px-2 py-1.5 bg-bg-primary border border-border/50 rounded text-text-primary outline-none font-medium focus:border-accent/50"
+              />
+              <div className="text-[9px] text-text-muted/70">
+                → フォルダ構成: <span className="font-mono text-text-secondary">{destBase || "{コピー先}"}\{newWorkTitle || "（未入力）"}\{extractedNumber || "1"}\...</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 作品情報JSON */}
@@ -528,9 +782,32 @@ export function FolderSetupView() {
               className="flex-1 text-[10px] px-2 py-1.5 bg-bg-primary border border-border/50 rounded text-text-primary outline-none font-mono" placeholder="コピー先フォルダを選択..." />
             <button onClick={handleBrowseDest} className="px-2 py-1.5 text-[10px] bg-bg-tertiary border border-border/50 rounded hover:bg-bg-elevated text-text-secondary">参照</button>
           </div>
-          {destBase && extractedNumber && (
-            <div className="text-[10px] text-text-muted font-mono">
-              作成先: {destBase}\{extractedNumber}\<span className="text-accent">{copyDest}</span>\{sourcePath.replace(/\\/g, "/").split("/").pop() || ""}
+          {destBase && (
+            <div className="text-[10px] text-text-muted font-mono space-y-0.5">
+              {sourceMode === "single" && mode === "new" && (
+                <div>
+                  作成先: {destBase}\<span className="text-accent">{newWorkTitle || "（タイトル）"}</span>\{extractedNumber || "1"}\<span className="text-accent">{copyDest}</span>\{sourcePath.replace(/\\/g, "/").split("/").pop() || ""}
+                </div>
+              )}
+              {sourceMode === "single" && mode === "sequel" && extractedNumber && (
+                <div>
+                  作成先: {destBase}\<span className="text-accent">{extractedNumber}</span>\<span className="text-accent">{copyDest}</span>\{sourcePath.replace(/\\/g, "/").split("/").pop() || ""}
+                </div>
+              )}
+              {sourceMode === "multiple" && multipleSources.length > 0 && (
+                <div>
+                  <div>作成先（{multipleSources.length}件、各フォルダ毎に作成）:</div>
+                  {multipleSources.slice(0, 3).map((src, i) => {
+                    const baseName = src.replace(/\\/g, "/").split("/").pop() || "";
+                    return (
+                      <div key={i} className="truncate">
+                        ・{destBase}\<span className="text-accent-secondary">{baseName}</span>\<span className="text-accent">{copyDest}</span>\{baseName}
+                      </div>
+                    );
+                  })}
+                  {multipleSources.length > 3 && <div className="text-text-muted/50">...他 {multipleSources.length - 3}件</div>}
+                </div>
+              )}
             </div>
           )}
         </div>

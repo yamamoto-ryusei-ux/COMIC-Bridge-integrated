@@ -327,7 +327,8 @@ export function TopNav() {
 // ─── データ読み込みボタン（TopNav内、右寄せ） ───
 function TopNavDataButtons() {
   const textLoaded = useUnifiedViewerStore((s) => s.textContent.length > 0);
-  const presetsLoaded = useUnifiedViewerStore((s) => s.fontPresets.length > 0);
+  // presetJsonPath があれば新規作成JSON(presets空)でもロード済みとみなす
+  const presetsLoaded = useUnifiedViewerStore((s) => s.fontPresets.length > 0 || !!s.presetJsonPath);
   const checkLoaded = useUnifiedViewerStore((s) => !!s.checkData);
   const kenbanPathA = useViewStore((s) => s.kenbanPathA);
   const kenbanPathB = useViewStore((s) => s.kenbanPathB);

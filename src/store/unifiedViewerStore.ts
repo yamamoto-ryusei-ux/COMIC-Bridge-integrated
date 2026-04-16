@@ -45,6 +45,11 @@ export interface FontPresetEntry {
 export type PanelTab = "files" | "layers" | "spec" | "text" | "proofread" | "diff";
 export type LeftTab = PanelTab;
 export type RightTab = PanelTab;
+export type PanelPosition = "far-left" | "left-sub" | "right-sub" | "far-right";
+export const PANEL_POSITIONS: PanelPosition[] = ["far-left", "left-sub", "right-sub", "far-right"];
+export const PANEL_POSITION_LABELS: Record<PanelPosition, string> = {
+  "far-left": "左端", "left-sub": "左サブ", "right-sub": "右サブ", "far-right": "右端",
+};
 
 interface UnifiedViewerState {
   // ─ Files ─
@@ -56,6 +61,11 @@ interface UnifiedViewerState {
 
   // ─ Right panel ─
   rightTab: RightTab;
+
+  // ─ Panel positions (5-slot layout) ─
+  tabPositions: Partial<Record<PanelTab, PanelPosition>>;
+  /** 各ポジションから押し出されたタブを記憶（移動元が空いたら戻す用） */
+  displacedTabs: Partial<Record<PanelPosition, PanelTab>>;
 
   // ─ Text editor (COMIC-POT) ─
   textContent: string;
@@ -81,6 +91,7 @@ interface UnifiedViewerState {
   setCurrentFileIndex: (index: number) => void;
   setLeftTab: (tab: LeftTab) => void;
   setRightTab: (tab: RightTab) => void;
+  setTabPosition: (tab: PanelTab, pos: PanelPosition | null) => void;
 
   // Text
   setTextContent: (content: string) => void;
@@ -111,6 +122,8 @@ export const useUnifiedViewerStore = create<UnifiedViewerState>((set, get) => ({
   currentFileIndex: -1,
   leftTab: "files",
   rightTab: "text",
+  tabPositions: { files: "left-sub", text: "right-sub" },
+  displacedTabs: {},
   textContent: "",
   textFilePath: null,
   textHeader: [],
@@ -134,6 +147,38 @@ export const useUnifiedViewerStore = create<UnifiedViewerState>((set, get) => ({
   setCurrentFileIndex: (index) => set({ currentFileIndex: index }),
   setLeftTab: (tab) => set({ leftTab: tab }),
   setRightTab: (tab) => set({ rightTab: tab }),
+  setTabPosition: (tab, pos) => {
+    const tp = { ...get().tabPositions };
+    const dp = { ...get().displacedTabs };
+    const oldPos = tp[tab] ?? null;
+
+    // 移動元を空ける → そこに記憶されていたタブを戻す
+    if (oldPos) {
+      delete tp[tab];
+      const restored = dp[oldPos];
+      if (restored && !tp[restored]) {
+        tp[restored] = oldPos;
+      }
+      delete dp[oldPos];
+    }
+
+    if (pos === null) {
+      // 非表示にするだけ
+      set({ tabPositions: tp, displacedTabs: dp });
+      return;
+    }
+
+    // 移動先に既にタブがあれば押し出して記憶
+    const occupant = Object.entries(tp).find(([t, p]) => p === pos && t !== tab);
+    if (occupant) {
+      const occTab = occupant[0] as PanelTab;
+      delete tp[occTab];
+      dp[pos] = occTab;
+    }
+
+    tp[tab] = pos;
+    set({ tabPositions: tp, displacedTabs: dp });
+  },
 
   setTextContent: (content) => set({ textContent: content }),
   setTextFilePath: (path) => set({ textFilePath: path }),

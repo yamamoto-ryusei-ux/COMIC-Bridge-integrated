@@ -2881,6 +2881,100 @@ pub async fn delete_file(file_path: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Copy a single file from source to destination (creates parent directory if needed).
+#[tauri::command]
+pub async fn copy_file(source: String, destination: String) -> Result<(), String> {
+    let src = Path::new(&source);
+    let dst = Path::new(&destination);
+    if !src.exists() || !src.is_file() {
+        return Err(format!("Source file not found: {}", source));
+    }
+    if let Some(parent) = dst.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("Failed to create parent dir: {}", e))?;
+    }
+    fs::copy(src, dst).map_err(|e| format!("Failed to copy file: {}", e))?;
+    Ok(())
+}
+
+/// Recursively list all files in a folder that match any of the given extensions (case-insensitive).
+/// Returns FULL paths of matching files.
+/// Used by FolderSetupView to scan all nested files in the copied source folder.
+#[tauri::command]
+pub async fn list_files_by_extension_recursive(
+    folder_path: String,
+    extensions: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let folder = Path::new(&folder_path);
+    if !folder.exists() || !folder.is_dir() {
+        return Err(format!("Folder not found: {}", folder_path));
+    }
+    let exts_lower: Vec<String> = extensions.iter().map(|e| e.to_lowercase()).collect();
+
+    fn walk(dir: &Path, exts: &[String], result: &mut Vec<String>) -> Result<(), String> {
+        let entries = fs::read_dir(dir).map_err(|e| format!("read_dir error: {}", e))?;
+        for entry in entries {
+            let entry = entry.map_err(|e| format!("entry error: {}", e))?;
+            let p = entry.path();
+            if p.is_dir() {
+                walk(&p, exts, result)?;
+            } else if p.is_file() {
+                if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
+                    if exts.iter().any(|x| x == &ext.to_lowercase()) {
+                        if let Some(s) = p.to_str() {
+                            result.push(s.to_string());
+                        }
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    let mut result = Vec::new();
+    walk(folder, &exts_lower, &mut result)?;
+    Ok(result)
+}
+
+/// Recursively delete all files in a folder that match any of the given extensions (case-insensitive).
+/// Returns the number of files deleted.
+/// Used by RequestPrepView to exclude existing TXT files from ZIP output.
+#[tauri::command]
+pub async fn delete_files_by_extension_recursive(
+    folder_path: String,
+    extensions: Vec<String>,
+) -> Result<u32, String> {
+    let folder = Path::new(&folder_path);
+    if !folder.exists() || !folder.is_dir() {
+        return Err(format!("Folder not found: {}", folder_path));
+    }
+    // 小文字化した拡張子のセット
+    let exts_lower: Vec<String> = extensions.iter().map(|e| e.to_lowercase()).collect();
+
+    fn walk(dir: &Path, exts: &[String], count: &mut u32) -> Result<(), String> {
+        let entries = fs::read_dir(dir).map_err(|e| format!("read_dir error: {}", e))?;
+        for entry in entries {
+            let entry = entry.map_err(|e| format!("entry error: {}", e))?;
+            let p = entry.path();
+            if p.is_dir() {
+                walk(&p, exts, count)?;
+            } else if p.is_file() {
+                if let Some(ext) = p.extension().and_then(|e| e.to_str()) {
+                    if exts.iter().any(|x| x == &ext.to_lowercase()) {
+                        fs::remove_file(&p)
+                            .map_err(|e| format!("remove_file error: {}", e))?;
+                        *count += 1;
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
+    let mut count = 0u32;
+    walk(folder, &exts_lower, &mut count)?;
+    Ok(count)
+}
+
 /// Create a directory (and all parent directories)
 #[tauri::command]
 pub async fn create_directory(path: String) -> Result<(), String> {

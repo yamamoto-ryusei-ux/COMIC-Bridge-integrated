@@ -4,7 +4,7 @@
  * Center: 画像ビューアー (PSD/Image/PDF)
  * Right: テキスト編集 / 校正JSON
  */
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { FileContextMenu } from "../common/FileContextMenu";
 import {
   DndContext,
@@ -26,6 +26,8 @@ import {
   useUnifiedViewerStore,
   type ViewerFile,
   type FontPresetEntry,
+  PANEL_POSITION_LABELS,
+  type PanelPosition,
 } from "../../store/unifiedViewerStore";
 import type { PanelTab } from "../../store/unifiedViewerStore";
 import {
@@ -64,13 +66,12 @@ import {
 } from "./utils";
 import {
   ToolBtn,
-  PanelTabBtn,
-  LayerTreeView,
   SortableBlockItem,
   CheckJsonBrowser,
   UnifiedDiffDisplay,
 } from "./UnifiedSubComponents";
 import { useViewerFileOps } from "./useViewerFileOps";
+import { LayerTree as FullLayerTree } from "../metadata/LayerTree";
 
 // (utils, helpers, sub-components are imported from ./utils and ./UnifiedSubComponents)
 
@@ -163,6 +164,8 @@ export function UnifiedViewer() {
   // Layer highlight (写植仕様タブ → 画像ハイライト)
   const [highlightBounds, setHighlightBounds] = useState<{ top: number; left: number; bottom: number; right: number } | null>(null);
   const [activeFontFilter, setActiveFontFilter] = useState<string | null>(null);
+  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
+  const [activeTabId, setActiveTabId] = useState<PanelTab>("text");
 
   // Text diff display mode: 一致ペアの表示 ("psd" = PSDレイヤーのみ, "text" = テキストのみ)
   const [diffMatchDisplay, setDiffMatchDisplay] = useState<"psd" | "text">("text");
@@ -182,12 +185,11 @@ export function UnifiedViewer() {
     loadedText: string;
     hasDiff: boolean;
     unifiedEntries: UnifiedDiffEntry[];
-    /** PSD各レイヤーのテキスト（漫画読み順） */
     psdLayerTexts: { layerName: string; text: string; fonts: string[] }[];
-    /** COMIC-POT各ブロックのテキスト */
     loadedBlocks: { text: string; assignedFont?: string }[];
-    /** PSDレイヤー→テキストブロックの対応 (indexベース) */
     linkMap: Map<number, number>;
+    /** // で削除済みのPSDレイヤーインデックス */
+    deletedLayerIndices: Set<number>;
   } | null>(null);
 
   // Panel resize — default widths per tab
@@ -195,19 +197,7 @@ export function UnifiedViewer() {
     files: 200, layers: 260, spec: 280,
     text: 420, proofread: 380, diff: 400,
   };
-  const [leftWidth, setLeftWidth] = useState(TAB_WIDTHS[store.leftTab]);
-  const [rightWidth, setRightWidth] = useState(TAB_WIDTHS[store.rightTab]);
   const [resizingSide, setResizingSide] = useState<"left" | "right" | null>(null);
-  const [leftManualResize, setLeftManualResize] = useState(false);
-  const [rightManualResize, setRightManualResize] = useState(false);
-
-  // Auto-resize on tab change (unless manually resized)
-  useEffect(() => {
-    if (!leftManualResize) setLeftWidth(TAB_WIDTHS[store.leftTab]);
-  }, [store.leftTab]);
-  useEffect(() => {
-    if (!rightManualResize) setRightWidth(TAB_WIDTHS[store.rightTab]);
-  }, [store.rightTab]);
 
   // Refs
   const cache = useRef(new Map<string, CacheEntry>());
@@ -221,6 +211,7 @@ export function UnifiedViewer() {
 
   const { files, currentFileIndex: idx } = store;
   const cur = files[idx] || null;
+  useEffect(() => { setSelectedLayerId(null); setHighlightBounds(null); }, [idx]);
 
   // ═══ PDF.js lazy load ═══
   const ensurePdfJs = useCallback(async () => {
@@ -407,6 +398,58 @@ export function UnifiedViewer() {
     [store.textPages],
   );
 
+  // ═══ Block add (ブロック追加) ═══
+  const handleAddBlock = useCallback(
+    (pageNumber: number) => {
+      const newId = `p${pageNumber}-b${Date.now()}`;
+      const updated = store.textPages.map((p) => {
+        if (p.pageNumber !== pageNumber) return p;
+        return {
+          ...p,
+          blocks: [
+            ...p.blocks,
+            { id: newId, originalIndex: -1, lines: [""], isAdded: true },
+          ],
+        };
+      });
+      store.setTextPages(updated);
+      store.setIsDirty(true);
+    },
+    [store.textPages],
+  );
+
+  // ═══ Block delete toggle (// prefix) ═══
+  const handleDeleteBlocks = useCallback(() => {
+    if (store.selectedBlockIds.size === 0) return;
+    const updated = store.textPages.map((p) => ({
+      ...p,
+      blocks: p.blocks.map((b) => {
+        if (!store.selectedBlockIds.has(b.id)) return b;
+        const firstLine = b.lines[0] || "";
+        if (firstLine.startsWith("//")) {
+          return { ...b, lines: [firstLine.slice(2), ...b.lines.slice(1)] };
+        }
+        return { ...b, lines: ["//" + firstLine, ...b.lines.slice(1)] };
+      }),
+    }));
+    store.setTextPages(updated);
+    store.setIsDirty(true);
+    store.setSelectedBlockIds(new Set());
+  }, [store.textPages, store.selectedBlockIds]);
+
+  // ═══ Block inline edit (ダブルクリック編集) ═══
+  const handleEditBlock = useCallback(
+    (blockId: string, newLines: string[]) => {
+      const updated = store.textPages.map((p) => ({
+        ...p,
+        blocks: p.blocks.map((b) => (b.id === blockId ? { ...b, lines: newLines } : b)),
+      }));
+      store.setTextPages(updated);
+      store.setIsDirty(true);
+    },
+    [store.textPages],
+  );
+
   // 編集モード切替時にバッファを初期化
   useEffect(() => {
     if (store.editMode === "edit") {
@@ -451,10 +494,18 @@ export function UnifiedViewer() {
     setChunks(result);
   }, []);
 
-  // textContent が外部（TopNav等）から変更された場合にchunksを自動更新
+  // textContent が外部（TopNav等）から変更された場合にchunks + textPagesを自動更新
   useEffect(() => {
     if (store.textContent.length > 0) {
       parseChunks(store.textContent);
+      // textPagesが空の場合のみ自動パース（既にパース済みの場合は上書きしない）
+      if (store.textPages.length === 0) {
+        const { header, pages } = parseComicPotText(store.textContent);
+        if (pages.length > 0) {
+          store.setTextHeader(header);
+          store.setTextPages(pages);
+        }
+      }
     } else {
       setChunks([]);
     }
@@ -471,8 +522,8 @@ export function UnifiedViewer() {
   });
 
   // 編集バッファ対応の保存ハンドラ
-  // 編集中（editBuffer != null）の場合は editBuffer をファイルに書き込み、ストアにも反映
-  // それ以外は通常の handleSave を呼ぶ
+  // 編集モード: editBuffer をファイルに書き込み、ストアにも反映
+  // 選択モード: textPages を serializeText で再構築して保存（ブロック移動・フォント変更を反映）
   const handleSave = useCallback(async () => {
     const s = useUnifiedViewerStore.getState();
     if (!s.textFilePath) return;
@@ -480,7 +531,6 @@ export function UnifiedViewer() {
     if (editBuffer !== null && editBuffer !== s.textContent) {
       try {
         await invoke("write_text_file", { filePath: s.textFilePath, content: editBuffer });
-        // ストアにも反映
         s.setTextContent(editBuffer);
         parseChunks(editBuffer);
         const { header, pages } = parseComicPotText(editBuffer);
@@ -490,7 +540,19 @@ export function UnifiedViewer() {
       } catch { /* ignore */ }
       return;
     }
-    // 編集していない場合は通常保存
+    // 選択モードの変更（ブロック移動・フォント割当・追加・削除）を反映して保存
+    if (s.textPages.length > 0) {
+      const { serializeText: serialize } = await import("./utils");
+      const content = serialize(s.textHeader, s.textPages, s.fontPresets);
+      try {
+        await invoke("write_text_file", { filePath: s.textFilePath, content });
+        s.setTextContent(content);
+        parseChunks(content);
+        s.setIsDirty(false);
+      } catch { /* ignore */ }
+      return;
+    }
+    // フォールバック: そのまま保存
     await handleSaveBase();
   }, [editBuffer, parseChunks, handleSaveBase]);
 
@@ -871,17 +933,10 @@ export function UnifiedViewer() {
     return () => { window.removeEventListener("mousemove", mv); window.removeEventListener("mouseup", up); };
   }, [dragging]);
 
-  // Panel resize
+  // Panel resize (drag handle)
   useEffect(() => {
     if (!resizingSide) return;
-    const mv = (e: MouseEvent) => {
-      if (resizingSide === "left") { setLeftWidth(Math.max(180, Math.min(500, e.clientX))); setLeftManualResize(true); }
-      else {
-        const r = window.innerWidth - e.clientX;
-        setRightWidth(Math.max(280, Math.min(700, r)));
-        setRightManualResize(true);
-      }
-    };
+    const mv = (_e: MouseEvent) => { /* panels use fixed TAB_WIDTHS */ };
     const up = () => setResizingSide(null);
     window.addEventListener("mousemove", mv);
     window.addEventListener("mouseup", up);
@@ -982,6 +1037,7 @@ export function UnifiedViewer() {
       setTextDiffResults(null);
       return;
     }
+    try {
     // Extract PSD text — 漫画読み順ソート（上→下、右→左）
     const canvasH = metadata?.height || 1;
     const rowThreshold = canvasH * 0.08;
@@ -1005,14 +1061,30 @@ export function UnifiedViewer() {
     const textPageNums = getTextPageNumbers(idx, diffSplitMode);
     const loadedParts: string[] = [];
     const loadedBlocksArr: { text: string; assignedFont?: string }[] = [];
-    for (const pn of textPageNums) {
-      const page = store.textPages.find((p) => p.pageNumber === pn);
-      if (page) {
-        loadedParts.push(page.blocks.map((b) => b.lines.join("\n")).join("\n\n"));
-        loadedBlocksArr.push(...page.blocks.map((b) => ({ text: b.lines.join("\n"), assignedFont: b.assignedFont })));
+    // // で始まるブロックの元テキスト（//除去版）を削除済みセットとして収集
+    const deletedTexts = new Set<string>();
+    if (store.textPages.length > 0) {
+      for (const pn of textPageNums) {
+        const page = store.textPages.find((p) => p.pageNumber === pn);
+        if (page) {
+          for (const b of page.blocks) {
+            if (b.lines[0]?.startsWith("//")) {
+              const stripped = [b.lines[0].slice(2), ...b.lines.slice(1)].join("\n");
+              deletedTexts.add(normalizeTextForComparison(stripped));
+            }
+          }
+          const activeBlocks = page.blocks.filter((b) => !(b.lines[0]?.startsWith("//")));
+          loadedParts.push(activeBlocks.map((b) => b.lines.join("\n")).join("\n\n"));
+          loadedBlocksArr.push(...activeBlocks.map((b) => ({ text: b.lines.join("\n"), assignedFont: b.assignedFont })));
+        }
       }
     }
-    const loadedText = loadedParts.join("\n\n");
+    // textPagesが空（非COMIC-POT形式）の場合は全テキストをフォールバック比較
+    let loadedText = loadedParts.join("\n\n");
+    if (!loadedText && store.textContent.length > 0) {
+      loadedText = store.textContent;
+      loadedBlocksArr.push({ text: store.textContent });
+    }
     if (!psdText || !loadedText) { setTextDiffResults(null); return; }
 
     // レイヤー情報を保存
@@ -1051,9 +1123,19 @@ export function UnifiedViewer() {
       }
     }
 
-    // hasDiff: ペアごとの一致判定（全ペア一致なら一致）
+    // PSDレイヤーごとに削除済みかどうかを判定
+    const deletedLayerIndices = new Set<number>();
+    for (let pi = 0; pi < psdLayerTexts.length; pi++) {
+      if (!linkMap.has(pi)) {
+        const normP = normalizeTextForComparison(psdLayerTexts[pi].text);
+        if (deletedTexts.has(normP)) deletedLayerIndices.add(pi);
+      }
+    }
+
+    // hasDiff: ペアごとの一致判定（削除済みは差異としない）
     let hasDiff = false;
     for (let pi = 0; pi < psdLayerTexts.length; pi++) {
+      if (deletedLayerIndices.has(pi)) continue;
       const bi = linkMap.get(pi);
       if (bi === undefined) { hasDiff = true; break; }
       const normP = normalizeTextForComparison(psdLayerTexts[pi].text);
@@ -1080,7 +1162,12 @@ export function UnifiedViewer() {
       psdLayerTexts,
       loadedBlocks,
       linkMap,
+      deletedLayerIndices,
     });
+    } catch (e) {
+      console.error("Text diff computation error:", e);
+      setTextDiffResults(null);
+    }
   }, [textLayers, store.textContent, store.textPages, idx, metadata, diffSplitMode]);
   const checkData = store.checkData;
   const activeCheckItems = useMemo(() => {
@@ -1146,14 +1233,23 @@ export function UnifiedViewer() {
         );
       case "layers":
         return (
-          <div className="p-2">
-            {layerTree.length === 0 ? (
-              <p className="text-[11px] text-text-muted text-center py-4">
-                {cur ? (isPsdFile(cur.name) ? "レイヤー読み込み中..." : "PSDファイルではありません") : "ファイルを選択してください"}
-              </p>
-            ) : (
-              <LayerTreeView nodes={layerTree} />
-            )}
+          <div className="flex flex-col h-full overflow-hidden">
+            <div className="flex-1 overflow-auto">
+              {layerTree.length === 0 ? (
+                <p className="text-[11px] text-text-muted text-center py-4">
+                  {cur ? (isPsdFile(cur.name) ? "レイヤー読み込み中..." : "PSDファイルではありません") : "ファイルを選択してください"}
+                </p>
+              ) : (
+                <FullLayerTree
+                  layers={layerTree}
+                  selectedLayerId={selectedLayerId}
+                  onSelectLayer={(layerId, bounds) => {
+                    setSelectedLayerId(layerId);
+                    setHighlightBounds(bounds);
+                  }}
+                />
+              )}
+            </div>
           </div>
         );
       case "spec":
@@ -1281,9 +1377,35 @@ export function UnifiedViewer() {
                   >
                     ✕解除
                   </button>
+                  <button
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-error/10 text-error hover:bg-error/20 flex-shrink-0 border border-error/30"
+                    onClick={handleDeleteBlocks}
+                    title="選択ブロックの削除/復元（// prefix toggle）"
+                  >
+                    削除//
+                  </button>
                   <span className="text-[10px] text-text-muted flex-shrink-0">{store.selectedBlockIds.size}選択中</span>
                 </>
               )}
+              <div className="flex-1" />
+              {/* テキスト照合タブへ */}
+              {store.textContent.length > 0 && textLayers.length > 0 && (
+                <button
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary text-text-muted hover:text-accent flex-shrink-0"
+                  onClick={() => store.setRightTab("diff")}
+                  title="テキスト照合タブを表示"
+                >
+                  照合
+                </button>
+              )}
+              {/* フォントJSON読み込み */}
+              <button
+                className="text-[10px] px-1.5 py-0.5 rounded bg-bg-tertiary text-text-muted hover:text-text-primary flex-shrink-0"
+                onClick={() => setJsonBrowserMode("preset")}
+                title="フォントプリセットJSONを読み込み"
+              >
+                {store.fontPresets.length > 0 ? "フォント変更" : "+フォント"}
+              </button>
             </div>
             {/* フォント情報 — 全ファイル使用フォント + JSONプリセット(ドロップダウン) */}
             {(allFilesFontMap.size > 0 || store.fontPresets.length > 0) && (
@@ -1327,30 +1449,55 @@ export function UnifiedViewer() {
                     </div>
                   </div>
                 )}
-                {/* 作品情報JSONプリセット — ドロップダウン */}
-                {store.fontPresets.length > 0 && store.editMode === "select" && (
-                  <div>
-                    <div className="text-[9px] text-text-muted/60 mb-0.5">プリセットフォント</div>
+                {/* プリセットフォント — ドロップダウンで割当 */}
+                {store.fontPresets.length > 0 && (
+                  <div className="flex items-center gap-1.5">
                     <select
-                      className="w-full text-[10px] bg-bg-primary border border-border/40 rounded px-1.5 py-0.5 text-text-primary outline-none"
+                      className="flex-1 text-[10px] bg-bg-primary border border-border/40 rounded px-1.5 py-0.5 text-text-primary outline-none"
                       value=""
                       onChange={(e) => {
                         const font = e.target.value;
                         if (!font) return;
-                        const sel = store.selectedBlockIds;
-                        if (sel.size > 0) {
-                          store.assignFontToBlocks([...sel], font);
+                        if (store.selectedBlockIds.size > 0) {
+                          store.assignFontToBlocks([...store.selectedBlockIds], font);
+                          const allBlocks = store.textPages.flatMap((p) => p.blocks);
+                          const lastIdx = Math.max(...[...store.selectedBlockIds].map((id) => allBlocks.findIndex((b) => b.id === id)));
                           store.setSelectedBlockIds(new Set());
+                          if (lastIdx >= 0 && lastIdx < allBlocks.length - 1) {
+                            store.setSelectedBlockIds(new Set([allBlocks[lastIdx + 1].id]));
+                          }
                         }
                       }}
                     >
-                      <option value="">フォント割当を選択 ({store.fontPresets.length})</option>
+                      <option value="">
+                        {store.selectedBlockIds.size > 0
+                          ? `フォント割当 (${store.selectedBlockIds.size}件選択中)`
+                          : `プリセットフォント (${store.fontPresets.length})`}
+                      </option>
                       {store.fontPresets.map((fp, i) => (
                         <option key={i} value={fp.font}>
                           {fp.name || getFontLabel(fp.font)}{fp.subName ? ` (${fp.subName})` : ""}
                         </option>
                       ))}
                     </select>
+                    {store.selectedBlockIds.size > 0 && (
+                      <button
+                        onClick={() => {
+                          const pages = store.textPages.map((p) => ({
+                            ...p,
+                            blocks: p.blocks.map((b) =>
+                              store.selectedBlockIds.has(b.id) ? { ...b, assignedFont: undefined } : b,
+                            ),
+                          }));
+                          store.setTextPages(pages);
+                          store.setIsDirty(true);
+                        }}
+                        className="text-[10px] px-1 py-0.5 rounded text-text-muted hover:text-error transition-colors flex-shrink-0"
+                        title="フォント指定を解除"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -1439,6 +1586,13 @@ export function UnifiedViewer() {
                           >
                             <span>&lt;&lt;{page.pageNumber}Page&gt;&gt;</span>
                             {isActivePage && <span className="text-accent text-[9px]">●</span>}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleAddBlock(page.pageNumber); }}
+                              className="ml-auto w-4 h-4 flex items-center justify-center rounded text-text-muted/40 hover:text-accent hover:bg-accent/10 transition-all flex-shrink-0"
+                              title="ブロック追加"
+                            >
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                            </button>
                             {hasReorder && <span className="text-warning text-[9px]">順序変更</span>}
                           </div>
                           <DndContext
@@ -1480,6 +1634,7 @@ export function UnifiedViewer() {
                                     store.setSelectedBlockIds(sel);
                                     if (pageSync) navigateToTextPage(page.pageNumber);
                                   }}
+                                  onEditBlock={handleEditBlock}
                                 />
                               ))}
                             </SortableContext>
@@ -1518,111 +1673,105 @@ export function UnifiedViewer() {
         return (
           <div className="flex flex-col h-full">
             {!textDiffResults ? (
-              <div className="flex flex-col items-center justify-center h-full gap-2 text-text-muted p-4 text-center">
-                <p className="text-xs">
-                  {!cur
-                    ? "ファイルを選択してください"
-                    : textLayers.length === 0 && !cur.metadata
-                      ? "メタデータを読み込み中..."
-                      : textLayers.length === 0
-                        ? "このファイルにはテキストレイヤーがありません"
-                        : store.textContent.length === 0
-                          ? "テキストファイルを読み込んでください"
-                          : "照合データがありません"}
+              <div className="flex items-center justify-center h-full text-text-muted p-3 text-center">
+                <p className="text-[10px]">
+                  {!cur ? "ファイル未選択"
+                    : textLayers.length === 0 ? "テキストレイヤーなし"
+                    : store.textContent.length === 0 ? "テキスト未読込"
+                    : "照合データなし"}
                 </p>
               </div>
             ) : (
               <>
-                {/* ステータスバー + 設定 */}
-                <div className={`flex-shrink-0 flex items-center gap-2 px-3 py-1.5 border-b border-border/30 ${
-                  textDiffResults.hasDiff ? "bg-warning/10" : "bg-success/10"
+                {/* ステータスバー */}
+                <div className={`flex-shrink-0 flex items-center gap-1 px-2 py-0.5 border-b border-border/30 ${
+                  textDiffResults.hasDiff ? "bg-warning/10"
+                    : textDiffResults.deletedLayerIndices.size > 0 ? "bg-warning/10"
+                    : "bg-success/10"
                 }`}>
-                  <span className={`text-[11px] font-medium ${textDiffResults.hasDiff ? "text-warning" : "text-success"}`}>
-                    {textDiffResults.hasDiff ? "差異あり" : "一致"}
+                  <span className={`text-[10px] font-medium ${
+                    textDiffResults.hasDiff ? "text-warning"
+                      : textDiffResults.deletedLayerIndices.size > 0 ? "text-warning"
+                      : "text-success"
+                  }`}>
+                    {textDiffResults.hasDiff ? "差異"
+                      : textDiffResults.deletedLayerIndices.size > 0 ? "削除あり"
+                      : "一致"}
                   </span>
-                  <span className="text-[10px] text-text-muted">
-                    p.{idx + 1} — PSD: {textDiffResults.psdLayerTexts.length}レイヤー / テキスト: {textDiffResults.loadedBlocks.length}ブロック
+                  <span className="text-[9px] text-text-muted">
+                    p.{idx + 1} PSD:{textDiffResults.psdLayerTexts.length} / T:{textDiffResults.loadedBlocks.length}
                   </span>
                   <div className="flex-1" />
-                  <span className="text-[9px] text-text-muted/50">一致:</span>
-                  <div className="flex bg-bg-tertiary rounded overflow-hidden text-[9px]">
-                    <button onClick={() => setDiffMatchDisplay("psd")} className={`px-1.5 py-0.5 transition-colors ${diffMatchDisplay === "psd" ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"}`}>PSD</button>
-                    <button onClick={() => setDiffMatchDisplay("text")} className={`px-1.5 py-0.5 transition-colors ${diffMatchDisplay === "text" ? "bg-accent text-white" : "text-text-muted hover:text-text-primary"}`}>テキスト</button>
+                  <div className="flex bg-bg-tertiary rounded overflow-hidden text-[8px]">
+                    <button onClick={() => setDiffMatchDisplay("psd")} className={`px-1 py-px ${diffMatchDisplay === "psd" ? "bg-accent text-white" : "text-text-muted"}`}>PSD</button>
+                    <button onClick={() => setDiffMatchDisplay("text")} className={`px-1 py-px ${diffMatchDisplay === "text" ? "bg-accent text-white" : "text-text-muted"}`}>T</button>
                   </div>
                 </div>
-                {/* 単ページ化は中央ナビバーに統合済み */}
-
-                {/* レイヤー↔テキスト対応リスト + 差分表示 */}
+                {/* 照合リスト */}
                 <div className="flex-1 overflow-auto">
-                  <div className="divide-y divide-border/20">
+                  <div className="divide-y divide-border/15">
                     {textDiffResults.psdLayerTexts.map((layer, pi) => {
+                      const isDeleted = textDiffResults.deletedLayerIndices.has(pi);
+                      if (isDeleted) {
+                        return (
+                          <div key={pi} className="bg-warning/8">
+                            <div className="flex items-center gap-1 px-1.5 py-0.5 text-[9px]">
+                              <span className="w-3 h-3 rounded-full text-[8px] text-white flex items-center justify-center font-bold flex-shrink-0 bg-warning/70">{pi + 1}</span>
+                              <span className="text-text-muted truncate line-through">{layer.layerName}</span>
+                              <span className="ml-auto text-warning font-medium">テキスト削除確認</span>
+                            </div>
+                            <div className="px-1.5 py-0.5 text-[9px] font-mono whitespace-pre-wrap break-all text-error/60 line-through leading-tight">
+                              {layer.text}
+                            </div>
+                          </div>
+                        );
+                      }
                       const bi = textDiffResults.linkMap.get(pi);
                       const block = bi !== undefined ? textDiffResults.loadedBlocks[bi] : null;
                       const normL = normalizeTextForComparison(layer.text);
                       const normB = block ? normalizeTextForComparison(block.text) : "";
                       const isMatch = block ? normL === normB : false;
-                      const linkColor = FONT_COLORS[pi % FONT_COLORS.length];
                       return (
-                        <div key={pi} className={`${isMatch ? "" : "bg-warning/5"}`}>
-                          {/* ペアヘッダー — 差異時のみ表示 */}
+                        <div key={pi} className={isMatch ? "" : "bg-warning/5"}>
                           {!isMatch && (
-                            <div className="flex items-center gap-1.5 px-2 py-1 bg-bg-tertiary/30">
-                              <span className="w-4 h-4 rounded-full text-[9px] text-white flex items-center justify-center font-bold flex-shrink-0" style={{ backgroundColor: linkColor }}>
-                                {pi + 1}
-                              </span>
-                              <span className="text-[10px] text-text-primary font-medium truncate">{layer.layerName}</span>
-                              <span className="text-[9px] text-text-muted/50">→</span>
-                              {block ? (
-                                <span className="text-[10px] text-text-muted">ブロック {bi! + 1}</span>
-                              ) : (
-                                <span className="text-[10px] text-error">対応なし</span>
-                              )}
-                              <div className="flex-1" />
-                              <span className="text-[9px] text-warning font-medium">差異</span>
+                            <div className="flex items-center gap-1 px-1.5 py-0.5 bg-bg-tertiary/30 text-[9px]">
+                              <span className="w-3 h-3 rounded-full text-[8px] text-white flex items-center justify-center font-bold flex-shrink-0" style={{ backgroundColor: FONT_COLORS[pi % FONT_COLORS.length] }}>{pi + 1}</span>
+                              <span className="text-text-primary font-medium truncate">{layer.layerName}</span>
+                              <span className="text-text-muted/50">→</span>
+                              {block ? <span className="text-text-muted">B{bi! + 1}</span> : <span className="text-error">なし</span>}
+                              <span className="ml-auto text-warning">差異</span>
                             </div>
                           )}
-                          {/* コンテンツ: 差異あり→2カラム、一致→1カラム（切替） */}
                           {isMatch ? (
-                            <div className="px-2 py-1 text-[10px] font-mono whitespace-pre-wrap break-all text-text-secondary">
+                            <div className="px-1.5 py-0.5 text-[9px] font-mono whitespace-pre-wrap break-all text-text-secondary leading-tight">
                               {diffMatchDisplay === "psd" ? layer.text : (block?.text ?? "")}
                             </div>
                           ) : (
                             <div className="grid grid-cols-2 gap-0">
-                              <div className="px-2 py-1 text-[10px] font-mono whitespace-pre-wrap break-all text-text-secondary border-r border-border/20">
-                                <div className="text-[9px] text-text-muted/40 mb-0.5">PSD</div>
+                              <div className="px-1.5 py-0.5 text-[9px] font-mono whitespace-pre-wrap break-all text-text-secondary border-r border-border/15 leading-tight">
                                 {layer.text}
                               </div>
-                              <div className="px-2 py-1 text-[10px] font-mono whitespace-pre-wrap break-all text-text-secondary">
-                                <div className="text-[9px] text-text-muted/40 mb-0.5">テキスト</div>
-                                {block ? block.text : <span className="text-text-muted/30 italic">—</span>}
+                              <div className="px-1.5 py-0.5 text-[9px] font-mono whitespace-pre-wrap break-all text-text-secondary leading-tight">
+                                {block ? block.text : <span className="text-text-muted/30">—</span>}
                               </div>
                             </div>
                           )}
                         </div>
                       );
                     })}
-                    {/* テキストにのみ存在するブロック（PSD対応なし） */}
                     {textDiffResults.loadedBlocks.map((block, bi) => {
-                      const isLinked = [...textDiffResults.linkMap.values()].includes(bi);
-                      if (isLinked) return null;
+                      if ([...textDiffResults.linkMap.values()].includes(bi)) return null;
                       return (
-                        <div key={`extra-${bi}`} className="bg-success/5">
-                          <div className="flex items-center gap-1.5 px-2 py-1 bg-bg-tertiary/30">
-                            <span className="w-4 h-4 rounded-full text-[9px] bg-success/60 text-white flex items-center justify-center font-bold flex-shrink-0">+</span>
-                            <span className="text-[10px] text-success">テキストのみ — ブロック {bi + 1}</span>
-                          </div>
-                          <div className="px-2 py-1 text-[10px] font-mono whitespace-pre-wrap break-all text-success">
-                            {block.text}
-                          </div>
+                        <div key={`x-${bi}`} className="bg-success/5 px-1.5 py-0.5">
+                          <span className="text-[8px] text-success mr-1">+B{bi + 1}</span>
+                          <span className="text-[9px] font-mono text-success leading-tight">{block.text}</span>
                         </div>
                       );
                     })}
                   </div>
-
-                  {/* 文字レベル差分詳細 */}
                   {textDiffResults.hasDiff && textDiffResults.unifiedEntries.length > 0 && (
-                    <div className="p-3 border-t border-border/30">
-                      <div className="text-[10px] font-medium text-warning mb-1.5">文字レベル差分</div>
+                    <div className="p-2 border-t border-border/30">
+                      <div className="text-[9px] font-medium text-warning mb-1">文字レベル差分</div>
                       <UnifiedDiffDisplay entries={textDiffResults.unifiedEntries} />
                     </div>
                   )}
@@ -1713,7 +1862,7 @@ export function UnifiedViewer() {
         return null;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [files, idx, cur, layerTree, textLayers, postScriptNames, allFilesFontMap, activeFontFilter, highlightBounds, store.fontPresets, store.textContent, store.editMode, store.textPages, store.selectedBlockIds, store.checkTabMode, textDiffResults, diffMatchDisplay, diffSplitMode, fileDiffStatusMap, editBuffer, checkData, filteredCheckItems, activeCheckItems, categories, checkFilterCategory, chunks, selectedChunk, pageSync, navigateToTextPage, fontResolveMap, fontResolved]);
+  }, [files, idx, cur, layerTree, textLayers, postScriptNames, allFilesFontMap, activeFontFilter, highlightBounds, store.fontPresets, store.textContent, store.editMode, store.textPages, store.selectedBlockIds, store.checkTabMode, textDiffResults, diffMatchDisplay, diffSplitMode, fileDiffStatusMap, editBuffer, checkData, filteredCheckItems, activeCheckItems, categories, checkFilterCategory, chunks, selectedChunk, pageSync, navigateToTextPage, fontResolveMap, fontResolved, handleAddBlock, handleDeleteBlocks, handleEditBlock, selectedLayerId]);
 
   // ═══════════════════════════════════════════════════════
   // RENDER
@@ -1758,39 +1907,84 @@ export function UnifiedViewer() {
       {/* ─── Tab selector bar ─── */}
       <div className="flex-shrink-0 h-7 bg-bg-tertiary/50 border-b border-border/50 flex items-center text-[10px]">
         <div className="flex-1" />
-        {/* Right panel tabs (2つまで選択可能) */}
-        <div className="flex items-center gap-0.5 px-1 border-l border-border/30">
+        {/* タブボタン一覧（右寄せ） */}
+        <div className="flex items-center gap-0.5 px-1">
           {ALL_PANEL_TABS.map((t) => {
-            const isRight = store.rightTab === t.id;
-            const isLeft = store.leftTab === t.id && store.leftTab !== store.rightTab;
+            const pos = store.tabPositions[t.id] ?? null;
+            const isActive = activeTabId === t.id;
+            const badge = t.id === "proofread" ? (checkData?.allItems.length || 0)
+              : t.id === "diff" ? (textDiffResults?.hasDiff ? 1 : textDiffResults?.deletedLayerIndices.size ? 1 : 0) : 0;
             return (
-              <PanelTabBtn
+              <button
                 key={t.id}
-                active={isRight || isLeft}
                 onClick={() => {
-                  // 左クリック: 現在のメインタブを更新
-                  store.setRightTab(t.id);
-                  setRightManualResize(false);
+                  setActiveTabId(t.id);
+                  if (!pos) store.setTabPosition(t.id, "far-right");
                 }}
-                onContextMenu={(e: React.MouseEvent) => {
-                  e.preventDefault();
-                  // 右クリック: 新規タブとして左側に追加
-                  if (t.id !== store.rightTab) {
-                    store.setLeftTab(t.id);
-                  }
-                }}
-                badge={t.id === "proofread" ? (checkData?.allItems.length || undefined) : t.id === "diff" ? (textDiffResults?.hasDiff ? 1 : undefined) : undefined}
+                className={`px-1 py-0.5 rounded text-[9px] whitespace-nowrap transition-colors ${
+                  isActive ? "ring-1 ring-accent/50 bg-accent/15 text-accent font-medium"
+                    : pos ? "bg-accent/10 text-accent/80" : "text-text-muted hover:text-text-secondary hover:bg-bg-tertiary/60"
+                }`}
               >
-                {isLeft ? "◀ " : ""}{t.label}{isRight ? " ●" : ""}
-              </PanelTabBtn>
+                {t.label}
+                {pos && <span className="text-[7px] ml-0.5 opacity-50">{PANEL_POSITION_LABELS[pos]}</span>}
+                {badge > 0 && <span className="ml-0.5 px-0.5 rounded-full bg-accent/20 text-[8px] tabular-nums">{badge}</span>}
+              </button>
             );
           })}
-          {store.isDirty && <span className="text-warning text-[10px] ml-1">未保存</span>}
+          {/* 配置移動ボタン（左右） — 中央（ビューアー）はスキップ */}
+          <button
+            onClick={() => {
+              const curPos = store.tabPositions[activeTabId] ?? null;
+              if (curPos === "far-left") store.setTabPosition(activeTabId, null);
+              else if (curPos === "left-sub") store.setTabPosition(activeTabId, "far-left");
+              else if (curPos === "right-sub") store.setTabPosition(activeTabId, "left-sub");
+              else if (curPos === "far-right") store.setTabPosition(activeTabId, "right-sub");
+              else store.setTabPosition(activeTabId, "far-right");
+            }}
+            className="px-1 py-0.5 rounded text-[9px] text-text-muted hover:text-accent hover:bg-accent/10 transition-colors"
+            title={`「${ALL_PANEL_TABS.find((t) => t.id === activeTabId)?.label}」を左へ移動`}
+          >◀</button>
+          <button
+            onClick={() => {
+              const curPos = store.tabPositions[activeTabId] ?? null;
+              if (curPos === "far-right") store.setTabPosition(activeTabId, null);
+              else if (curPos === "right-sub") store.setTabPosition(activeTabId, "far-right");
+              else if (curPos === "left-sub") store.setTabPosition(activeTabId, "right-sub");
+              else if (curPos === "far-left") store.setTabPosition(activeTabId, "left-sub");
+              else store.setTabPosition(activeTabId, "far-right");
+            }}
+            className="px-1 py-0.5 rounded text-[9px] text-text-muted hover:text-accent hover:bg-accent/10 transition-colors"
+            title={`「${ALL_PANEL_TABS.find((t) => t.id === activeTabId)?.label}」を右へ移動`}
+          >▶</button>
         </div>
+        {store.isDirty && <span className="text-warning text-[10px] ml-1 mr-1">未保存</span>}
       </div>
 
       {/* ─── Main area (center + right) ─── */}
       <div className="flex-1 flex overflow-hidden relative">
+
+        {/* ═══ LEFT-SIDE PANELS (左端 / 左サブ) ═══ */}
+        {(["far-left", "left-sub"] as PanelPosition[]).map((pos) => {
+          const entry = Object.entries(store.tabPositions).find(([, p]) => p === pos);
+          if (!entry) return null;
+          const tab = entry[0] as PanelTab;
+          return (
+            <React.Fragment key={pos}>
+              <div className="flex flex-col overflow-hidden bg-bg-secondary border-r border-border" style={{ width: TAB_WIDTHS[tab] }}>
+                <div className="flex-shrink-0 h-5 bg-bg-tertiary/30 border-b border-border/30 flex items-center px-1.5 gap-0.5">
+                  <span className="text-[8px] text-accent/40">{PANEL_POSITION_LABELS[pos]}</span>
+                  <span className="text-[8px] text-text-muted/60 flex-1 truncate">{ALL_PANEL_TABS.find((t) => t.id === tab)?.label}</span>
+                  <button onClick={() => { store.setTabPosition(tab, null); setActiveTabId(tab); }} className="text-[8px] text-text-muted/40 hover:text-error">✕</button>
+                </div>
+                <div className="flex-1 overflow-auto">
+                  {renderTabContent(tab)}
+                </div>
+              </div>
+              <div className="w-1 flex-shrink-0 cursor-col-resize hover:bg-accent/30 transition-colors bg-transparent" onMouseDown={(e) => { e.preventDefault(); setResizingSide("left"); }} />
+            </React.Fragment>
+          );
+        })}
 
         {/* ═══ PAGE LIST (vertical) ═══ */}
         <div className="w-8 flex-shrink-0 bg-bg-secondary border-r border-border/30 overflow-y-auto overflow-x-hidden select-none">
@@ -1868,12 +2062,43 @@ export function UnifiedViewer() {
           {/* Image area */}
           <div
             ref={canvasRef}
-            className={`flex-1 overflow-auto flex items-center justify-center bg-[#1a1a1e] ${
+            className={`relative flex-1 overflow-auto flex items-center justify-center bg-[#1a1a1e] ${
               zoom > 0 ? (dragging ? "cursor-grabbing" : "cursor-grab") : ""
             } ${dragOver ? "ring-2 ring-inset ring-accent/50" : ""}`}
             onMouseDown={onCanvasMouseDown}
             style={{ userSelect: "none" }}
           >
+            {/* Reload button (top-right): clears cache and reloads currently displayed file */}
+            {files.length > 0 && (
+              <button
+                type="button"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const curFile = files[idx];
+                  if (!curFile) return;
+                  // ローカルキャッシュから該当エントリを削除
+                  const cacheKey = curFile.pdfPage ? `${curFile.path}#p${curFile.pdfPage}` : curFile.path;
+                  cache.current.delete(cacheKey);
+                  // PDFドキュメントキャッシュもクリア
+                  if (curFile.pdfPath) pdfDocCache.current.delete(curFile.pdfPath);
+                  else if (curFile.path) pdfDocCache.current.delete(curFile.path);
+                  // バックエンドのプレビューキャッシュも無効化
+                  try {
+                    await invoke("invalidate_file_cache", { filePath: curFile.path });
+                  } catch { /* ignore */ }
+                  // 現在の画像を再読み込み
+                  setImgUrl(null);
+                  loadImageRef.current(idx);
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                className="absolute top-2 right-2 z-20 w-8 h-8 rounded-lg bg-black/40 hover:bg-black/60 text-white/80 hover:text-white backdrop-blur-sm border border-white/20 flex items-center justify-center transition-colors"
+                title="再読み込み（画像表示失敗時の復旧）"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            )}
             {files.length === 0 ? (
               <div className="flex flex-col items-center gap-3 text-text-muted p-8 text-center">
                 <svg className="w-12 h-12 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
@@ -1921,45 +2146,27 @@ export function UnifiedViewer() {
           </div>
         </div>
 
-        {/* Right resize handle */}
-        <div
-          className={`w-1 flex-shrink-0 cursor-col-resize hover:bg-accent/30 transition-colors ${
-            resizingSide === "right" ? "bg-accent/50" : "bg-transparent"
-          }`}
-          onMouseDown={(e) => { e.preventDefault(); setResizingSide("right"); }}
-        />
-
-        {/* ═══ RIGHT PANELS (2つまで) ═══ */}
-        {store.leftTab !== store.rightTab && (
-          <>
-            {/* 2つ目のパネル（左側） */}
-            <div className="flex flex-col overflow-hidden bg-bg-secondary border-l border-border" style={{ width: leftWidth }}>
-              <div className="flex-shrink-0 h-5 bg-bg-tertiary/30 border-b border-border/30 flex items-center px-2">
-                <span className="text-[9px] text-text-muted/60 flex-1">{ALL_PANEL_TABS.find((t) => t.id === store.leftTab)?.label}</span>
-                <button onClick={() => store.setLeftTab(store.rightTab)} className="text-[9px] text-text-muted hover:text-text-primary">✕</button>
+        {/* ═══ RIGHT-SIDE PANELS (右サブ / 右端) ═══ */}
+        {(["right-sub", "far-right"] as PanelPosition[]).map((pos) => {
+          const entry = Object.entries(store.tabPositions).find(([, p]) => p === pos);
+          if (!entry) return null;
+          const tab = entry[0] as PanelTab;
+          return (
+            <React.Fragment key={pos}>
+              <div className="w-1 flex-shrink-0 cursor-col-resize hover:bg-accent/30 transition-colors bg-transparent" onMouseDown={(e) => { e.preventDefault(); setResizingSide("right"); }} />
+              <div className="flex flex-col overflow-hidden bg-bg-secondary border-l border-border" style={{ width: TAB_WIDTHS[tab] }}>
+                <div className="flex-shrink-0 h-5 bg-bg-tertiary/30 border-b border-border/30 flex items-center px-1.5 gap-0.5">
+                  <span className="text-[8px] text-accent/40">{PANEL_POSITION_LABELS[pos]}</span>
+                  <span className="text-[8px] text-text-muted/60 flex-1 truncate">{ALL_PANEL_TABS.find((t) => t.id === tab)?.label}</span>
+                  <button onClick={() => { store.setTabPosition(tab, null); setActiveTabId(tab); }} className="text-[8px] text-text-muted/40 hover:text-error">✕</button>
+                </div>
+                <div className="flex-1 overflow-auto">
+                  {renderTabContent(tab)}
+                </div>
               </div>
-              <div className="flex-1 overflow-auto">
-                {renderTabContent(store.leftTab)}
-              </div>
-            </div>
-            {/* Resize handle between panels */}
-            <div
-              className={`w-1 flex-shrink-0 cursor-col-resize hover:bg-accent/30 transition-colors ${
-                resizingSide === "left" ? "bg-accent/50" : "bg-transparent"
-              }`}
-              onMouseDown={(e) => { e.preventDefault(); setResizingSide("left"); }}
-            />
-          </>
-        )}
-        {/* メインパネル（右側） */}
-        <div className="flex flex-col overflow-hidden bg-bg-secondary border-l border-border" style={{ width: rightWidth }}>
-          <div className="flex-shrink-0 h-5 bg-bg-tertiary/30 border-b border-border/30 flex items-center px-2">
-            <span className="text-[9px] text-text-muted/60">{ALL_PANEL_TABS.find((t) => t.id === store.rightTab)?.label}</span>
-          </div>
-          <div className="flex-1 overflow-auto">
-            {renderTabContent(store.rightTab)}
-          </div>
-        </div>
+            </React.Fragment>
+          );
+        })}
       </div>
 
       {/* ─── Status bar ─── */}

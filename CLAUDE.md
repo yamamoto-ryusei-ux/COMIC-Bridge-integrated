@@ -446,11 +446,15 @@
 - **1ステップ=1工程（v3.6.5変更）**: 旧版の「開始/終了」2分割（`expandSteps`関数）を廃止。シンプルに1ステップ=1工程の構造に
 - **4ワークフロー**:
   - **写植入稿**: 読み込み→仕様修正→ProGen整形→校正→テキスト修正→ZIP
-  - **初校確認**: 読み込み→ビューアー確認→テキスト抽出→Tachimi→ZIP
+  - **初校確認**: 読み込み→ビューアー確認（テキスト照合のみ右端表示）→テキスト抽出（メイン画面）→提案チェックプロンプト（ProGen、提案ボタン表示）→Tachimi見開きPDF（メイン画面）→ZIP外部校正（JSON workInfoからジャンル・レーベル自動）
   - **校正確認**: 校正確認→赤字修正→MojiQ→編集確認
   - **白消しTIFF**: 差し替え→差分検知→TIFF化→差分検知→TIFF格納
 - **自動ナビゲーション**: 各ステップに`nav`（AppView）と`progenMode`を設定。ステップ進行時に自動画面遷移
-- **ZIP リリースステップ**: `copyDestFolder`の親フォルダ（1_原稿レベル）を`requestPrep_autoFolder` localStorage経由でRequestPrepViewに自動セット
+- **ZIP リリースステップ**: `copyDestFolder`の親フォルダ（1_入稿レベル）を`requestPrep_autoFolder` localStorage経由でRequestPrepViewに自動セット
+- **テキストチェックステップ**: copyDestFolder内のPDF/画像を自動検出してpsdStoreに読み込み。テキストタブを右端に自動配置、他タブ非表示
+- **中断確認ダイアログ**: 中断ボタン押下時にstate管理のモーダルで「中止しますか？」を表示（window.confirm非使用）
+- **viewerTabSetup**: ステップ定義にタブ位置自動設定を追加（`{ text: "far-right", files: null, ... }`）
+- **requestPrepMode**: ステップ定義にRequestPrepの初期モードを追加（"external"で外部校正タブに自動切替 + JSON workInfoからジャンル・レーベル自動セット）
 
 ### 23-b. WF表示（v3.6.5 全面リデザイン）
 **WFアクティブ時は TopNav と アドレスバーを塗りつぶして全工程ナビゲーションUIに変更:**
@@ -492,7 +496,7 @@
 - **3ステップUI**: コピー元（貼付/参照）→ 新作/続話選択 → コピー先選択 → 実行
 - **ナンバリング自動検出**: フォルダ名から数字を抽出して番号フォルダを作成（手動修正可能）
 - **テンプレート設定2種類**: アドレス指定（フォルダコピー）/ フォルダ構造（クリック取得、localStorage保存）
-- **デフォルト構造**: 新作9フォルダ / 続話6フォルダ（アドレス未指定）
+- **デフォルト構造**: 新作9フォルダ / 続話6フォルダ（アドレス未指定）。**DEFAULT_COPY_DEST = "1_入稿"**（v3.7.0で変更）
 - **作品情報JSON**: 新規作成時はGENRE_LABELS（scanPsd.ts）による2段階ドロップダウン（ジャンル→レーベル）で選択。既存JSON選択は`JsonFileBrowser`モーダル（TopNavの作品情報ボタンと同じUI、scanPsdStore.jsonFolderPathをベースにしたツリー表示）
 - **モード自動連動**: 新作選択時は`jsonMode="new"`、続話選択時は`jsonMode="select"`を自動セット（続話は前巻JSONの再利用が多いため）
 - **create_directory / copy_folder Rustコマンド**: .keepファイル不使用
@@ -540,10 +544,13 @@
 ### 22. 統合ビューアータブ（UnifiedViewerView）
 - **3サブタブ構成**: 統合ビューアー / 差分モード / 分割ビューアー
 - **統合ビューアー（UnifiedViewer）**: 2カラムレイアウト（左パネル廃止）
-  - **タブバー**: 右寄せで全タブを表示。左クリック=メインタブ切替、右クリック=2つ目のタブとして左側に追加。●=メイン、◀=2つ目。2つ目のタブは✕で閉じ可能
-  - **共通タブ**: ファイル / レイヤー / 写植仕様 / テキスト / 校正JSON / テキスト照合 — メイン（右）と2つ目（左）に自由に割当可能（`renderTabContent`共通関数）
+  - **タブバー**: 右寄せで全タブボタンを表示 + ◀▶配置移動ボタン。クリックで表示/非表示トグル。◀▶で選択中タブの配置位置を移動（左端↔左サブ↔右サブ↔右端、中央ビューアーはスキップ）
+  - **5スロットパネルシステム（v3.7.0）**: 左端 / 左サブ / [中央ビューアー+ページリスト] / 右サブ / 右端。各パネルはタブ固有の適切な幅（`TAB_WIDTHS`）で表示。WFステップで`viewerTabSetup`によりタブ配置を自動制御可能
+  - **タブ入れ替え記憶（displacedTabs）**: タブ移動時に押し出されたタブを記憶。移動元が空いたら自動復帰（既に別位置に移動済みなら復帰しない）
+  - **共通タブ**: ファイル / レイヤー / 写植仕様 / テキスト / 校正JSON / テキスト照合 — 任意のパネル位置に自由に割当可能（`renderTabContent`共通関数）
+  - **レイヤータブ（v3.7.0）**: FullLayerTree（metadata/LayerTree.tsx）使用。レイヤークリックで画像ビューアー上にSVG矩形ハイライト（対象レイヤー位置表示）。ファイル切替時にハイライト自動リセット
   - **ページリスト**: 中央ビューアー左端に幅32pxの縦ページ番号リスト。クリックでページ移動。現在ページはアクセントカラーで強調
-  - **中央**: 画像ビューアー（ズーム/パン対応、PDF.js描画、PSD/画像はRust `get_high_res_preview`）
+  - **中央**: 画像ビューアー（ズーム/パン対応、PDF.js描画、PSD/画像はRust `get_high_res_preview`）。**リロードボタン（v3.7.0）**: 画像エリア右上に常時表示、クリックでキャッシュクリア+再読み込み（画像表示失敗時の復旧用）
     - ナビバー: ◀▶ページ送り / ズーム / 単ページ化ボタン / メタデータ（DPI/カラーモード/用紙サイズ）
     - **単ページ化（見開き分割）**: [単ページ化]トグル + [1P単独/1Pも見開き/1P除外]選択 + [左→右/右→左]読み順切替
     - `logicalPage`カウンターで全ファイル×前後をフラットに管理。`resolveLogicalPage(lp)`で(fileIdx, side)を同期計算
@@ -551,8 +558,8 @@
     - ◀▶で`logicalPage ± 1`するだけで前半分→後半分→次ファイル前半分と自動進行
     - PDFキャッシュキー: `f.pdfPage`を含める（`${path}#p${page}`）で同一PDF別ページを区別
   - **右パネル**: 同上の共通タブ
-  - **テキストタブ**: 選択/編集モード切替、フォント割当ドロップダウン、DTPビューアー風フォント一覧（全ファイル集約、クリックでページ移動サイクル）、COMIC-POTテキスト表示、D&Dリオーダー。編集モードは確定ボタン方式（editBuffer + カーソル位置保持）。**v3.6.4: 「確定」ボタン押下で元のテキストファイルに自動上書き保存**（`write_text_file` 呼び出し + `isDirty: false` にマーク）。**v3.6.6: Ctrl+S 対応**（textarea内でも有効）+ **editBuffer-aware handleSave**（編集中の未確定変更も Ctrl+S で直接保存可能）+ **ページ同期スクロールを行ベースに変更**（旧: 文字数比例で密度差によりずれる → 新: `lineIdx × lineHeight - paddingTop` で正確）
-  - **テキスト照合タブ**: KENBAN版LCS文字レベルdiff移植。PSDレイヤー↔テキストブロックのリンクマッピング。差異ありのみ2カラム、一致はPSD/テキスト切替で1カラム。漫画読み順ソート。`normalizeTextForComparison` + `computeLineSetDiff` + `buildUnifiedDiff`。ファイル一覧に✓/⚠アイコン
+  - **テキストタブ**: 選択/編集モード切替。**選択モード機能（v3.7.0: 写植確認から移植）**: DnDブロックリオーダー（SortableBlockItem、ドラッグハンドル+位置番号右端表示）、ダブルクリックインライン編集（Ctrl+Enter確定/Escキャンセル）、ページヘッダー「+」ブロック追加、「削除//」トグル（選択ブロック先頭行に//付与/解除）、追加/削除バッジ表示。**フォント割当ドロップダウン**（プリセットフォントから選択、割当後に次ブロック自動選択）+ 「+フォント」ボタン（JSONブラウザからプリセット読込）。DTPビューアー風フォント一覧（全ファイル集約、クリックでページ移動サイクル）。**handleSave（v3.7.0）**: 選択モードの変更はserializeTextで再構築して保存（ブロック移動・フォント指定・追加・削除がファイルに正しく反映）。textContent外部変更時にtextPagesを自動パース。Ctrl+S対応。ページ同期スクロールを行ベースに変更
+  - **テキスト照合タブ**: KENBAN版LCS文字レベルdiff移植。PSDレイヤー↔テキストブロックのリンクマッピング。差異ありのみ2カラム、一致はPSD/テキスト切替で1カラム。漫画読み順ソート。`normalizeTextForComparison` + `computeLineSetDiff` + `buildUnifiedDiff`。ファイル一覧に✓/⚠アイコン。`//`先頭ブロックは「テキスト削除確認」として黄色警告表示（照合対象から除外、差異としてカウントしない）。textPagesが空の場合はtextContent全体をフォールバック比較
   - **校正JSONタブ**: 正誤/提案/全て切替、カテゴリフィルタ、ページ連動
   - **キーボード**: ←→ページ送り、Ctrl±ズーム、Ctrl+0フィット、Ctrl+S保存、Pキーで現在のファイルをPhotoshop起動
   - **右クリック**: FileContextMenu（viewerMode: カット/コピー/複製/削除/読み込みを非表示）
@@ -616,6 +623,7 @@
   - メイン画面でtxt/jsonクリック: txtは右プレビューに表示、jsonは校正JSON/作品情報として自動判定して読み込み
   - MetadataPanel: 各セクション折りたたみ可能。テキストのみ表示チェック
   - PSDフィルタ / PDF表示切替（ページごと/ファイル単位）/ ソート（名前/サイズ/DPI/チェック結果）
+  - **フローティングボタン（v3.7.0）**: PDF化（filteredFiles対応）/ 簡易スキャン（SpecScanJsonDialog、フィルタ対象のみ、JSON保存後にフォントプリセット自動読込）/ テキスト抽出（filteredFiles対応、抽出後textPages自動パース）
   - 対応ファイル表示: PSD/PSB/JPG/PNG/TIFF/BMP/GIF/PDF/EPS + TXT/JSON + フォルダのみ（それ以外は非表示）
   - PDF表示: `FilePreviewImage`でpdfPageIndex/pdfSourcePathを`useHighResPreview`に渡し、`get_pdf_preview`（PDFium）でレンダリング
 - **TypsettingView**: 写植関連（隔離中 — ViewRouterでマウント無効化、ドットメニューから除外。削除予定）
@@ -850,6 +858,7 @@ src/
 │   ├── agPsdScanner.ts          # ag-psdスキャナー（PSDメタデータ一括収集）
 │   ├── layerMatcher.ts          # レイヤーマッチング・リスク分類（共有ロジック）+ 差替え対象マッチング
 │   ├── layerTreeOps.ts          # レイヤーツリー操作ユーティリティ
+│   ├── psdLoaderRegistry.ts     # グローバルPSDローダーレジストリ（WorkflowBar等のReact外からloadFolder/loadFiles呼び出し用）
 │   ├── naturalSort.ts           # 自然順ソート（数字部分を数値比較）
 │   ├── paperSize.ts             # 用紙サイズ判定（ピクセル+DPI→B4/A4等）
 │   ├── textUtils.ts             # テキスト処理ユーティリティ
@@ -874,7 +883,7 @@ src/
 │   ├── parallelStore.ts   # 分割ビューアー（v3.5.0、2パネル独立/同期切替/PDF展開）
 │   ├── typesettingCheckStore.ts  # 写植チェック（checkData, checkTabMode, searchQuery, navigateToPage）
 │   ├── workflowStore.ts   # WF状態（v3.6.5、activeWorkflow/currentStep + WORKFLOWS定数）
-│   └── unifiedViewerStore.ts    # 統合ビューアー（独立ファイル管理、テキスト、校正JSON、フォントプリセット、PanelTab共通タブ型）
+│   └── unifiedViewerStore.ts    # 統合ビューアー（独立ファイル管理、テキスト、校正JSON、フォントプリセット、PanelTab + 4ポジションパネル配置、displacedTabs入れ替え記憶）
 ├── styles/
 │   └── globals.css
 ├── kenban-utils/         # 旧KENBAN由来の共有ユーティリティ（統合ビューアーで使用中）

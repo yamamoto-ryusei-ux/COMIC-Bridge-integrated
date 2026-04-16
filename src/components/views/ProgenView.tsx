@@ -765,6 +765,32 @@ function ProgenViewInner() {
                     <div className="text-[10px] opacity-80">画像を送信してセリフを抽出</div>
                   </div>
                 </button>
+              ) : wfCheckMode === "variation" ? (
+                /* 提案チェックボタン（初校確認WF時） */
+                <button
+                  onClick={() => {
+                    const store = useProgenStore.getState();
+                    const text = useUnifiedViewerStore.getState().textContent;
+                    if (!text) return;
+                    import("../../lib/progenPrompts").then(({ generateVariationCheckPrompt }) => {
+                      const prompt = generateVariationCheckPrompt(text, store.symbolRules, store.currentProofRules, store.options, store.numberRules);
+                      navigator.clipboard.writeText(prompt).then(() => {
+                        import("../../hooks/useProgenTauri").then(({ openExternalUrl }) => {
+                          openExternalUrl("https://gemini.google.com/app");
+                        });
+                        useProgenStore.getState().setResultSaveMode("json");
+                        try { localStorage.removeItem("progen_wfCheckMode"); } catch { /* ignore */ }
+                      });
+                    });
+                  }}
+                  className="flex items-center gap-3 px-8 py-4 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white shadow-xl shadow-orange-500/30 transition-all hover:scale-105"
+                >
+                  <span className="text-2xl">💡</span>
+                  <div className="text-left">
+                    <div className="text-sm font-bold">提案チェックプロンプトをコピーして Gemini を開く</div>
+                    <div className="text-[10px] opacity-80">文字種・送り仮名・外来語・数字・略称・異体字 等</div>
+                  </div>
+                </button>
               ) : wfCheckMode ? (
                 /* 正誤チェックボタン（校正プロンプトWF時） */
                 <button

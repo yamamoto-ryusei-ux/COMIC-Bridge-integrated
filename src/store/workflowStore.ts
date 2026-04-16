@@ -9,6 +9,10 @@ export interface WorkflowStep {
   nav?: string;
   /** ProGenモード */
   progenMode?: string;
+  /** 統合ビューアーのタブ位置を自動設定（null=非表示） */
+  viewerTabSetup?: Partial<Record<string, string | null>>;
+  /** RequestPrepView の初期モード */
+  requestPrepMode?: string;
 }
 
 export interface Workflow {
@@ -29,7 +33,7 @@ export const WORKFLOWS: Workflow[] = [
       { label: "完成原稿 読み込み", desc: "フォルダセットアップ → PSD自動読み込み", nav: "folderSetup" },
       { label: "仕様を一括で修正", desc: "カラーモード・ビット深度・解像度・ガイド一括反映", nav: "specCheck" },
       { label: "ProGen テキスト整形・抽出", desc: "テキスト有無で自動分岐（整形/抽出）", nav: "progen", progenMode: "_auto" },
-      { label: "テキストチェック", desc: "画像/PDFとテキストを並べて確認", nav: "unifiedViewer" },
+      { label: "テキストチェック", desc: "画像/PDFとテキストを並べて確認", nav: "unifiedViewer", viewerTabSetup: { text: "far-right", files: null, layers: null, spec: null, proofread: null, diff: null } },
       { label: "校正プロンプト", desc: "正誤チェック・提案チェック", nav: "progen", progenMode: "_check" },
       { label: "テキストエディタで修正", desc: "確定ボタンで自動保存", nav: "unifiedViewer" },
       { label: "ZIP リリース", desc: "依頼準備", nav: "requestPrep" },
@@ -41,10 +45,11 @@ export const WORKFLOWS: Workflow[] = [
     icon: "📝",
     steps: [
       { label: "初校データ 読み込み", desc: "問題を検出", nav: "specCheck" },
-      { label: "ビューアーで確認・修正", desc: "フォント・サイズ・白消し・AA・カーニング・フォント帳", nav: "unifiedViewer" },
-      { label: "テキスト抽出→提案チェックプロンプト作成", desc: "ProGenで校正プロンプト生成", nav: "progen", progenMode: "proofreading" },
-      { label: "Tachimiで見開きPDF作成", desc: "Tachimi 起動" },
-      { label: "ZIP リリース", desc: "依頼準備", nav: "requestPrep" },
+      { label: "ビューアーで確認・修正", desc: "フォント・サイズ・白消し・AA・カーニング・フォント帳", nav: "unifiedViewer", viewerTabSetup: { diff: "far-right", files: null, layers: null, spec: null, text: null, proofread: null } },
+      { label: "テキスト抽出", desc: "PSDからテキストを抽出", nav: "specCheck" },
+      { label: "提案チェックプロンプト作成", desc: "ProGenで提案チェック生成", nav: "progen", progenMode: "_check_variation" },
+      { label: "Tachimiで見開きPDF作成", desc: "メイン画面でTachimi起動", nav: "specCheck" },
+      { label: "ZIP リリース（外部校正）", desc: "外部校正タブで依頼準備", nav: "requestPrep", requestPrepMode: "external" },
     ],
   },
   {

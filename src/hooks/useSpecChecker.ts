@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { usePsdStore } from "../store/psdStore";
 import { useSpecStore } from "../store/specStore";
 import type { Specification, SpecCheckResult, SpecRule, PsdMetadata } from "../types";
+import { isPsdFile } from "../types";
 
 export function useSpecChecker() {
   const [isChecking, setIsChecking] = useState(false);
@@ -84,6 +85,8 @@ export function useSpecChecker() {
       const currentFiles = usePsdStore.getState().files;
       for (const file of currentFiles) {
         if (!file.metadata) continue;
+        // 仕様チェックは PSD/PSB ファイルのみ対象（PDF/画像/テキスト等は除外）
+        if (!isPsdFile(file.fileName)) continue;
 
         const result = checkFile(file.id, file.metadata, specs);
         setCheckResult(file.id, result);

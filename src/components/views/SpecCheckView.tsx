@@ -21,7 +21,7 @@ import { SpecLayerGrid } from "../spec-checker/SpecLayerGrid";
 // import { LayerSeparationPanel } from "../spec-checker/LayerSeparationPanel";
 import { DropZone } from "../file-browser/DropZone";
 
-import { THUMBNAIL_SIZES, type ThumbnailSize, type PsdFile, type SpecCheckResult } from "../../types";
+import { THUMBNAIL_SIZES, isPsdFile, type ThumbnailSize, type PsdFile, type SpecCheckResult } from "../../types";
 import { invoke } from "@tauri-apps/api/core";
 import { TextExtractButton } from "../common/TextExtractButton";
 import { useTextExtract } from "../../hooks/useTextExtract";
@@ -289,6 +289,8 @@ export function SpecCheckView() {
     let noTombo = 0;
     let caution = 0;
     files.forEach((file) => {
+      // 仕様チェックはPSD/PSBのみ対象。PDF/画像/テキスト等はスキップ（OK/NG/未チェックに含めない）
+      if (!isPsdFile(file.fileName)) return;
       const result = checkResults.get(file.id);
       const isNG = result && !result.passed;
       if (!result) unchecked++;
@@ -321,7 +323,8 @@ export function SpecCheckView() {
   const handleLaunchTachimi = async () => {
     setTachimiError(null);
     try {
-      const filePaths = files.map((f) => f.filePath).filter(Boolean);
+      // ソート/フィルタ適用後のファイルのみを対象にする
+      const filePaths = filteredFiles.map((f) => f.filePath).filter(Boolean);
       if (filePaths.length === 0) return;
       await invoke("launch_tachimi", { filePaths });
     } catch (e) {
@@ -1089,7 +1092,7 @@ export function SpecCheckView() {
                       allPassed ? "bg-[#ff8a6b]/15" : "bg-[#c8806a]/10"
                     }`}
                   >
-                    {files.length}
+                    {filteredFiles.length}
                   </span>
                 </button>
                 {/* Tachimi起動エラー */}
@@ -1103,8 +1106,24 @@ export function SpecCheckView() {
                 )}
               </>
             )}
+            {/* 簡易スキャン（JSON登録）ボタン */}
+            {filteredFiles.length > 0 && (
+              <button
+                className="h-16 min-w-[220px] px-8 text-lg font-bold rounded-2xl shadow-2xl transition-all duration-200 flex items-center justify-center gap-3 bg-bg-secondary border-2 border-[#0e7490]/50 text-[#0e7490] hover:bg-bg-elevated hover:border-[#0e7490]/70 hover:shadow-[0_6px_20px_rgba(14,116,144,0.25)] active:scale-[0.97]"
+                onClick={() => setShowScanJsonInPanel(true)}
+                title="読み込み中のPSDからフォント・ガイド・テキスト情報をJSONに登録"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                簡易スキャン
+                <span className="px-2 py-1 rounded-lg bg-[#0e7490]/10 text-sm font-bold">
+                  {filteredFiles.length}
+                </span>
+              </button>
+            )}
             {/* テキスト抽出ボタン（常時表示） */}
-            <TextExtractButton />
+            <TextExtractButton files={filteredFiles} />
           </div>
         </div>
         </div>
@@ -1238,12 +1257,6 @@ export function SpecCheckView() {
               </div>
             )}
             {/* === 作成モード — アクション統合時に非表示 === */}
-            {/* JSON登録（SpecScanJsonDialog）— 右パネル内表示 */}
-            {showScanJsonInPanel && (
-              <div className="absolute inset-0 z-40 bg-white flex flex-col overflow-hidden">
-                <SpecScanJsonDialog onClose={() => setShowScanJsonInPanel(false)} inline />
-              </div>
-            )}
             {/* テキスト抽出 — 右パネル内表示 */}
             {showTextExtractInPanel && (
               <div className="absolute inset-0 z-40 bg-white flex flex-col overflow-hidden">
@@ -1385,6 +1398,14 @@ export function SpecCheckView() {
           previewText={previewLocked ? lockedTextFile : selectedTextFile}
           selectedNonPsdItem={selectedNonPsdItem}
           currentFolderPath={currentFolderPath}
+        />
+      )}
+
+      {/* 簡易スキャン（JSON登録）モーダル */}
+      {showScanJsonInPanel && (
+        <SpecScanJsonDialog
+          onClose={() => setShowScanJsonInPanel(false)}
+          targetFiles={filteredFiles}
         />
       )}
     </div>

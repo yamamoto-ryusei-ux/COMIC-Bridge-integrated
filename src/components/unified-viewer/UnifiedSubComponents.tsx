@@ -35,13 +35,13 @@ export function PanelTabBtn({ children, active, onClick, onContextMenu, badge }:
     <button
       onClick={onClick}
       onContextMenu={onContextMenu}
-      className={`px-2 py-0.5 rounded transition-colors ${
+      className={`px-1 py-0.5 rounded transition-colors text-[9px] whitespace-nowrap ${
         active ? "bg-accent/15 text-accent font-medium" : "text-text-muted hover:text-text-secondary hover:bg-bg-tertiary/60"
       }`}
     >
       {children}
       {badge !== undefined && badge > 0 && (
-        <span className="ml-1 px-1 py-px rounded-full bg-accent/20 text-accent text-[9px] tabular-nums">{badge}</span>
+        <span className="ml-0.5 px-0.5 py-px rounded-full bg-accent/20 text-accent text-[8px] tabular-nums">{badge}</span>
       )}
     </button>
   );
@@ -90,6 +90,7 @@ export function SortableBlockItem({
   fontColor,
   fontLabel,
   onClick,
+  onEditBlock,
 }: {
   block: TextBlock;
   blockIdx: number;
@@ -97,53 +98,104 @@ export function SortableBlockItem({
   fontColor?: string;
   fontLabel?: string;
   onClick: (e: React.MouseEvent) => void;
+  onEditBlock?: (blockId: string, newLines: string[]) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: block.id,
   });
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState("");
+  const editRef = React.useRef<HTMLTextAreaElement>(null);
+
+  const isDeleted = block.lines[0]?.startsWith("//") ?? false;
+  const isAdded = !!block.isAdded;
+
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
     borderLeft: fontColor ? `3px solid ${fontColor}` : undefined,
   };
+
+  const commitEdit = () => {
+    if (!onEditBlock) return;
+    const newLines = editText.split("\n").filter((l, _i, a) => l.trim() !== "" || a.length === 1);
+    if (newLines.length === 0) { setEditing(false); return; }
+    onEditBlock(block.id, newLines);
+    setEditing(false);
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={`flex items-start gap-1 px-1 py-1.5 rounded text-sm font-mono whitespace-pre-wrap cursor-pointer transition-colors mb-0.5 ${
-        isSelected ? "bg-accent/8 ring-1 ring-accent/30" : "hover:bg-bg-tertiary/60"
+        isSelected ? "bg-accent/8 ring-1 ring-accent/30"
+          : isDeleted ? "bg-error/5 border border-error/20"
+          : isAdded ? "bg-success/5 border border-success/20"
+          : "hover:bg-bg-tertiary/60"
       }`}
-      onClick={onClick}
+      onClick={editing ? undefined : onClick}
+      onDoubleClick={() => {
+        if (!onEditBlock) return;
+        setEditText(block.lines.join("\n"));
+        setEditing(true);
+        setTimeout(() => editRef.current?.focus(), 0);
+      }}
     >
       <div
         className="flex-shrink-0 mt-0.5 cursor-grab active:cursor-grabbing text-text-muted/30 hover:text-text-muted/60"
         {...attributes}
         {...listeners}
       >
-        <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+        <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
           <circle cx="3" cy="2" r="1.2" /><circle cx="7" cy="2" r="1.2" />
-          <circle cx="3" cy="7" r="1.2" /><circle cx="7" cy="7" r="1.2" />
-          <circle cx="3" cy="12" r="1.2" /><circle cx="7" cy="12" r="1.2" />
+          <circle cx="3" cy="5.5" r="1.2" /><circle cx="7" cy="5.5" r="1.2" />
+          <circle cx="3" cy="9" r="1.2" /><circle cx="7" cy="9" r="1.2" />
         </svg>
       </div>
       <div className="flex-1 min-w-0">
-        {block.assignedFont && fontLabel && (
+        {(block.assignedFont && fontLabel || isAdded || isDeleted) && (
           <div className="text-[9px] mb-0.5 flex items-center gap-1">
-            <span className="px-1 py-px rounded text-white" style={{ backgroundColor: fontColor }}>
-              {fontLabel}
-            </span>
+            {fontColor && fontLabel && (
+              <span className="px-1 py-px rounded text-white" style={{ backgroundColor: fontColor }}>
+                {fontLabel}
+              </span>
+            )}
+            {isAdded && <span className="px-1 py-px rounded bg-success/15 text-success font-medium">追加</span>}
+            {isDeleted && <span className="px-1 py-px rounded bg-error/15 text-error font-medium">削除</span>}
           </div>
         )}
-        <div className="text-black">
-          {block.lines.join("\n") || <span className="text-text-muted/40 italic">（空）</span>}
-        </div>
-        {block.originalIndex !== blockIdx && (
-          <div className="text-[9px] text-warning mt-0.5">
-            {block.originalIndex + 1}→{blockIdx + 1}
+        {editing ? (
+          <div>
+            <textarea
+              ref={editRef}
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              onBlur={commitEdit}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setEditing(false);
+                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); commitEdit(); }
+              }}
+              className="w-full text-[11px] text-text-primary leading-relaxed bg-transparent border border-accent/30 rounded px-1 py-0.5 resize-y outline-none focus:border-accent"
+              rows={Math.max(2, block.lines.length + 1)}
+            />
+            <span className="text-[8px] text-text-muted">Ctrl+Enter: 確定 / Esc: キャンセル</span>
+          </div>
+        ) : (
+          <div className={isDeleted ? "text-error/60 line-through" : isAdded ? "text-success" : "text-black"}>
+            {block.lines.join("\n") || <span className="text-text-muted/40 italic">（空）</span>}
           </div>
         )}
       </div>
+      {/* Block number (right side) */}
+      <span className={`flex-shrink-0 self-center text-[8px] font-mono leading-none px-0.5 ${
+        block.originalIndex !== blockIdx ? "text-warning font-bold" : "text-text-muted/40"
+      }`}>
+        {block.originalIndex !== blockIdx
+          ? `${block.originalIndex + 1}→${blockIdx + 1}`
+          : `${blockIdx + 1}`}
+      </span>
     </div>
   );
 }

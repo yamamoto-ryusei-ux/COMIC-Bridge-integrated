@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useViewStore } from "../../store/viewStore";
 import { useScanPsdStore } from "../../store/scanPsdStore";
 import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
 import { useProgenStore } from "../../store/progenStore";
+import { usePsdStore } from "../../store/psdStore";
 import { useWorkflowStore, WORKFLOWS, type Workflow, type WorkflowStep } from "../../store/workflowStore";
+import { globalLoadFolder, globalLoadFiles } from "../../lib/psdLoaderRegistry";
 
 // ═══ ナビゲーション実行ヘルパー ═══
 
@@ -29,6 +32,14 @@ function executeStepNav(step: WorkflowStep) {
         localStorage.removeItem("folderSetup_progenMode");
       } catch { /* ignore */ }
     }
+    // "_check_variation" の場合は提案チェックフラグをセット
+    if (resolvedMode === "_check_variation") {
+      resolvedMode = "extraction";
+      try {
+        localStorage.setItem("progen_wfCheckMode", "variation");
+        localStorage.removeItem("folderSetup_progenMode");
+      } catch { /* ignore */ }
+    }
     vs.setProgenMode(resolvedMode as any);
     // レーベル読み込み（ProGen起動時）
     const scan = useScanPsdStore.getState();
@@ -41,12 +52,44 @@ function executeStepNav(step: WorkflowStep) {
     if (lbl) useProgenStore.getState().loadMasterRule(lbl);
   }
 
-  // テキストチェックステップ: コピー先の画像/PDFを検Aにセット
+  // テキストチェックステップ: コピー先の画像/PDFを統合ビューアーに読み込む
+  // PDFが存在する場合はPDFファイルのみを読み込み（PSDなど他のファイルは無視）
+  // PDFがなく画像データ(JPG/PNG等)が存在する場合はフォルダをそのまま読み込む
   if (step.label.includes("テキストチェック")) {
-    try {
-      const copyDest = localStorage.getItem("folderSetup_copyDestFolder");
-      if (copyDest) vs.setKenbanPathA(copyDest);
-    } catch { /* ignore */ }
+    (async () => {
+      try {
+        const copyDest = localStorage.getItem("folderSetup_copyDestFolder");
+        if (!copyDest) return;
+
+        // PDFを最優先で探す（PSDとPDFが同居しているケースでPSDが混ざらないように）
+        const pdfs = await invoke<string[]>("list_files_by_extension_recursive", {
+          folderPath: copyDest,
+          extensions: ["pdf"],
+        }).catch(() => [] as string[]);
+        if (pdfs && pdfs.length > 0) {
+          // PDFファイルのみを統合ビューアーに読み込む（PSDは含めない）
+          vs.setKenbanPathA(pdfs[0]);
+          await globalLoadFiles(pdfs);
+          return;
+        }
+
+        // PDFがなければ画像(JPG/PNG等)を探す
+        const imageExts = ["jpg", "jpeg", "png", "tif", "tiff", "bmp", "gif"];
+        const images = await invoke<string[]>("list_files_by_extension_recursive", {
+          folderPath: copyDest,
+          extensions: imageExts,
+        }).catch(() => [] as string[]);
+        if (images && images.length > 0) {
+          vs.setKenbanPathA(copyDest);
+          await globalLoadFolder(copyDest);
+          return;
+        }
+
+        // どちらもなければフォルダをそのまま読み込む
+        vs.setKenbanPathA(copyDest);
+        await globalLoadFolder(copyDest);
+      } catch { /* ignore */ }
+    })();
   }
 
   // ZIP リリースステップ: FolderSetupのコピー先の1つ上の階層をRequestPrepに自動セット
@@ -60,6 +103,52 @@ function executeStepNav(step: WorkflowStep) {
     } catch { /* ignore */ }
   }
 
+  // メイン画面（仕様チェック）に遷移する場合、PSDのみフィルタを自動適用
+  if (step.nav === "specCheck") {
+    usePsdStore.getState().setFileTypeFilter("psd");
+  }
+
+  // 統合ビューアーのタブ位置を自動設定
+  if (step.viewerTabSetup) {
+    const uvs = useUnifiedViewerStore.getState();
+    for (const [tabId, position] of Object.entries(step.viewerTabSetup)) {
+      uvs.setTabPosition(tabId as any, position === null ? null : position as any);
+    }
+  }
+
+  // RequestPrepView の初期モードをセット
+  if (step.requestPrepMode) {
+    try {
+      localStorage.setItem("requestPrep_autoMode", step.requestPrepMode);
+    } catch { /* ignore */ }
+  }
+
+  // 外部校正ZIPステップ: 作成したPDFを見開きPDFとして参照 + JSONからジャンル・レーベル取得
+  if (step.requestPrepMode === "external") {
+    try {
+      // 直前のTachimi出力PDFを検索
+      const copyDest = localStorage.getItem("folderSetup_copyDestFolder");
+      if (copyDest) {
+        const parent = copyDest.replace(/[\\/][^\\/]+$/, "");
+        if (parent) localStorage.setItem("requestPrep_autoFolder", parent);
+      }
+      // Tachimi出力のPDFパスを設定（Desktop/Script_Output/PDF_Output内の最新PDF）
+      const scan = useScanPsdStore.getState();
+      const viewer = useUnifiedViewerStore.getState();
+      const wi = scan.workInfo;
+      if (wi.genre) localStorage.setItem("requestPrep_autoGenre", wi.genre);
+      if (wi.label) localStorage.setItem("requestPrep_autoLabel", wi.label);
+      if (wi.title) localStorage.setItem("requestPrep_autoTitle", wi.title);
+      // presetJsonPathからもフォールバック
+      if (!wi.genre && viewer.presetJsonPath) {
+        const parts = viewer.presetJsonPath.replace(/\//g, "\\").split("\\");
+        if (parts.length >= 2) {
+          localStorage.setItem("requestPrep_autoLabel", parts[parts.length - 2]);
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
   vs.setActiveView(step.nav as any);
 }
 
@@ -67,6 +156,7 @@ function executeStepNav(step: WorkflowStep) {
 
 export function WorkflowBar() {
   const [showPicker, setShowPicker] = useState(false);
+  const [showAbortConfirm, setShowAbortConfirm] = useState(false);
   const activeWorkflow = useWorkflowStore((s) => s.activeWorkflow);
   const currentStep = useWorkflowStore((s) => s.currentStep);
 
@@ -143,7 +233,7 @@ export function WorkflowBar() {
 
         {/* 中断ボタン */}
         <button
-          onClick={() => useWorkflowStore.getState().abortWorkflow()}
+          onClick={() => setShowAbortConfirm(true)}
           className="flex items-center gap-0.5 px-2 py-1 rounded-md text-[11px] font-medium bg-error/10 hover:bg-error/20 text-error border border-error/30 flex-shrink-0 transition-colors"
           title="ワークフローを中断"
         >
@@ -152,6 +242,19 @@ export function WorkflowBar() {
           </svg>
           <span>中断</span>
         </button>
+
+        {/* 中断確認ダイアログ */}
+        {showAbortConfirm && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40" onClick={() => setShowAbortConfirm(false)}>
+            <div className="bg-bg-secondary border border-border rounded-2xl p-5 shadow-xl w-[280px] space-y-3" onClick={(e) => e.stopPropagation()}>
+              <p className="text-xs text-text-primary font-medium text-center">中止しますか？</p>
+              <div className="flex gap-2">
+                <button onClick={() => setShowAbortConfirm(false)} className="flex-1 px-3 py-2 text-xs font-medium text-text-secondary bg-bg-tertiary rounded-lg hover:bg-bg-elevated transition-colors">キャンセル</button>
+                <button onClick={() => { setShowAbortConfirm(false); useWorkflowStore.getState().abortWorkflow(); }} className="flex-1 px-3 py-2 text-xs font-medium text-white bg-error rounded-lg hover:bg-error/90 transition-colors">中止する</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 区切り線 */}
         <div className="w-px h-6 bg-border/50 flex-shrink-0" />

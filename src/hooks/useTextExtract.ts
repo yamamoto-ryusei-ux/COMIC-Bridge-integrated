@@ -9,8 +9,9 @@ import type { LayerNode, PsdFile } from "../types";
 /**
  * テキスト抽出ロジックを共有するフック
  */
-export function useTextExtract() {
-  const files = usePsdStore((s) => s.files);
+export function useTextExtract(filesOverride?: PsdFile[]) {
+  const storeFiles = usePsdStore((s) => s.files);
+  const files = filesOverride ?? storeFiles;
   const [isExtracting, setIsExtracting] = useState(false);
   const [sortMode, setSortMode] = useState<"bottomToTop" | "topToBottom">("bottomToTop");
   const [includeHidden, setIncludeHidden] = useState(false);
@@ -67,13 +68,37 @@ export function useTextExtract() {
         filePath,
       });
 
-      // 統合ビューアーに自動読み込み
+      // 統合ビューアーに自動読み込み（WF中でなくても常に反映）
       try {
         const bytes = await readFile(filePath);
         const textContent = new TextDecoder("utf-8").decode(bytes);
         const viewerStore = useUnifiedViewerStore.getState();
         viewerStore.setTextContent(textContent);
         viewerStore.setTextFilePath(filePath);
+        viewerStore.setIsDirty(false);
+        // COMIC-POTパース → textPages/textHeader を設定
+        const lines = textContent.split(/\r?\n/);
+        const header: string[] = [];
+        const pages: { pageNumber: number; blocks: { id: string; originalIndex: number; lines: string[] }[] }[] = [];
+        let curPage: typeof pages[0] | null = null;
+        let blockLines: string[] = [];
+        let blockIdx = 0;
+        const flush = () => {
+          if (blockLines.length > 0 && curPage) {
+            curPage.blocks.push({ id: `p${curPage.pageNumber}-b${blockIdx}`, originalIndex: blockIdx, lines: [...blockLines] });
+            blockIdx++;
+            blockLines = [];
+          }
+        };
+        for (const line of lines) {
+          const m = line.match(/^<<(\d+)Page>>$/);
+          if (m) { flush(); blockIdx = 0; blockLines = []; curPage = { pageNumber: parseInt(m[1], 10), blocks: [] }; pages.push(curPage); }
+          else if (curPage) { if (line.trim() === "") flush(); else blockLines.push(line); }
+          else header.push(line);
+        }
+        flush();
+        viewerStore.setTextHeader(header);
+        viewerStore.setTextPages(pages);
       } catch { /* ignore */ }
 
       // 出力フォルダを開く

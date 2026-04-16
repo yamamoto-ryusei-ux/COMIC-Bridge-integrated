@@ -84,7 +84,7 @@ export const usePsdStore = create<PsdStore>((set, get) => ({
   specViewMode: "thumbnails",
   psdOnlyFilter: false,
   fileTypeFilter: "all" as const,
-  pdfDisplayMode: "page",
+  pdfDisplayMode: "file",
   contentLocked: false,
   refreshCounter: 0,
   fileOpsUndoStack: [],

@@ -116,17 +116,30 @@ export function RequestPrepView() {
     if (scanWorkInfo.label && !proofLabel) setProofLabel(scanWorkInfo.label);
   }, [scanWorkInfo.genre, scanWorkInfo.label]);
 
-  // WFからの自動フォルダ読み込み
+  // WFからの自動フォルダ読み込み + モード・ジャンル・レーベル自動設定
   useEffect(() => {
     try {
       const autoFolder = localStorage.getItem("requestPrep_autoFolder");
-      if (!autoFolder) return;
-      localStorage.removeItem("requestPrep_autoFolder");
-      (async () => {
-        const detected = await detectContentsDeep(autoFolder, true);
-        const name = autoFolder.replace(/\\/g, "/").split("/").pop() || "";
-        setItems([{ path: autoFolder, name, isFolder: true, detected }]);
-      })();
+      if (autoFolder) {
+        localStorage.removeItem("requestPrep_autoFolder");
+        (async () => {
+          const detected = await detectContentsDeep(autoFolder, true);
+          const name = autoFolder.replace(/\\/g, "/").split("/").pop() || "";
+          setItems([{ path: autoFolder, name, isFolder: true, detected }]);
+        })();
+      }
+      const autoMode = localStorage.getItem("requestPrep_autoMode");
+      if (autoMode) {
+        localStorage.removeItem("requestPrep_autoMode");
+        if (autoMode === "external") setMode("proof");
+        else if (autoMode === "whiteout") setMode("whiteout");
+      }
+      const autoGenre = localStorage.getItem("requestPrep_autoGenre");
+      if (autoGenre) { setProofGenre(autoGenre); localStorage.removeItem("requestPrep_autoGenre"); }
+      const autoLabel = localStorage.getItem("requestPrep_autoLabel");
+      if (autoLabel) { setProofLabel(autoLabel); localStorage.removeItem("requestPrep_autoLabel"); }
+      const autoTitle = localStorage.getItem("requestPrep_autoTitle");
+      if (autoTitle) { localStorage.removeItem("requestPrep_autoTitle"); }
     } catch { /* ignore */ }
   }, []);
 
@@ -197,49 +210,57 @@ export function RequestPrepView() {
         await invoke("create_directory", { path: outputDir }).catch(() => {});
       }
 
-      // テキスト置換: 読み込み済みテキストがあり、アイテムにTXTが含まれる場合
-      // 元データは触らず、一時コピーしてテキストを差し替えてからZIP化
-      const viewerText = useUnifiedViewerStore.getState().textContent;
-      const needTextReplace = mode !== "proof" && viewerText && items.some((i) => i.detected.hasTxt);
-      if (needTextReplace) {
+      // テキスト置換/追加: 読み込み済みテキストがある場合
+      // 元データは触らず、一時コピーしてテキストを差し替え(or 追加)してからZIP化
+      const viewerState = useUnifiedViewerStore.getState();
+      const viewerText = viewerState.textContent;
+      const viewerTextPath = viewerState.textFilePath;
+      // ビューアーのファイル名（例: foo.txt）。無い場合は "text.txt" をデフォルトに
+      const viewerTextFileName = viewerTextPath
+        ? (viewerTextPath.replace(/\\/g, "/").split("/").pop() || "text.txt")
+        : "text.txt";
+      const needTextHandling = mode !== "proof" && !!viewerText;
+      if (needTextHandling) {
         const tempDir = `${desktop}__temp_zip_${Date.now()}`;
         tempFolderToCleanup = tempDir;
         await invoke("create_directory", { path: tempDir });
-        // 再帰的にTXTファイルを検索するヘルパー
-        const findTxtRecursive = async (dir: string): Promise<string[]> => {
-          const result: string[] = [];
-          try {
-            const files = await invoke<string[]>("kenban_list_files_in_folder", { folderPath: dir, extensions: ["txt"] });
-            for (const f of files) result.push(`${dir}\\${f}`);
-          } catch { /* ignore */ }
-          try {
-            const contents = await invoke<{ folders: string[]; json_files: string[] }>("list_folder_contents", { folderPath: dir });
-            for (const sub of contents.folders) {
-              const subResults = await findTxtRecursive(`${dir}\\${sub}`);
-              result.push(...subResults);
-            }
-          } catch { /* ignore */ }
-          return result;
-        };
         const newSourcePaths: string[] = [];
         for (const item of items) {
           const destPath = `${tempDir}\\${item.name}`;
           if (item.isFolder) {
             await invoke<number>("copy_folder", { source: item.path, destination: destPath });
-            // フォルダ内のTXTファイルを再帰検索して置換
-            const txtFiles = await findTxtRecursive(destPath);
-            for (const fp of txtFiles) {
-              await invoke("write_text_file", { filePath: fp, content: viewerText });
-            }
+            // フォルダ内のTXTファイルを全階層再帰的に削除（Rust側で一括処理）
+            // 注意: 一時コピーに対してのみ削除するため、元ファイルは無変更
+            const deletedCount = await invoke<number>("delete_files_by_extension_recursive", {
+              folderPath: destPath,
+              extensions: ["txt"],
+            }).catch((e) => {
+              console.error("[delete_files_by_extension_recursive] failed:", e);
+              return 0;
+            });
+            console.log(`[RequestPrep] 削除したTXTファイル数: ${deletedCount} in ${destPath}`);
+            // ビューアーのテキストを新規ファイルとして追加
+            // 配置先: item 直下（例: 1_原稿/{viewerTextFileName}.txt）
+            await invoke("write_text_file", {
+              filePath: `${destPath}\\${viewerTextFileName}`,
+              content: viewerText,
+            });
           } else {
+            // 個別ファイル: TXT は ZIP に含めずスキップ、それ以外はコピー
             const ext = item.path.substring(item.path.lastIndexOf(".") + 1).toLowerCase();
             if (ext === "txt") {
-              await invoke("write_text_file", { filePath: destPath, content: viewerText });
-            } else {
-              await invoke<number>("copy_folder", { source: item.path, destination: destPath });
+              // 既存TXT は ZIP から除外（スキップ）
+              continue;
             }
+            await invoke<number>("copy_folder", { source: item.path, destination: destPath });
           }
           newSourcePaths.push(destPath);
+        }
+        // ビューアーテキストを単独ファイルとして一時フォルダに配置（個別ファイルモード時）
+        if (items.every((i) => !i.isFolder)) {
+          const txtPath = `${tempDir}\\${viewerTextFileName}`;
+          await invoke("write_text_file", { filePath: txtPath, content: viewerText });
+          newSourcePaths.push(txtPath);
         }
         sourcePaths = newSourcePaths;
       }

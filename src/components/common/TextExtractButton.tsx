@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { useTextExtract } from "../../hooks/useTextExtract";
 import { invoke } from "@tauri-apps/api/core";
+import type { PsdFile } from "../../types";
 
 /**
  * テキスト抽出フローティングボタン
  * PSDファイルのテキストレイヤーからテキストを抽出し、COMIC-POT互換フォーマットで保存する
  */
-export function TextExtractButton({ compact = false }: { compact?: boolean }) {
+export function TextExtractButton({
+  compact = false,
+  files,
+}: {
+  compact?: boolean;
+  files?: PsdFile[];
+}) {
   const {
     psdFiles,
     isExtracting,
@@ -17,7 +24,7 @@ export function TextExtractButton({ compact = false }: { compact?: boolean }) {
     result,
     setResult,
     handleExtract,
-  } = useTextExtract();
+  } = useTextExtract(files);
   const [showOptions, setShowOptions] = useState(false);
 
   if (psdFiles.length === 0) return null;

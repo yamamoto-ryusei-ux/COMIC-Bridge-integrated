@@ -10,16 +10,19 @@ import {
 import { buildScanDataFromFiles, mergeScanData } from "../../lib/agPsdScanner";
 import { getAutoSubName } from "../../types/scanPsd";
 import { GENRE_LABELS, JSON_BASE_PATH } from "../../types/tiff";
-import type { LayerNode } from "../../types";
+import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
+import type { LayerNode, PsdFile } from "../../types";
 import type { FontResolveInfo } from "../../hooks/useFontResolver";
 
 interface SpecScanJsonDialogProps {
   onClose: () => void;
   /** trueの場合、fixedモーダルではなくインライン表示 */
   inline?: boolean;
+  /** スキャン対象ファイル（未指定時は psdStore.files 全件を対象にする） */
+  targetFiles?: PsdFile[];
 }
 
-export function SpecScanJsonDialog({ onClose, inline }: SpecScanJsonDialogProps) {
+export function SpecScanJsonDialog({ onClose, inline, targetFiles }: SpecScanJsonDialogProps) {
   const [label, setLabel] = useState("");
   const [title, setTitle] = useState("");
   const [volumeStr, setVolumeStr] = useState("1");
@@ -125,7 +128,9 @@ export function SpecScanJsonDialog({ onClose, inline }: SpecScanJsonDialogProps)
       }
 
       // 3. フォント名解決
-      const allFiles = usePsdStore.getState().files;
+      const allFiles = targetFiles && targetFiles.length > 0
+        ? targetFiles
+        : usePsdStore.getState().files;
       const postScriptNames = new Set<string>();
       for (const file of allFiles) {
         if (!file.metadata?.layerTree) continue;
@@ -228,6 +233,36 @@ export function SpecScanJsonDialog({ onClose, inline }: SpecScanJsonDialogProps)
       }
 
       const savedPath = useScanPsdStore.getState().currentJsonFilePath;
+
+      // 統合ビューアーにフォントプリセットを自動読み込み
+      if (savedPath) {
+        try {
+          const jsonContent = await invoke<string>("read_text_file", { filePath: savedPath });
+          const jsonData = JSON.parse(jsonContent);
+          const presets: { font: string; name: string; subName?: string }[] = [];
+          const presetsObj = jsonData?.presetData?.presets ?? jsonData?.presets ?? jsonData?.presetSets ?? jsonData;
+          if (typeof presetsObj === "object" && presetsObj !== null) {
+            if (Array.isArray(presetsObj)) {
+              for (const p of presetsObj)
+                if (p?.font || p?.postScriptName)
+                  presets.push({ font: p.font || p.postScriptName, name: p.name || p.displayName || p.font || "", subName: p.subName || "" });
+            } else {
+              for (const [, arr] of Object.entries(presetsObj)) {
+                if (!Array.isArray(arr)) continue;
+                for (const p of arr as any[])
+                  if (p?.font || p?.postScriptName)
+                    presets.push({ font: p.font || p.postScriptName, name: p.name || p.displayName || "", subName: p.subName || "" });
+              }
+            }
+          }
+          if (presets.length > 0) {
+            const vs = useUnifiedViewerStore.getState();
+            vs.setFontPresets(presets);
+            vs.setPresetJsonPath(savedPath);
+          }
+        } catch { /* ignore */ }
+      }
+
       setScanResult({
         success: true,
         message: `JSON保存完了（${scanData.fonts.length}フォント, ${scanData.guideSets.length}ガイドセット）${textLogSaved ? " + テキストログ出力" : ""}${savedPath ? `\n${savedPath.split(/[\\/]/).pop()}` : ""}`,
@@ -266,7 +301,9 @@ export function SpecScanJsonDialog({ onClose, inline }: SpecScanJsonDialogProps)
   );
 
   const isReady = !!label && !!title && !scanning;
-  const fileCount = usePsdStore.getState().files.length;
+  const fileCount = (targetFiles && targetFiles.length > 0
+    ? targetFiles
+    : usePsdStore.getState().files).length;
 
   const content = (
       <div className={inline ? "flex flex-col h-full overflow-hidden" : "bg-bg-secondary rounded-2xl shadow-2xl w-[400px] max-h-[80vh] flex flex-col border border-border/50 overflow-hidden"}>

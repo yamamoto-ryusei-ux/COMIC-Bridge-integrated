@@ -14,6 +14,8 @@ import { useGlobalDragDrop } from "../../hooks/useGlobalDragDrop";
 import { useOpenFolderShortcut } from "../../hooks/useOpenFolder";
 import { useFileWatcher } from "../../hooks/useFileWatcher";
 import { useHandoff } from "../../hooks/useHandoff";
+import { usePsdLoader } from "../../hooks/usePsdLoader";
+import { registerPsdLoader } from "../../lib/psdLoaderRegistry";
 
 export function AppLayout() {
   const isViewerFullscreen = useViewStore((s) => s.isViewerFullscreen);
@@ -64,6 +66,12 @@ export function AppLayout() {
 
   // Photoshop UXPプラグインからのハンドオフ検出
   useHandoff();
+
+  // PSDローダーをグローバルレジストリに登録（WorkflowBar等のReact外から呼ぶため）
+  const { loadFolder: psdLoadFolder, loadFiles: psdLoadFiles } = usePsdLoader();
+  useEffect(() => {
+    registerPsdLoader(psdLoadFolder, psdLoadFiles);
+  }, [psdLoadFolder, psdLoadFiles]);
 
   // Ctrl+A で全選択
   useEffect(() => {
