@@ -50,6 +50,7 @@ pub fn run() {
             commands::restore_from_backup,
             commands::create_directory,
             commands::create_zip,
+            commands::extract_zip,
             commands::copy_folder,
             commands::duplicate_files,
             commands::path_exists,

@@ -451,14 +451,17 @@
 - **1ステップ=1工程（v3.6.5変更）**: 旧版の「開始/終了」2分割（`expandSteps`関数）を廃止。シンプルに1ステップ=1工程の構造に
 - **4ワークフロー**:
   - **写植入稿**: 読み込み→仕様修正→ProGen整形→校正→テキスト修正→ZIP
-  - **初校確認**: 読み込み→ビューアー確認（テキスト照合のみ右端表示）→テキスト抽出（メイン画面）→提案チェックプロンプト（ProGen、提案ボタン表示）→Tachimi見開きPDF（メイン画面）→ZIP外部校正（JSON workInfoからジャンル・レーベル自動）
+  - **初校確認**: WF選択時にデータ読み込みオーバーレイ（PSD/画像PDF/テキスト/JSON/カラーモード選択、ZIP解凍対応）→読み込み（specCheck確認）→ビューアー確認（テキスト照合チェック→自動テキスト抽出→提案チェックまでスキップ）→提案チェックプロンプト→Tachimi見開きPDF→ZIP外部校正（ZIP作成後に自動WF完了確認）
   - **校正確認**: 校正確認→赤字修正→MojiQ→編集確認
   - **白消しTIFF**: 差し替え→差分検知→TIFF化→差分検知→TIFF格納
 - **自動ナビゲーション**: 各ステップに`nav`（AppView）と`progenMode`を設定。ステップ進行時に自動画面遷移
 - **ZIP リリースステップ**: `copyDestFolder`の親フォルダ（1_入稿レベル）を`requestPrep_autoFolder` localStorage経由でRequestPrepViewに自動セット
 - **テキストチェックステップ**: copyDestFolder内のPDF/画像を自動検出してpsdStoreに読み込み。テキストタブを右端に自動配置、他タブ非表示
 - **中断確認ダイアログ**: 中断ボタン押下時にstate管理のモーダルで「中止しますか？」を表示（window.confirm非使用）
-- **進行確認ダイアログ（confirmOnNext, v3.7.3）**: ステップ進行時にチェック確認。`specCheck`=NG/注意→警告/全合格→OK。`textSave`=未保存→保存ボタン/保存済→OK。`wfComplete`=WF終了確認（はい/いいえ）
+- **進行確認ダイアログ（confirmOnNext, v3.7.3→v3.7.4）**: ステップ進行時にチェック確認。`specCheck`=NG/注意→警告/全合格→OK。`textSave`=未保存→保存ボタン/保存済→OK。`wfComplete`=WF終了確認（はい/いいえ）。`textDiffThenExtract`=テキスト照合不一致→警告/一致→自動テキスト抽出+提案チェックまでスキップ
+- **初校確認WFオーバーレイ（v3.7.4）**: WF選択時にデータ読み込みオーバーレイ出現。PSD（フォルダ/ファイル/ZIP→2_写植に自動解凍+PSDフォルダ検出）→検A、画像PDF（フォルダ/ファイル）→検B、テキスト→読み取り、作品情報JSON/校正JSON→読み取りボタン、カラーモード必須。ZIP先選択→画像/PDF後選択で自動解凍対応
+- **ZIP作成後WF自動完了（v3.7.4）**: RequestPrepViewでZIP作成成功後、WF進行中なら完了確認ポップアップ表示
+- **extract_zip Rustコマンド（v3.7.4）**: ZIPファイルを指定ディレクトリに解凍
 - **viewerTabSetup**: ステップ定義にタブ位置自動設定を追加（`{ text: "far-right", files: null, ... }`）
 - **requestPrepMode**: ステップ定義にRequestPrepの初期モードを追加（"external"で外部校正タブに自動切替 + JSON workInfoからジャンル・レーベル自動セット）
 

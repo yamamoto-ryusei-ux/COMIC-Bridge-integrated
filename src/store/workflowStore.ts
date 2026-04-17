@@ -14,7 +14,7 @@ export interface WorkflowStep {
   /** RequestPrepView の初期モード */
   requestPrepMode?: string;
   /** 次へ進む前にチェック確認ダイアログを表示 */
-  confirmOnNext?: "specCheck" | "textSave" | "wfComplete";
+  confirmOnNext?: "specCheck" | "textSave" | "wfComplete" | "proofLoad" | "textDiffThenExtract";
 }
 
 export interface Workflow {
@@ -46,12 +46,12 @@ export const WORKFLOWS: Workflow[] = [
     name: "初校確認",
     icon: "📝",
     steps: [
-      { label: "初校データ 読み込み", desc: "問題を検出", nav: "specCheck" },
-      { label: "ビューアーで確認・修正", desc: "フォント・サイズ・白消し・AA・カーニング・フォント帳", nav: "unifiedViewer", viewerTabSetup: { diff: "far-right", files: null, layers: null, spec: null, text: null, proofread: null } },
+      { label: "初校データ 読み込み", desc: "問題を検出", nav: "specCheck", confirmOnNext: "specCheck" },
+      { label: "ビューアーで確認・修正", desc: "フォント・サイズ・白消し・AA・カーニング・フォント帳", nav: "unifiedViewer", viewerTabSetup: { diff: "far-right", files: null, layers: null, spec: null, text: null, proofread: null }, confirmOnNext: "textDiffThenExtract" },
       { label: "テキスト抽出", desc: "PSDからテキストを抽出", nav: "specCheck" },
       { label: "提案チェックプロンプト作成", desc: "ProGenで提案チェック生成", nav: "progen", progenMode: "_check_variation" },
       { label: "Tachimiで見開きPDF作成", desc: "メイン画面でTachimi起動", nav: "specCheck" },
-      { label: "ZIP リリース（外部校正）", desc: "外部校正タブで依頼準備", nav: "requestPrep", requestPrepMode: "external" },
+      { label: "ZIP リリース（外部校正）", desc: "外部校正タブで依頼準備", nav: "requestPrep", requestPrepMode: "external", confirmOnNext: "wfComplete" },
     ],
   },
   {

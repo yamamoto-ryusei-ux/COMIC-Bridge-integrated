@@ -9,6 +9,7 @@ import { usePsdLoader } from "../../hooks/usePsdLoader";
 import { GENRE_LABELS } from "../../types/scanPsd";
 import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
 import { useSpecStore } from "../../store";
+import { useWorkflowStore } from "../../store/workflowStore";
 import { JsonFileBrowser } from "../scanPsd/JsonFileBrowser";
 
 const DEFAULT_COPY_DEST = "1_入稿";
@@ -951,9 +952,26 @@ export function FolderSetupView() {
               const r = await invoke<string[]>("list_all_files", { folderPath: fileCheck.checkedFolder });
               const psd = r.filter((f: string) => /\.(psd|psb)$/i.test(f)).length;
               const img = r.filter((f: string) => /\.(jpg|jpeg|png|tif|tiff|bmp|gif|pdf)$/i.test(f)).length;
-              const txt = r.filter((f: string) => /\.txt$/i.test(f)).length;
+              const txtFiles = r.filter((f: string) => /\.txt$/i.test(f));
+              const txt = txtFiles.length;
               setFileCheck({ hasPsd: psd > 0, hasPdfOrImage: img > 0, hasText: txt > 0, psdCount: psd, pdfImageCount: img, textCount: txt, checkedFolder: fileCheck.checkedFolder });
               if (psd > 0) loadFolder(fileCheck.checkedFolder).catch(() => {});
+              // テキストファイルが追加された場合は統合ビューアーに読み込み
+              if (txtFiles.length > 0) {
+                try {
+                  const combined: string[] = [];
+                  for (const fp of txtFiles) {
+                    const content = await invoke<string>("read_text_file", { filePath: fp });
+                    combined.push(content);
+                  }
+                  const text = combined.join("\n");
+                  const viewer = useUnifiedViewerStore.getState();
+                  viewer.setTextContent(text);
+                  viewer.setTextFilePath(txtFiles[0]);
+                  // ProGenモードフラグ更新
+                  try { localStorage.setItem("folderSetup_progenMode", "formatting"); } catch {}
+                } catch { /* ignore */ }
+              }
             }} />
             {/* 作品情報JSON */}
             <div className="flex items-center gap-2">
@@ -981,9 +999,9 @@ export function FolderSetupView() {
                 className="px-2 py-0.5 text-[9px] rounded bg-bg-tertiary text-text-secondary hover:text-accent border border-border/50 transition-colors flex-shrink-0"
               >新規</button>
             </div>
-            {/* カラーモード選択 */}
+            {/* カラーモード選択（必須） */}
             <div className="flex items-center gap-2">
-              <span className="text-[9px] text-text-muted">カラーモード:</span>
+              <span className="text-[9px] text-text-muted">カラーモード<span className="text-error">*</span>:</span>
               {[{ id: "mono-spec", label: "モノクロ" }, { id: "color-spec", label: "カラー" }].map((spec) => (
                 <button
                   key={spec.id}
@@ -997,6 +1015,7 @@ export function FolderSetupView() {
                   }`}
                 >{spec.label}</button>
               ))}
+              {!selectedSpecId && <span className="text-[9px] text-error">選択してください</span>}
             </div>
             {/* ProGenモード */}
             <div className="p-2.5 bg-accent/5 border border-accent/15 rounded-lg">
@@ -1004,9 +1023,45 @@ export function FolderSetupView() {
                 {fileCheck.hasText ? "📝 テキストあり → ProGen「整形」" : "🔍 テキストなし → ProGen「抽出」"}
               </div>
             </div>
-            <button onClick={() => setFileCheck(null)} className="w-full py-2 text-xs font-medium text-white bg-accent rounded-lg hover:bg-accent/90 transition-colors">
-              確認完了
-            </button>
+            {/* 確認完了 / WF次へ進む */}
+            {(() => {
+              const isWf = !!useWorkflowStore.getState().activeWorkflow;
+              const canProceed = selectedSpecId && fileCheck.hasPsd && fileCheck.hasPdfOrImage;
+              return isWf ? (
+                <button
+                  onClick={() => {
+                    if (!canProceed) return;
+                    setFileCheck(null);
+                    // WF次のステップへ自動進行
+                    const wfs = useWorkflowStore.getState();
+                    if (wfs.activeWorkflow && wfs.currentStep < wfs.activeWorkflow.steps.length - 1) {
+                      wfs.nextStep();
+                      const nextStep = wfs.activeWorkflow.steps[wfs.currentStep + 1];
+                      if (nextStep?.nav) {
+                        import("../../store/viewStore").then(({ useViewStore }) => {
+                          useViewStore.getState().setActiveView(nextStep.nav as any);
+                        });
+                      }
+                    }
+                  }}
+                  disabled={!canProceed}
+                  className="w-full py-2.5 text-xs font-medium text-white bg-accent rounded-lg hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  {!selectedSpecId ? "カラーモードを選択してください"
+                    : !fileCheck.hasPsd ? "PSDが不足しています"
+                    : !fileCheck.hasPdfOrImage ? "PDF/画像が不足しています"
+                    : "確認完了 → 次の工程へ"}
+                </button>
+              ) : (
+                <button
+                  onClick={() => { if (selectedSpecId) setFileCheck(null); }}
+                  disabled={!selectedSpecId}
+                  className="w-full py-2 text-xs font-medium text-white bg-accent rounded-lg hover:bg-accent/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  {selectedSpecId ? "確認完了" : "カラーモードを選択してください"}
+                </button>
+              );
+            })()}
           </div>
         </div>
       )}

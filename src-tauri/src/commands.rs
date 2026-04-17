@@ -3053,6 +3053,38 @@ pub async fn create_zip(
     Ok(zip_path.to_string_lossy().to_string())
 }
 
+/// Extract a ZIP file to a destination directory
+#[tauri::command]
+pub async fn extract_zip(zip_path: String, dest_dir: String) -> Result<u32, String> {
+    use std::io::Read;
+    let zip_file = fs::File::open(&zip_path)
+        .map_err(|e| format!("Failed to open ZIP: {}", e))?;
+    let mut archive = zip::ZipArchive::new(zip_file)
+        .map_err(|e| format!("Failed to read ZIP: {}", e))?;
+    let dest = Path::new(&dest_dir);
+    fs::create_dir_all(dest).map_err(|e| format!("Failed to create dir: {}", e))?;
+    let mut count: u32 = 0;
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i).map_err(|e| format!("ZIP entry error: {}", e))?;
+        let out_path = dest.join(file.mangled_name());
+        if file.is_dir() {
+            fs::create_dir_all(&out_path).ok();
+        } else {
+            if let Some(parent) = out_path.parent() {
+                fs::create_dir_all(parent).ok();
+            }
+            let mut out_file = fs::File::create(&out_path)
+                .map_err(|e| format!("Failed to create file: {}", e))?;
+            let mut buf = Vec::new();
+            file.read_to_end(&mut buf).map_err(|e| format!("Read error: {}", e))?;
+            std::io::Write::write_all(&mut out_file, &buf)
+                .map_err(|e| format!("Write error: {}", e))?;
+            count += 1;
+        }
+    }
+    Ok(count)
+}
+
 /// Copy a folder recursively to a destination
 #[tauri::command]
 pub async fn copy_folder(source: String, destination: String) -> Result<u32, String> {

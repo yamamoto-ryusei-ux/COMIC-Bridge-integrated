@@ -69,6 +69,7 @@ export function RequestPrepView() {
   const [zipName, setZipName] = useState("");
   const [status, setStatus] = useState<{ type: "idle" | "success" | "error"; msg: string }>({ type: "idle", msg: "" });
   const [processing, setProcessing] = useState(false);
+  const [showWfComplete, setShowWfComplete] = useState(false);
 
   const scanWorkInfo = useScanPsdStore((s) => s.workInfo);
   const scanJsonPath = useScanPsdStore((s) => s.currentJsonFilePath);
@@ -268,6 +269,11 @@ export function RequestPrepView() {
       const zipPath = await invoke<string>("create_zip", { outputDir, zipName, sourcePaths });
       setStatus({ type: "success", msg: `作成完了: ${zipPath}` });
       await invoke("open_folder_in_explorer", { folderPath: outputDir }).catch(() => {});
+      // WF進行中なら完了確認ポップアップ
+      const { useWorkflowStore } = await import("../../store/workflowStore");
+      if (useWorkflowStore.getState().activeWorkflow) {
+        setShowWfComplete(true);
+      }
     } catch (e) { setStatus({ type: "error", msg: `エラー: ${String(e)}` }); }
     // 一時フォルダのクリーンアップ
     if (tempFolderToCleanup) {
@@ -437,6 +443,24 @@ export function RequestPrepView() {
           </div>
         )}
       </div>
+
+      {/* WF完了確認ダイアログ */}
+      {showWfComplete && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
+          <div className="bg-bg-secondary border border-border rounded-2xl p-5 shadow-xl w-[300px] space-y-3" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-medium text-text-primary text-center">完了</p>
+            <p className="text-xs text-text-secondary text-center">ワークフローを終了しますか？</p>
+            <div className="flex gap-2">
+              <button onClick={() => setShowWfComplete(false)} className="flex-1 px-3 py-2 text-xs font-medium text-text-secondary bg-bg-tertiary rounded-lg hover:bg-bg-elevated transition-colors">いいえ</button>
+              <button onClick={async () => {
+                setShowWfComplete(false);
+                const { useWorkflowStore } = await import("../../store/workflowStore");
+                useWorkflowStore.getState().abortWorkflow();
+              }} className="flex-1 px-3 py-2 text-xs font-medium text-white bg-success rounded-lg hover:bg-success/90 transition-colors">はい</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
