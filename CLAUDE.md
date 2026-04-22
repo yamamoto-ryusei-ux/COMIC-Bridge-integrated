@@ -7,6 +7,18 @@
 **このプロジェクトフォルダ（`C:\Users\yamamoto-ryusei\Documents\6_スクリプト\アプリデータ\COMIC-Bridge_統合版\`）以外のファイルやフォルダを閲覧・参照しないこと。**
 外部のファイルパスへのアクセスは、ユーザーが明示的に指定した場合（デバッグ用PSDファイルの読み取り等）に限る。
 
+## 📐 設計ドキュメント索引
+
+本 CLAUDE.md は機能仕様の詳細カタログ。全体像を俯瞰したい場合は以下を先に:
+
+- **[docs/architecture.md](docs/architecture.md)** — レイヤー構成全体図（React / Tauri IPC / Rust / Photoshop JSX）。102 Rust コマンドの分類、起動シーケンス、import 規約とパスエイリアス
+- **[docs/feature-map.md](docs/feature-map.md)** — 21 機能 × 画面 × ストア × フック × Rust × JSX の横断対応表。グローバルストア × feature の依存マトリクス
+- **[docs/data-flow.md](docs/data-flow.md)** — 代表シナリオのシーケンス図（仕様チェック / TIFF 化 / ガイド適用 / ProGen / 差分ビューアー / スキャン PSD / ワークフロー横断 / データ格納先マップ）
+- **[KENBAN統合手順書.md](KENBAN統合手順書.md)** — KENBAN 機能統合時の作業手順
+
+各 feature 単位の詳細は feature 内の README を参照:
+[compose](src/features/compose/README.md) / [diff-viewer](src/features/diff-viewer/README.md) / [layer-control](src/features/layer-control/README.md) / [parallel-viewer](src/features/parallel-viewer/README.md) / [progen](src/features/progen/README.md) / [rename](src/features/rename/README.md) / [replace](src/features/replace/README.md) / [scan-psd](src/features/scan-psd/README.md) / [spec-check](src/features/spec-check/README.md) / [split](src/features/split/README.md) / [tiff](src/features/tiff/README.md) / [unified-viewer](src/features/unified-viewer/README.md) / [_deprecated](src/features/_deprecated/README.md) / [shared (移行予定)](src/shared/README.md)
+
 ## 概要
 
 漫画制作者や編集者が入稿前にPSDファイルの仕様をチェックし、必要に応じてPhotoshopと連携して一括修正できるツール。統合ビューアー（テキスト照合・写植確認・校正JSON・DTPビューアー・差分モード・分割ビューアー）とProGen（テキスト抽出・校正プロンプト生成ツール）を内蔵。全機能React/Tailwind/Zustandネイティブ実装。
@@ -267,13 +279,13 @@
 - レンダリングエラー時に真っ白画面ではなくエラーメッセージ＋再試行ボタンを表示
 
 **主要ファイル:**
-- `src/hooks/useScanPsdProcessor.ts` — スキャン実行、JSON/scandata保存・読込、ガイド自動選択
-- `src/store/scanPsdStore.ts` — Zustandストア（persist未使用）
+- `src/features/scan-psd/useScanPsdProcessor.ts` — スキャン実行、JSON/scandata保存・読込、ガイド自動選択
+- `src/features/scan-psd/scanPsdStore.ts` — Zustandストア（persist未使用）
 - `src/types/scanPsd.ts` — ScanData, PresetJsonData, ScanGuideSet, ScanWorkInfo, FontPreset等の型定義
-- `src/components/scanPsd/ScanPsdContent.tsx` — 右パネル（モード選択、スキャンUI、サマリー、ファイルブラウザ）
-- `src/components/scanPsd/ScanPsdPanel.tsx` — 左パネル（5タブ + 保存ボタン）
-- `src/components/scanPsd/JsonFileBrowser.tsx` — basePath以下のJSON専用ファイルブラウザ
-- `src/components/scanPsd/tabs/` — 各タブコンポーネント
+- `src/features/scan-psd/components/ScanPsdContent.tsx` — 右パネル（モード選択、スキャンUI、サマリー、ファイルブラウザ）
+- `src/features/scan-psd/components/ScanPsdPanel.tsx` — 左パネル（5タブ + 保存ボタン）
+- `src/features/scan-psd/components/JsonFileBrowser.tsx` — basePath以下のJSON専用ファイルブラウザ
+- `src/features/scan-psd/components/tabs/` — 各タブコンポーネント
 - `src/components/ErrorBoundary.tsx` — React エラーバウンダリ
 
 **ストアの主要状態:**
@@ -320,7 +332,7 @@
 
 ### 17. 写植確認（TypesettingConfirmPanel）
 - **概要**: comicpotテキストデータにフォント指定を付与して保存する機能。フォント帳（プリセットJSON）を読み込み、テキストブロックにフォントを割り当て
-- **コンポーネント**: `TypesettingConfirmPanel.tsx`（`src/components/typesetting-confirm/`）
+- **コンポーネント**: `TypesettingConfirmPanel.tsx`（`src/features/_deprecated/typesetting/confirm/` — 隔離中）
 - **テキスト解析**: `parseComicPotText()` でページ区切り `<<NPage>>` とブロック（空行区切り）を解析
 - **テキスト保存**: `serializeText()` でフォント指定タグ付きテキストに変換
 - **フォント指定書式**: `[font:PostScriptName(表示名(カテゴリ))]` — subNameなし時は `[font:PostScriptName(表示名)]`
@@ -368,7 +380,7 @@
 
 ### 20. 差分ビューアー / 分割ビューアー（v3.5.0でKENBANから完全移植、v3.6.0で大幅改善）
 - **配置**: 統合ビューアータブ内のサブタブ（差分モード / 分割ビューアー）
-- **差分ビューアー** (`src/components/diff-viewer/DiffViewerView.tsx` + `src/store/diffStore.ts`)
+- **差分ビューアー** (`src/features/diff-viewer/DiffViewerView.tsx` + `src/features/diff-viewer/diffStore.ts`)
   - **比較モード**: tiff-tiff / psd-psd / pdf-pdf / psd-tiff（PSD/TIFFは順序問わず双方向対応）
   - **表示モード**: 原稿A / 原稿B / 差分（ピクセル差分のヒートマップ・マーカー表示）
   - **ペアリング**: ファイル順 / 名前順
@@ -379,7 +391,7 @@
   - **タブ移動時の自動セットアップ**: 差分タブを開いた瞬間に `kenbanPathA/B` から filesA/B を自動読み込み + `computeCompareMode()` で compareMode 自動判定。**v3.7.2: A/B両方揃っている場合のみ読み込み実行**
   - **全画面（v3.7.2）**: サイドバー・ツールバー・ステータスバーすべて非表示、画像のみ表示。OSレベルフルスクリーン（タイトルバーも非表示）。Escapeで解除
   - **背景色（v3.7.2）**: 画像エリアを `#1a1a1e`（黒）に統一
-- **分割ビューアー** (`src/components/parallel-viewer/ParallelViewerView.tsx` + `src/store/parallelStore.ts`)
+- **分割ビューアー** (`src/features/parallel-viewer/ParallelViewerView.tsx` + `src/features/parallel-viewer/parallelStore.ts`)
   - **2パネル並列表示**: 左右独立にフォルダ/ファイル管理
   - **同期/独立モード**: 同期=両パネル同時ページング、独立=アクティブパネルのみ
   - **対応形式**: PSD/PSB/TIFF/JPG/PNG/BMP/PDF
@@ -523,20 +535,20 @@
 - **ZIP内テキスト差し替え**: 元データは触らず一時フォルダにコピー → `findTxtRecursive`（`kenban_list_files_in_folder`+`list_folder_contents`再帰）でTXT検出 → unifiedViewerStoreの現在テキストで置換 → ZIP化 → 一時フォルダ削除
 - **テキスト読み込み時のCOMIC-POTパース**: TopNav/FileContextMenu/SpecCheckViewの全テキスト読み込み箇所で`parseComicPotText()`を呼び、`textPages`/`textHeader`をstoreにセット。UnifiedViewer内のuseEffectで`textContent`変更時に`parseChunks`を自動実行
 - **ProGen React移植（Phase 0-6完了、iframe廃止）**:
-  - `src/types/progen.ts` — 全型定義+定数
-  - `src/store/progenStore.ts` — Zustandストア（40+プロパティ）
-  - `src/hooks/useProgenTauri.ts` — 26個のprogen_*コマンドのinvokeラッパー
-  - `src/hooks/useProgenJson.ts` — JSON読み書き+CSV解析+カテゴリグループ化
-  - `src/hooks/useComicPotState.ts` — COMIC-POTエディタ専用useReducerステート
-  - `src/components/progen/ProgenRuleView.tsx` — ルール編集（6カテゴリ+Gemini+保存ボタン+Ctrl+S対応）
-  - `src/components/progen/ProgenProofreadingView.tsx` — 校正チェック（正誤/提案）
-  - `src/components/progen/ProgenJsonBrowser.tsx` — GドライブJSONブラウザ
-  - `src/components/progen/ProgenResultViewer.tsx` — 校正結果ビューア（3タブ）
-  - `src/components/progen/ProgenCalibrationSave.tsx` — 校正データ保存
-  - `src/components/progen/ProgenAdminView.tsx` — パスワード付き管理画面
-  - `src/components/progen/comicpot/ComicPotEditor.tsx` — COMIC-POTテキストエディタ
-  - `src/components/progen/comicpot/ComicPotChunkList.tsx` — チャンク表示+D&D
-  - `src/components/views/ProgenView.tsx` — React画面ルーター（6画面切替）
+  - `src/features/progen/progen.ts` — 全型定義+定数（旧 `src/types/progen.ts`）
+  - `src/features/progen/progenStore.ts` — Zustandストア（40+プロパティ）
+  - `src/features/progen/useProgenTauri.ts` — 26個のprogen_*コマンドのinvokeラッパー
+  - `src/features/progen/useProgenJson.ts` — JSON読み書き+CSV解析+カテゴリグループ化
+  - `src/features/progen/useComicPotState.ts` — COMIC-POTエディタ専用useReducerステート
+  - `src/features/progen/components/ProgenRuleView.tsx` — ルール編集（6カテゴリ+Gemini+保存ボタン+Ctrl+S対応）
+  - `src/features/progen/components/ProgenProofreadingView.tsx` — 校正チェック（v3.6.4 で隔離済み、どこからもレンダリングされない）
+  - `src/features/progen/components/ProgenJsonBrowser.tsx` — GドライブJSONブラウザ
+  - `src/features/progen/components/ProgenResultViewer.tsx` — 校正結果ビューア（3タブ）
+  - `src/features/progen/components/ProgenCalibrationSave.tsx` — 校正データ保存
+  - `src/features/progen/components/ProgenAdminView.tsx` — パスワード付き管理画面
+  - `src/features/progen/components/comicpot/ComicPotEditor.tsx` — COMIC-POTテキストエディタ
+  - `src/features/progen/components/comicpot/ComicPotChunkList.tsx` — チャンク表示+D&D
+  - `src/features/progen/ProgenView.tsx` — React画面ルーター（6画面切替）
   - ScanPsdEditViewで各機能をモーダルとして起動可能
 - **スキャナーJSON編集のTopNav連携**: ScanPsdModeSelectorで「JSON編集」選択時、TopNavで読み込み済みの作品情報JSON（`unifiedViewerStore.presetJsonPath`）があれば`loadPresetJson`で自動読み込み
 - **create_zip Rustコマンド**: zip crate使用、フォルダ再帰対応、デスクトップに保存
@@ -563,7 +575,7 @@
 1. **TopNav の自動遷移を削除** ([TopNav.tsx](src/components/layout/TopNav.tsx))
    - WF中データピッカー、通常時A/Bピッカーのフォルダ/ファイル選択ボタン 5箇所から `setActiveView("unifiedViewer")` を全削除
 
-2. **外部パス同期 = 登録と読み込みを分離** ([DiffViewerView.tsx:46-62](src/components/diff-viewer/DiffViewerView.tsx#L46), [ParallelViewerView.tsx:30-46](src/components/parallel-viewer/ParallelViewerView.tsx#L30))
+2. **外部パス同期 = 登録と読み込みを分離** ([DiffViewerView.tsx:46-62](src/features/diff-viewer/DiffViewerView.tsx#L46), [ParallelViewerView.tsx:30-46](src/features/parallel-viewer/ParallelViewerView.tsx#L30))
    ```tsx
    useEffect(() => {
      // パス登録は常時（片方だけでも即反映）
@@ -582,7 +594,7 @@
    - ローカル store の `setFolder`/`setFolderA/B`（登録事実を即反映）
    - `loadFolderSide` は `nextA && nextB` の時のみ
 
-4. **待機状態の視覚表示** ([ParallelViewerView.tsx:244-254](src/components/parallel-viewer/ParallelViewerView.tsx#L244))
+4. **待機状態の視覚表示** ([ParallelViewerView.tsx:244-254](src/features/parallel-viewer/ParallelViewerView.tsx#L244))
    パネル上部ツールバーに、`panel.folder` が登録済みだが `files` 未ロードの場合:
    ```
    📂 フォルダ名  待機中
@@ -657,15 +669,15 @@ G:\共有ドライブ\CLLENN\編集部フォルダ\編集企画部\編集企画_
 4. SemVer 比較で新しければ `config.json` をキャッシュに上書き → 再読込
 
 **主要ファイル**:
-- [src/lib/progenConfig.ts](src/lib/progenConfig.ts) — ローダー + 埋め込みフォールバック
+- [src/features/progen/progenConfig.ts](src/features/progen/progenConfig.ts) — ローダー + 埋め込みフォールバック
 - [src-tauri/src/commands.rs](src-tauri/src/commands.rs) — `fetch_progen_config` / `read_progen_cached_file` コマンド
-- [src/lib/progenPrompts.ts](src/lib/progenPrompts.ts) — `Proxy` 経由で `ngWordList`/`numberSubRules`/`categories` を動的参照化（既存コード変更最小）
+- [src/features/progen/progenPrompts.ts](src/features/progen/progenPrompts.ts) — `Proxy` 経由で `ngWordList`/`numberSubRules`/`categories` を動的参照化（既存コード変更最小）
 - [docs/progen-template/](docs/progen-template/) — 共有ドライブ配置用の初期テンプレート + 運用README
 
 **フォールバック階層**（信頼性確保）:
 1. リモート同期済みキャッシュ
 2. 既存ローカルキャッシュ
-3. 埋め込み既定値（ビルド時点のもの、[progenConfig.ts:DEFAULT_*](src/lib/progenConfig.ts)）
+3. 埋め込み既定値（ビルド時点のもの、[progenConfig.ts:DEFAULT_*](src/features/progen/progenConfig.ts)）
 
 **共有ドライブ切断時・JSON破損時も本体動作は継続**。フィールド単位でフォールバック。
 
@@ -716,14 +728,14 @@ G:\共有ドライブ\CLLENN\編集部フォルダ\編集企画部\編集企画_
 
 **統合ビューアー / SpecLayerGrid テキスト行バッジ**
 - 各テキストレイヤー行に 白フチ / カーニング値 バッジを直接表示
-- 統合ビューアー写植仕様タブ ([UnifiedViewer.tsx:1421-1441](src/components/unified-viewer/UnifiedViewer.tsx#L1421)) と SpecLayerGrid カード ([SpecLayerGrid.tsx:196-218](src/components/spec-checker/SpecLayerGrid.tsx#L196)) の両方
+- 統合ビューアー写植仕様タブ ([UnifiedViewer.tsx:1421-1441](src/features/unified-viewer/components/UnifiedViewer.tsx#L1421)) と SpecLayerGrid カード ([SpecLayerGrid.tsx:196-218](src/features/spec-check/components/SpecLayerGrid.tsx#L196)) の両方
 - 既存の「非シャープ」「メトリクス」バッジと並列表示
 
-**使用フォント一覧を 写植仕様タブに統合** ([UnifiedViewer.tsx:1323-1372](src/components/unified-viewer/UnifiedViewer.tsx#L1323))
+**使用フォント一覧を 写植仕様タブに統合** ([UnifiedViewer.tsx:1323-1372](src/features/unified-viewer/components/UnifiedViewer.tsx#L1323))
 - テキストタブの単一ファイル版フォント一覧を削除
 - 写植仕様タブに 全ファイル版 `allFilesFontMap` ベースの一覧を配置（N種/全Nファイル、ファイル数バッジ、クリックで対象ページ巡回）
 
-**ProGen 結果保存モーダル 刷新** ([ProgenView.tsx ResultSaveModal](src/components/views/ProgenView.tsx#L89))
+**ProGen 結果保存モーダル 刷新** ([ProgenView.tsx ResultSaveModal](src/features/progen/ProgenView.tsx#L89))
 - JSONモードで 2カラム貼り付け（正誤 + 提案 同時入力、各欄緑/橙の色分け）
 - 各欄個別パース → `checkKind` を「正誤=correctness」「提案=proposal」で強制設定
 - **作品情報JSON未登録時のガード**: `currentJsonFilePath` が空 or `label/title` 未設定なら、モーダル内に ジャンル/レーベル/タイトル インラインフォームを表示
@@ -736,8 +748,8 @@ G:\共有ドライブ\CLLENN\編集部フォルダ\編集企画部\編集企画_
 - **URL オープン 3段フォールバック** ([commands.rs:open_url_in_browser](src-tauri/src/commands.rs)): ① open crate (ShellExecute) ② rundll32 url.dll,FileProtocolHandler ③ powershell Start-Process。URL 内 `&` による cmd escape 問題を回避
 
 **差分/分割ビューアー Photoshop起動**
-- 分割ビューアー各パネルに「Ps」ボタン + Pキーショートカット ([ParallelViewerView.tsx:226](src/components/parallel-viewer/ParallelViewerView.tsx#L226))
-- 差分ビューアーも Pキーショートカット追加（既存Psボタンに加え）([DiffViewerView.tsx:145](src/components/diff-viewer/DiffViewerView.tsx#L145))
+- 分割ビューアー各パネルに「Ps」ボタン + Pキーショートカット ([ParallelViewerView.tsx:226](src/features/parallel-viewer/ParallelViewerView.tsx#L226))
+- 差分ビューアーも Pキーショートカット追加（既存Psボタンに加え）([DiffViewerView.tsx:145](src/features/diff-viewer/DiffViewerView.tsx#L145))
 
 **レイヤー制御タブ 復元** ([settingsStore.ts:15](src/store/settingsStore.ts#L15))
 - ALL_NAV_BUTTONS に `{ id: "layerControl", label: "レイヤー制御" }` 追加
@@ -753,7 +765,7 @@ G:\共有ドライブ\CLLENN\編集部フォルダ\編集企画部\編集企画_
 - 画像/PDFがない場合も進行可能（警告バナーのみ表示）
 - `canProceed = selectedSpecId && fileCheck.hasPsd` （PDF/画像要件を撤廃）
 
-**ホーム フォルダ階層 傾き半減** ([SpecCheckView.tsx:1905,1924](src/components/views/SpecCheckView.tsx#L1905))
+**ホーム フォルダ階層 傾き半減** ([SpecCheckView.tsx:1905,1924](src/features/spec-check/SpecCheckView.tsx#L1905))
 - 親階層 & サブフォルダの `paddingLeft` を `i * 12px` → `i * 6px` に変更
 - 深い階層での水平オフセットが半減、傾きが緩やかに
 
@@ -890,236 +902,175 @@ G:\共有ドライブ\CLLENN\編集部フォルダ\編集企画部\編集企画_
 
 ## ディレクトリ構造
 
+**Phase 0-4 リファクタリング (2026-04 完了) 以降、機能ごとの垂直スライスに再編成済み。** feature 間の直接参照は禁止、共有コードは `@shared/*` に集約する方針（Phase 5 で実施予定、現状は `src/components/` `src/hooks/` `src/lib/` `src/store/` `src/types/` に残置）。
+
 ```
 src/
-├── main.tsx               # Reactエントリポイント（StrictMode + AppLayout）
-├── App.tsx                # ルートコンポーネント
-├── components/
-│   ├── common/            # 共通コンポーネント
-│   │   ├── CompactFileList.tsx    # コンパクトファイル一覧
-│   │   ├── DetailSlidePanel.tsx   # スライドイン詳細パネル
-│   │   ├── FileContextMenu.tsx   # 右クリックコンテキストメニュー（ファイル操作/編集/読み込み）
-│   │   └── TextExtractButton.tsx  # テキスト抽出フローティングボタン（COMIC-POT互換出力）
-│   ├── file-browser/      # ファイル選択・ドロップゾーン
-│   │   ├── DropZone.tsx          # UI表示のみ（D&DリスナーはuseGlobalDragDrop）
-│   │   ├── FileBrowser.tsx       # フォルダ/ファイル選択ハンドラー
-│   │   └── FileList.tsx          # ファイルリスト表示（選択/マルチセレクト）
-│   ├── layout/            # レイアウトコンポーネント
-│   │   ├── AppLayout.tsx         # メインレイアウト（TopNav + GlobalAddressBar + ViewRouter）
-│   │   ├── GlobalAddressBar.tsx  # グローバルアドレスバー（全タブ共通）
-│   │   ├── TopNav.tsx            # 上部ナビゲーション（タブ切替）
-│   │   ├── ViewRouter.tsx        # ビュー切替ルーター
-│   │   ├── WorkflowBar.tsx       # ワークフローナビゲーション（4ワークフロー、ステップ進行UI）
-│   │   └── SettingsPanel.tsx     # 設定画面（文字サイズ/カラー/ダークモード/デフォルトフォルダ）
-│   ├── unified-viewer/   # 統合ビューアー
-│   │   ├── UnifiedViewer.tsx          # メインコンポーネント（3カラムレイアウト、画像ビューアー、renderTabContent）
-│   │   ├── utils.ts                   # ヘルパー関数・定数（COMIC-POTパーサー、ページ番号計算、ファイル判定）
-│   │   ├── UnifiedSubComponents.tsx   # サブコンポーネント（ToolBtn, PanelTabBtn, LayerTreeView, SortableBlockItem, UnifiedDiffDisplay, CheckJsonBrowser）
-│   │   ├── useViewerFileOps.ts        # ファイル操作フック（openFolder, openTextFile, handleJsonFileSelect, handleSave, handleSaveAs）
-│   │   └── ProgenImageViewer.tsx      # ProGen画像ビューアー（React製、COMIC-POTスタイル）
-│   ├── diff-viewer/      # 差分ビューアー（v3.5.0でKENBANから移植）
-│   │   └── DiffViewerView.tsx    # 比較モード/表示モード/ペアリング/差分計算
-│   ├── parallel-viewer/  # 分割ビューアー（v3.5.0でKENBANから移植）
-│   │   └── ParallelViewerView.tsx # 2パネル独立/同期切替/PDF見開き分割
-│   ├── views/             # ビューコンポーネント
-│   │   ├── FileView.tsx          # （未使用 — SpecCheckViewに統合済み）
-│   │   ├── FontBookView.tsx      # フォント帳ビュー（画像添付: ファイル選択/D&D、v3.7.1復元）
-│   │   ├── LayerControlView.tsx  # レイヤー制御ビュー
-│   │   ├── SpecCheckView.tsx     # 仕様チェックビュー（サムネイル/レイヤー/写植タブ切替）
-│   │   ├── TypsettingView.tsx    # 写植関連ビュー（写植チェック・確認を統合）
-│   │   ├── ViewerView.tsx        # ビューアービュー（SpecViewerPanel再利用）
-│   │   ├── ReplaceView.tsx       # レイヤー差替えビュー
-│   │   ├── ComposeView.tsx      # 合成ビュー（ComposePanel + ComposeDropZone）
-│   │   ├── SplitView.tsx         # 見開き分割ビュー
-│   │   ├── RenameView.tsx        # リネームビュー（fileEntries→psdStore自動同期）
-│   │   ├── TiffView.tsx          # TIFF化ビュー（3カラム: FileList|Center|Settings）
-│   │   ├── ScanPsdView.tsx      # Scan PSDビュー（ScanPsdPanel + ScanPsdContent）
-│   │   ├── FolderSetupView.tsx  # フォルダセットアップ（原稿コピー+構造作成）
-│   │   ├── RequestPrepView.tsx  # 依頼準備（ZIP圧縮、3モード、内容チェック）
-│   │   # KenbanView.tsx 削除済み（v3.5.0）
-│   │   ├── ProgenView.tsx       # ProGen画面ルーター（React native、6画面切替）
-│   │   └── UnifiedViewerView.tsx # 統合ビューアー（6サブタブ）
-│   ├── metadata/          # メタデータ表示
-│   │   ├── MetadataPanel.tsx
-│   │   └── LayerTree.tsx
-│   ├── preview/           # プレビュー
-│   │   ├── PreviewGrid.tsx
-│   │   ├── PreviewList.tsx        # リスト形式プレビュー（サムネイル+メタデータ）
-│   │   └── ThumbnailCard.tsx
-│   ├── spec-checker/      # 仕様チェック
-│   │   ├── CaptureOverlay.tsx    # キャプチャオーバーレイ
-│   │   ├── ConversionToast.tsx
-│   │   ├── FixGuidePanel.tsx
-│   │   ├── FontBrowserDialog.tsx # フォントブラウザダイアログ
-│   │   ├── GuideSectionPanel.tsx
-│   │   ├── LayerSeparationPanel.tsx # レイヤー分離パネル
-│   │   ├── SpecCardList.tsx     # チェック結果カードリスト（マルチセレクト対応）
-│   │   ├── SpecCheckTable.tsx    # 仕様チェック結果テーブル
-│   │   ├── SpecCheckerPanel.tsx
-│   │   ├── SpecLayerGrid.tsx     # レイヤー構造グリッド（全ファイル一覧）
-│   │   ├── SpecScanJsonDialog.tsx # スキャンJSONダイアログ
-│   │   ├── SpecSelectionModal.tsx
-│   │   ├── SpecTextGrid.tsx      # 写植仕様グリッド（フォント/サイズ統計 + テキストレイヤー一覧）
-│   │   └── SpecViewerPanel.tsx   # ビューアーパネル（画像+サイドバー、全画面対応）
-│   ├── guide-editor/      # ガイド線編集
-│   │   ├── GuideEditorModal.tsx
-│   │   ├── GuideCanvas.tsx
-│   │   ├── CanvasRuler.tsx
-│   │   └── GuideList.tsx          # ガイド一覧（位置編集/削除）
-│   ├── layer-control/     # レイヤー制御
-│   │   ├── LayerControlPanel.tsx        # 条件指定UIと実行ボタン
-│   │   ├── LayerPreviewPanel.tsx        # レイヤーツリープレビュー（グリッド・選択・Ps連携）
-│   │   └── LayerControlResultDialog.tsx # 処理結果レポートダイアログ
-│   ├── replace/           # レイヤー差替え
-│   │   ├── ReplacePanel.tsx
-│   │   ├── ReplaceDropZone.tsx
-│   │   ├── ReplacePairingModal.tsx      # ペアリング確認ダイアログ（タブ切替シェル）
-│   │   ├── PairingAutoTab.tsx           # 自動ペアリングタブ（チェック/編集/解除付きテーブル）
-│   │   ├── PairingManualTab.tsx         # 手動マッチタブ（2カラム+クリック/ドラッグ）
-│   │   ├── PairingOutputSettings.tsx    # 出力設定（保存ファイル名・フォルダ名）
-│   │   └── ReplaceToast.tsx
-│   ├── compose/           # 合成
-│   │   ├── ComposePanel.tsx             # 合成設定パネル（要素選択・ペアリング方式）
-│   │   ├── ComposeDropZone.tsx          # Source A/B ドロップゾーン
-│   │   ├── ComposePairingModal.tsx      # ペアリング確認ダイアログ（タブ切替シェル）
-│   │   ├── ComposePairingAutoTab.tsx    # 自動ペアリングタブ
-│   │   ├── ComposePairingManualTab.tsx  # 手動マッチタブ
-│   │   ├── ComposePairingOutputSettings.tsx # 出力設定
-│   │   └── ComposeToast.tsx             # 合成完了トースト通知
-│   ├── split/             # 見開き分割
-│   │   ├── SplitPanel.tsx
-│   │   ├── SplitPreview.tsx       # 定規ドラッグ・ガイド操作・ズーム/パン
-│   │   └── SplitResultDialog.tsx  # 分割処理結果ダイアログ
-│   ├── rename/            # リネーム
-│   │   ├── LayerRenamePanel.tsx   # レイヤーリネーム設定UI
-│   │   ├── FileRenamePanel.tsx    # ファイルリネーム設定UI
-│   │   ├── RenamePreview.tsx      # プレビュー表示（両モード共通）
-│   │   └── RenameResultDialog.tsx # 処理結果ダイアログ
-│   ├── tiff/              # TIFF化
-│   │   ├── TiffAutoScanDialog.tsx       # 自動スキャンダイアログ
-│   │   ├── TiffBatchQueue.tsx           # バッチキュー＋個別上書き＋リネームプレビュー＋サブフォルダチェック
-│   │   ├── TiffCanvasMismatchDialog.tsx # キャンバスサイズ不一致ダイアログ
-│   │   ├── TiffCropEditor.tsx           # ビジュアルクロップエディタ（ドラッグ矩形・savedGlobalBoundsRefで個別編集後グローバル復元）
-│   │   ├── TiffCropSidePanel.tsx        # クロップ設定サイドパネル（比率OK/サイズ/PSD自動設定のみ表示、手入力廃止）
-│   │   ├── TiffFileList.tsx             # 中央ファイルリスト（スキップ切替・個別設定・サブフォルダチェック）
-│   │   ├── TiffPageRulesEditor.tsx      # ページ別カラー設定
-│   │   ├── TiffPartialBlurModal.tsx     # 部分ぼかし設定モーダル（ファイル別モード時は空リスト開始）
-│   │   ├── TiffResultDialog.tsx         # 処理結果ダイアログ
-│   │   ├── TiffSettingsPanel.tsx        # 左パネル設定UI（折りたたみセクション: 出力形式/カラーぼかし/クロップ・リサイズ/リネーム・出力先）
-│   │   └── TiffViewerPanel.tsx          # TIFF化ビューアーパネル（プレビュー表示）
-│   ├── scanPsd/           # Scan PSD（フォントプリセット管理）
-│   │   ├── ScanPsdPanel.tsx          # 左パネル（5タブ + 保存ボタン）
-│   │   ├── ScanPsdContent.tsx        # 右パネル（モード選択/スキャンUI/サマリー/ファイルブラウザ）
-│   │   ├── ScanPsdEditView.tsx       # JSON編集ビュー
-│   │   ├── ScanPsdModeSelector.tsx   # モード選択カード（新規/編集）
-│   │   ├── JsonFileBrowser.tsx       # basePath以下のJSON専用ファイルブラウザ
-│   │   └── tabs/
-│   │       ├── WorkInfoTab.tsx       # タブ0: 作品情報（ジャンル/レーベル/著者/タイトル等）
-│   │       ├── FontTypesTab.tsx      # タブ1: フォント種類（プリセットセット管理）
-│   │       ├── FontSizesTab.tsx      # タブ2: フォントサイズ統計
-│   │       ├── GuideLinesTab.tsx     # タブ3: ガイド線（選択/除外）
-│   │       └── TextRubyTab.tsx       # タブ4: テキスト/ルビ
-│   ├── progen/            # ProGen（React統合済み、iframe廃止）
-│   │   ├── ProgenRuleView.tsx            # ルール編集（6カテゴリ+Gemini）
-│   │   ├── ProgenProofreadingView.tsx    # 校正チェック（正誤/提案）
-│   │   ├── ProgenJsonBrowser.tsx         # GドライブJSONブラウザ
-│   │   ├── ProgenResultViewer.tsx        # 校正結果ビューア（3タブ+ピックアップ）
-│   │   ├── ProgenCalibrationSave.tsx     # 校正データ保存（TXTフォルダ選択）
-│   │   ├── ProgenAdminView.tsx           # パスワード付き管理画面
-│   │   └── comicpot/
-│   │       ├── ComicPotEditor.tsx        # COMIC-POTテキストエディタ
-│   │       └── ComicPotChunkList.tsx     # チャンク表示+D&D
-│   ├── typesetting-confirm/ # 写植確認
-│   │   └── TypesettingConfirmPanel.tsx  # フォント指定・テキスト保存・ビューアー連動
-│   ├── ErrorBoundary.tsx  # Reactエラーバウンダリ（ViewRouterに適用）
-│   └── ui/                # 共通UIコンポーネント
-│       ├── index.ts              # バレルエクスポート
-│       ├── Badge.tsx             # ステータスバッジ（rgb/grayscale/success/error/warning/pink/purple/mint）
-│       ├── GlowCard.tsx          # グロー効果カード（hover時、selected/glowColor指定可）
-│       ├── Modal.tsx             # モーダルダイアログ
-│       ├── PopButton.tsx         # ポップオーバーボタン
-│       ├── ProgressBar.tsx       # プログレスバー（success/warning/animated）
-│       ├── SpeechBubble.tsx      # 吹き出し（success/warning/error/info、尾位置指定）
-│       └── Tooltip.tsx           # ホバーツールチップ（top/bottom/left/right、遅延指定）
-├── hooks/
-│   ├── useAppUpdater.ts          # アプリ更新管理（Tauri Updaterプラグイン）
-│   ├── useCanvasSizeCheck.ts     # キャンバスサイズ検証（多数派検出・外れ値フラグ）
-│   ├── useComposeProcessor.ts    # 合成処理（スキャン＆ペアリング・PS実行）
-│   ├── useCropEditorKeyboard.ts  # クロップエディタキーボード操作（Tachimi互換）
-│   ├── useFileWatcher.ts         # ファイル変更監視（外部変更検出）
-│   ├── useFontResolver.ts        # フォント名解決（PostScript名→表示名・色マッピング・未インストール検出）
-│   ├── useGlobalDragDrop.ts      # グローバルD&Dリスナー（AppLayoutで常時有効、フォルダのみD&D時はloadFolderで更新）
-│   ├── useHandoff.ts             # ハンドオフ機能（外部ツール連携）
+├── main.tsx                # Reactエントリポイント（StrictMode + AppLayout）
+├── App.tsx                 # ルートコンポーネント（initProgenConfig 起動）
+│
+├── features/               # 機能ごとの垂直スライス（各feature内に View / Store / Hook / Components を同梱）
+│   ├── spec-check/         # ホーム画面・仕様チェック・Photoshop変換
+│   │   ├── SpecCheckView.tsx           # AppView="specCheck" のルート
+│   │   ├── useSpecChecker.ts           # 仕様チェック（自動実行・結果キャッシュ）
+│   │   ├── components/                 # SpecCheckerPanel, SpecCardList, SpecLayerGrid, SpecTextGrid, SpecCheckTable, FixGuidePanel, SpecSelectionModal, ConversionToast, CaptureOverlay, FontBrowserDialog, SpecScanJsonDialog, SpecViewerPanel, GuideSectionPanel
+│   │   └── README.md
+│   ├── layer-control/      # レイヤー制御（5モード: hide/show/custom/organize/layerMove）
+│   │   ├── LayerControlView.tsx
+│   │   ├── layerStore.ts
+│   │   ├── useLayerControl.ts
+│   │   ├── components/                 # LayerControlPanel, LayerPreviewPanel, LayerControlResultDialog
+│   │   └── README.md
+│   ├── replace/            # レイヤー差替え（Photoshop JSX）
+│   │   ├── ReplaceView.tsx
+│   │   ├── replaceStore.ts
+│   │   ├── useReplaceProcessor.ts
+│   │   ├── components/                 # ReplacePanel, ReplaceDropZone, ReplacePairingModal, PairingAutoTab, PairingManualTab, PairingOutputSettings, ReplaceToast
+│   │   └── README.md
+│   ├── compose/            # 合成（原稿A/Bを5要素ルーティングで統合）
+│   │   ├── ComposeView.tsx
+│   │   ├── composeStore.ts
+│   │   ├── useComposeProcessor.ts
+│   │   ├── components/                 # ComposePanel, ComposeDropZone, ComposePairingModal, ComposePairingAutoTab, ComposePairingManualTab, ComposePairingOutputSettings, ComposeToast
+│   │   └── README.md
+│   ├── split/              # 見開き分割
+│   │   ├── SplitView.tsx
+│   │   ├── splitStore.ts
+│   │   ├── useSplitProcessor.ts
+│   │   ├── components/                 # SplitPanel, SplitPreview, SplitResultDialog
+│   │   └── README.md
+│   ├── rename/             # リネーム（レイヤー / ファイル 2モード）
+│   │   ├── RenameView.tsx
+│   │   ├── renameStore.ts
+│   │   ├── useRenameProcessor.ts
+│   │   ├── rename.ts                   # 型定義（旧 types/rename.ts から移動）
+│   │   ├── components/                 # LayerRenamePanel, FileRenamePanel, RenamePreview, RenameResultDialog
+│   │   └── README.md
+│   ├── tiff/               # TIFF化（TIPPY v2.92準拠パイプライン）
+│   │   ├── TiffView.tsx
+│   │   ├── tiffStore.ts
+│   │   ├── useTiffProcessor.ts
+│   │   ├── useCropEditorKeyboard.ts    # Tachimi互換キー操作
+│   │   ├── components/                 # TiffSettingsPanel, TiffFileList, TiffBatchQueue, TiffCropEditor, TiffCropSidePanel, TiffViewerPanel, TiffPageRulesEditor, TiffPartialBlurModal, TiffResultDialog, TiffCanvasMismatchDialog, TiffAutoScanDialog
+│   │   └── README.md
+│   ├── scan-psd/           # Scan PSD（フォントプリセット管理、je-nsonman移植）
+│   │   ├── ScanPsdView.tsx
+│   │   ├── FontBookView.tsx            # フォント帳ビュー
+│   │   ├── scanPsdStore.ts
+│   │   ├── fontBookStore.ts
+│   │   ├── useScanPsdProcessor.ts
+│   │   ├── components/                 # ScanPsdPanel, ScanPsdContent, ScanPsdEditView, ScanPsdModeSelector, JsonFileBrowser, ProgenJsonBrowser, tabs/*
+│   │   └── README.md
+│   ├── progen/             # ProGen（プロンプト生成ツール、React完全移植）
+│   │   ├── ProgenView.tsx              # 画面ルーター（landing/extraction/formatting/admin/comicpot/resultViewer）
+│   │   ├── progenStore.ts              # 40+プロパティ、ルール管理、JSONルール適用
+│   │   ├── progen.ts                   # 型定義（旧 types/progen.ts から移動）
+│   │   ├── progenConfig.ts             # 共有ドライブ同期ローダー + 埋め込みフォールバック
+│   │   ├── progenPrompts.ts            # XMLプロンプト生成（旧版バイト単位互換）
+│   │   ├── useProgenTauri.ts           # 26コマンドinvokeラッパー
+│   │   ├── useProgenJson.ts            # JSON読書/CSV解析/カテゴリグループ化
+│   │   ├── useComicPotState.ts         # COMIC-POT専用useReducer
+│   │   ├── components/                 # ProgenRuleView, ProgenProofreadingView (隔離), ProgenJsonBrowser, ProgenResultViewer, ProgenCalibrationSave, ProgenAdminView, comicpot/(ComicPotEditor, ComicPotChunkList)
+│   │   └── README.md
+│   ├── unified-viewer/     # 統合ビューアー（5スロットパネル）
+│   │   ├── UnifiedViewerView.tsx       # AppView="unifiedViewer" のルート、3サブタブ
+│   │   ├── unifiedViewerStore.ts
+│   │   ├── components/                 # UnifiedViewer, UnifiedSubComponents, utils.ts, useViewerFileOps.ts, ProgenImageViewer
+│   │   └── README.md
+│   ├── diff-viewer/        # 差分ビューアー（KENBAN移植、unified-viewer のサブタブ）
+│   │   ├── DiffViewerView.tsx
+│   │   ├── diffStore.ts
+│   │   └── README.md
+│   ├── parallel-viewer/    # 分割ビューアー（KENBAN移植、unified-viewer のサブタブ）
+│   │   ├── ParallelViewerView.tsx
+│   │   ├── parallelStore.ts
+│   │   └── README.md
+│   └── _deprecated/        # 隔離中（マウント無効化、削除予定）
+│       ├── typesetting/    # typesetting-check, typesetting-confirm
+│       ├── layer-separation/
+│       └── README.md
+│
+├── shared/                 # ⚠ Phase 5 移動予定のスキャフォールド（現状は空ディレクトリのみ）
+│   ├── components/         # (予定) ui/ layout/ file-browser/ common/
+│   ├── hooks/              # (予定)
+│   ├── stores/             # (予定)
+│   ├── lib/                # (予定)
+│   ├── types/              # (予定)
+│   └── README.md           # 現状と移動計画
+│
+├── components/             # ⚠ Phase 5 で shared/ へ移動予定（現役の共通コンポーネント）
+│   ├── ErrorBoundary.tsx
+│   ├── common/             # FileContextMenu, DetailSlidePanel, CompactFileList, TextExtractButton
+│   ├── file-browser/       # FileBrowser, FileList, DropZone
+│   ├── layout/             # AppLayout, TopNav, GlobalAddressBar, ViewRouter, WorkflowBar, SettingsPanel
+│   ├── metadata/           # MetadataPanel, LayerTree
+│   ├── preview/            # PreviewGrid, PreviewList, ThumbnailCard
+│   ├── guide-editor/       # GuideEditorModal, GuideCanvas, CanvasRuler, GuideList
+│   ├── views/              # FolderSetupView, RequestPrepView, ViewerView（ツール系・ワークフロー系）
+│   └── ui/                 # Badge, GlowCard, Modal, PopButton, ProgressBar, SpeechBubble, Tooltip（+ index.ts）
+│
+├── hooks/                  # ⚠ Phase 5 で shared/hooks/ へ移動予定（機能横断フック）
+│   ├── useAppUpdater.ts          # アプリ更新管理（Tauri Updater）
+│   ├── useCanvasSizeCheck.ts     # キャンバスサイズ検証（多数派/外れ値）
+│   ├── useFileWatcher.ts         # ファイル変更監視
+│   ├── useFontResolver.ts        # フォント名解決・未インストール検出
+│   ├── useGlobalDragDrop.ts      # グローバルD&Dリスナー
+│   ├── useHandoff.ts             # 外部ツール連携
 │   ├── useHighResPreview.ts      # 高解像度プレビュー（3層キャッシュ）
-│   ├── useLayerControl.ts        # レイヤー制御（hide/show/custom/organize/layerMove）
-│   ├── useOpenFolder.ts          # エクスプローラー表示（openFolderForFile / revealFiles）+ Fキーショートカット
-│   ├── useOpenInPhotoshop.ts     # Photoshopファイル起動（ユーティリティ + Pキーショートカット）
-│   ├── usePageNumberCheck.ts     # ページ番号検出（ファイル名から連番抽出・欠番検出）
-│   ├── usePhotoshopConverter.ts  # Photoshop経由仕様変換（DPI/カラー/ビット深度）
-│   ├── usePreparePsd.ts          # PSD準備（仕様修正+ガイド適用の統合処理）
-│   ├── usePsdLoader.ts           # PSD読み込み・自然順ソート・PDF展開
-│   ├── useRenameProcessor.ts     # リネーム処理（ファイル/レイヤー）
-│   ├── useReplaceProcessor.ts    # レイヤー差替え処理
-│   ├── useScanPsdProcessor.ts    # Scan PSD処理（スキャン・JSON保存/読込・ガイド自動選択）
-│   ├── useSpecChecker.ts         # 仕様チェック（自動実行・結果キャッシュ）
-│   ├── useTextExtract.ts         # テキスト抽出ロジック共有フック（COMIC-POT互換出力）
-│   ├── useSpecConverter.ts       # 直接仕様変換（ag-psd+Rust、Photoshop不要）
-│   ├── useSplitProcessor.ts      # 見開き分割処理
-│   ├── useTiffProcessor.ts       # TIFF化処理（設定マージ・invoke・結果処理）
-│   ├── useProgenTauri.ts         # ProGen 26コマンドのinvokeラッパー
-│   ├── useProgenJson.ts          # ProGen JSON読み書き+CSV解析+カテゴリグループ化
-│   └── useComicPotState.ts       # COMIC-POTエディタ専用useReducerステート
-├── lib/
-│   ├── psd/
-│   │   └── parser.ts            # ag-psdラッパー、メタデータ抽出
-│   ├── agPsdScanner.ts          # ag-psdスキャナー（PSDメタデータ一括収集）
-│   ├── layerMatcher.ts          # レイヤーマッチング・リスク分類（共有ロジック）+ 差替え対象マッチング
-│   ├── layerTreeOps.ts          # レイヤーツリー操作ユーティリティ
-│   ├── psdLoaderRegistry.ts     # グローバルPSDローダーレジストリ（WorkflowBar等のReact外からloadFolder/loadFiles呼び出し用）
-│   ├── naturalSort.ts           # 自然順ソート（数字部分を数値比較）
-│   ├── paperSize.ts             # 用紙サイズ判定（ピクセル+DPI→B4/A4等）
-│   ├── textUtils.ts             # テキスト処理ユーティリティ
-│   └── progenPrompts.ts         # ProGen XMLプロンプトテンプレート（正誤/提案チェック）
-├── store/
-│   ├── index.ts           # バレルエクスポート（psdStore, guideStore, specStore）
-│   ├── psdStore.ts        # ファイル一覧・選択状態（files, selectedFileIds, activeFileId, viewMode）
-│   ├── specStore.ts       # 仕様・チェック結果（specifications, checkResults, autoCheckEnabled）。localStorage永続化
-│   ├── guideStore.ts      # ガイド線状態（guides, history/future, selectedGuideIndex）
-│   ├── layerStore.ts      # レイヤー制御: actionMode(hide/show/custom/organize/layerMove), saveMode, selectedConditions, customConditions, organizeTargetName, layerMove条件, deleteHiddenText, customVisibilityOps/customMoveOps（カスタム操作Map）
-│   ├── viewStore.ts       # ビュー切替状態（activeView: AppView, progenMode: ProgenMode）
-│   ├── settingsStore.ts   # アプリ設定（文字サイズ/カラー/ダークモード/デフォルトフォルダ、localStorage永続化）
-│   ├── fontBookStore.ts   # フォント帳（entries, fontBookDir, isLoaded）
-│   ├── splitStore.ts      # 分割設定（settings, selectionHistory/Future）
-│   ├── replaceStore.ts    # 差替え設定（folders, batchFolders, settings, pairingJobs, manualPairs, excludedPairIndices）
-│   ├── composeStore.ts    # 合成設定（folders, settings, pairingJobs, scannedFileGroups, manualPairs）
-│   ├── renameStore.ts     # リネーム設定（subMode, layerSettings, fileSettings, fileEntries）
-│   ├── tiffStore.ts       # TIFF化設定・状態（settings, fileOverrides, cropPresets, cropGuides, phase, results）。localStorage永続化（crop.bounds除く）
-│   ├── scanPsdStore.ts    # Scan PSD（mode, scanData, presetSets, workInfo, guide選択/除外, パス設定）。パスのみlocalStorage永続化
-│   ├── progenStore.ts     # ProGen全状態（40+プロパティ、ルール管理、マスタールール読み込み、JSONルール適用、resultSaveMode）
-│   ├── diffStore.ts       # 差分ビューアー（v3.5.0、ペアリング/比較モード/差分計算）
-│   ├── parallelStore.ts   # 分割ビューアー（v3.5.0、2パネル独立/同期切替/PDF展開）
-│   ├── typesettingCheckStore.ts  # 写植チェック（checkData, checkTabMode, searchQuery, navigateToPage）
-│   ├── workflowStore.ts   # WF状態（v3.6.5、activeWorkflow/currentStep + WORKFLOWS定数）
-│   └── unifiedViewerStore.ts    # 統合ビューアー（独立ファイル管理、テキスト、校正JSON、フォントプリセット、PanelTab + 4ポジションパネル配置、displacedTabs入れ替え記憶）
-├── styles/
-│   └── globals.css
-├── kenban-utils/         # 旧KENBAN由来の共有ユーティリティ（統合ビューアーで使用中）
-│   ├── textExtract.ts   # LCS文字レベルdiff、テキスト抽出
-│   ├── memoParser.ts    # COMIC-POT等のメモ解析
-│   └── kenbanTypes.ts   # ExtractedTextLayer, DiffPart等の型定義
-└── types/
-    ├── index.ts           # PsdFile, PsdMetadata, LayerNode, TextInfo, Specification, SpecRule, SpecCheckResult, IMAGE_EXTENSIONS等
-    ├── fontBook.ts        # FontBookEntry, FontBookData, FontBookParams
-    ├── replace.ts         # ReplaceSettings, PairingJob, FolderSelection, BatchFolder等
-    ├── rename.ts          # RenameSubMode, RenameRule, FileRenameEntry等
-    ├── tiff.ts            # TiffSettings, TiffCropBounds, TiffCropPreset, TiffScandataFile等
-    ├── progen.ts          # SymbolRule, ProofRule, ProgenOptions, NumberRuleState, EditCategory, ProgenScreen等
-    ├── scanPsd.ts         # ScanData, PresetJsonData, ScanGuideSet, ScanWorkInfo, FontPreset, GENRE_LABELS, FONT_SUB_NAME_MAP等
-    └── typesettingCheck.ts # ProofreadingCheckData, CheckItem, CheckKind等
+│   ├── useOpenFolder.ts          # エクスプローラー表示 + Fキー
+│   ├── useOpenInPhotoshop.ts     # Photoshop起動 + Pキー
+│   ├── usePageNumberCheck.ts     # ページ番号欠番検出
+│   ├── usePhotoshopConverter.ts  # Photoshop経由仕様変換
+│   ├── usePreparePsd.ts          # PSD準備（仕様修正+ガイド統合）
+│   ├── usePsdLoader.ts           # PSD読込・自然順ソート・PDF展開
+│   ├── useSpecConverter.ts       # 直接仕様変換（ag-psd+Rust、PS不要）
+│   └── useTextExtract.ts         # テキスト抽出（COMIC-POT互換）
+│
+├── lib/                    # ⚠ Phase 5 で shared/lib/ へ移動予定（共有ユーティリティ）
+│   ├── psd/parser.ts            # ag-psdラッパー・メタデータ抽出
+│   ├── agPsdScanner.ts          # ag-psdスキャナー
+│   ├── layerMatcher.ts          # レイヤーマッチング・リスク分類
+│   ├── layerTreeOps.ts          # レイヤーツリー操作
+│   ├── linkGroupCheck.ts        # リンクグループ検証（TIFFプリフライト用）
+│   ├── psdLoaderRegistry.ts     # グローバルloaderレジストリ（React外から呼ぶ用）
+│   ├── naturalSort.ts           # 自然順ソート
+│   ├── paperSize.ts             # 用紙サイズ判定
+│   └── textUtils.ts             # テキスト処理
+│
+├── store/                  # ⚠ Phase 5 で shared/stores/ へ移動予定（グローバルストア6個）
+│   ├── index.ts                 # バレルエクスポート
+│   ├── psdStore.ts              # ファイル一覧・選択状態（source of truth）
+│   ├── specStore.ts             # 仕様・チェック結果・conversionSettings（localStorage永続化）
+│   ├── guideStore.ts            # ガイド線 + Undo/Redo履歴
+│   ├── viewStore.ts             # activeView (AppView) / progenMode / kenbanPathA/B
+│   ├── settingsStore.ts         # 文字サイズ/ダークモード/ナビ配置（localStorage永続化）
+│   └── workflowStore.ts         # WF状態 + WORKFLOWS定数（4ワークフロー）
+│
+├── types/                  # ⚠ Phase 5 で shared/types/ へ移動予定
+│   ├── index.ts                 # PsdFile, PsdMetadata, LayerNode, TextInfo, Specification, SpecRule, SpecCheckResult, IMAGE_EXTENSIONS等
+│   ├── fontBook.ts              # FontBookEntry, FontBookData, FontBookParams
+│   ├── replace.ts               # ReplaceSettings, PairingJob, FolderSelection, BatchFolder等
+│   ├── tiff.ts                  # TiffSettings, TiffCropBounds, TiffCropPreset, TiffScandataFile等
+│   ├── scanPsd.ts               # ScanData, PresetJsonData, GENRE_LABELS, FONT_SUB_NAME_MAP等
+│   └── typesettingCheck.ts      # ProofreadingCheckData, CheckItem, CheckKind（_deprecated + unified-viewer 参照）
+│
+├── kenban-utils/           # ⚠ 将来 shared/lib/text-diff/ へ統合予定（unified-viewer のテキスト照合で使用中）
+│   ├── textExtract.ts           # LCS文字レベル diff・テキスト抽出
+│   ├── memoParser.ts            # COMIC-POT等のメモ解析
+│   └── kenbanTypes.ts           # ExtractedTextLayer, DiffPart等
+│
+└── styles/
+    └── globals.css              # Tailwindベース + ダークモード反転CSS（v3.8.1）
 
 public/
-├── (progen/ 削除済み — React統合完了)
-├── pdfjs-wasm/          # PDF.js WASM（KENBAN用）
+├── pdfjs-wasm/             # PDF.js WASM
+└── (progen/ 削除済み — React統合完了)
+
+docs/
+├── architecture.md         # レイヤー構成全体図（React/Tauri/Rust/PS JSX、Mermaid）
+├── feature-map.md          # 21機能 × 画面 × ストア対応表
+├── data-flow.md            # 代表シナリオのシーケンス図
+└── progen-template/        # 共有ドライブ配置用の初期テンプレート + 運用README
 
 src-tauri/
 ├── scripts/
