@@ -1,13 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useTypesettingCheckStore } from "../../store/typesettingCheckStore";
+import { useTypesettingCheckStore } from "../typesettingCheckStore";
 import type {
   ProofreadingCheckData,
   ProofreadingCheckItem,
   CheckTabMode,
-} from "../../types/typesettingCheck";
+} from "../../../../types/typesettingCheck";
 import { CheckCategoryGroup } from "./CheckCategoryGroup";
-import { JsonFileBrowser } from "../scanPsd/JsonFileBrowser";
+import { JsonFileBrowser } from "../../../../components/scanPsd/JsonFileBrowser";
 
 /** カテゴリ別にグループ化 */
 function groupByCategory(items: ProofreadingCheckItem[]): Map<string, ProofreadingCheckItem[]> {

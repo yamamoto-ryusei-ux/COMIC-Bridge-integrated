@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import type { ParsedProofreadingData, CheckTabMode } from "../types/typesettingCheck";
-import { usePsdStore } from "./psdStore";
+import type { ParsedProofreadingData, CheckTabMode } from "../../../types/typesettingCheck";
+import { usePsdStore } from "../../../store/psdStore";
 
 // --- デフォルトパス ---
 const DEFAULT_JSON_BASE_PATH =

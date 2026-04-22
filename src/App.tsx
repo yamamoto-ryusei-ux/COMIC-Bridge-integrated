@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { AppLayout } from "./components/layout/AppLayout";
 import { useViewStore } from "./store/viewStore";
-import { useTypesettingCheckStore } from "./store/typesettingCheckStore";
+import { useTypesettingCheckStore } from "./features/_deprecated/typesetting/typesettingCheckStore";
 import type { ProofreadingCheckItem } from "./types/typesettingCheck";
 import { initProgenConfig } from "./lib/progenConfig";
 

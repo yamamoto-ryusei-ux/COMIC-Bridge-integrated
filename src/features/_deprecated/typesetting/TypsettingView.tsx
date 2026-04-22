@@ -1,16 +1,16 @@
 import { useState } from "react";
-import { usePsdStore } from "../../store/psdStore";
-import { useOpenInPhotoshop } from "../../hooks/useOpenInPhotoshop";
-import { CompactFileList } from "../common/CompactFileList";
-import { SpecTextGrid, type TextIssueFilter } from "../spec-checker/SpecTextGrid";
-import { SpecViewerPanel } from "../spec-checker/SpecViewerPanel";
-import { SpecScanJsonDialog } from "../spec-checker/SpecScanJsonDialog";
-import { TypesettingViewerPanel } from "../typesetting-check/TypesettingViewerPanel";
-import { TypesettingCheckPanel } from "../typesetting-check/TypesettingCheckPanel";
-import { TypesettingConfirmPanel } from "../typesetting-confirm/TypesettingConfirmPanel";
-import { DropZone } from "../file-browser/DropZone";
-import { FontBookView } from "./FontBookView";
-import { TextExtractButton } from "../common/TextExtractButton";
+import { usePsdStore } from "../../../store/psdStore";
+import { useOpenInPhotoshop } from "../../../hooks/useOpenInPhotoshop";
+import { CompactFileList } from "../../../components/common/CompactFileList";
+import { SpecTextGrid, type TextIssueFilter } from "../../../components/spec-checker/SpecTextGrid";
+import { SpecViewerPanel } from "../../../components/spec-checker/SpecViewerPanel";
+import { SpecScanJsonDialog } from "../../../components/spec-checker/SpecScanJsonDialog";
+import { TypesettingViewerPanel } from "./check/TypesettingViewerPanel";
+import { TypesettingCheckPanel } from "./check/TypesettingCheckPanel";
+import { TypesettingConfirmPanel } from "./confirm/TypesettingConfirmPanel";
+import { DropZone } from "../../../components/file-browser/DropZone";
+import { FontBookView } from "../../../components/views/FontBookView";
+import { TextExtractButton } from "../../../components/common/TextExtractButton";
 
 type SubTab = "spec" | "viewer" | "fontBook" | "check" | "confirm";
 

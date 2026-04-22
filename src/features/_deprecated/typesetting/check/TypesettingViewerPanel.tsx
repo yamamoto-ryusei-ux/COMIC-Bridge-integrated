@@ -1,14 +1,14 @@
 import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { usePsdStore } from "../../store/psdStore";
-import { useTypesettingCheckStore } from "../../store/typesettingCheckStore";
+import { usePsdStore } from "../../../../store/psdStore";
+import { useTypesettingCheckStore } from "../typesettingCheckStore";
 import {
   useHighResPreview,
   prefetchPreview,
   invalidateUrlCache,
-} from "../../hooks/useHighResPreview";
-import { useOpenFolder } from "../../hooks/useOpenFolder";
-import { useOpenInPhotoshop } from "../../hooks/useOpenInPhotoshop";
+} from "../../../../hooks/useHighResPreview";
+import { useOpenFolder } from "../../../../hooks/useOpenFolder";
+import { useOpenInPhotoshop } from "../../../../hooks/useOpenInPhotoshop";
 
 export function TypesettingViewerPanel() {
   const files = usePsdStore((s) => s.files);

@@ -18,15 +18,15 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import html2canvas from "html2canvas";
 import { writeFile } from "@tauri-apps/plugin-fs";
-import { usePsdStore } from "../../store/psdStore";
-import { useScanPsdStore } from "../../store/scanPsdStore";
+import { usePsdStore } from "../../../../store/psdStore";
+import { useScanPsdStore } from "../../../../store/scanPsdStore";
 import {
   useHighResPreview,
   prefetchPreview,
   invalidateUrlCache,
-} from "../../hooks/useHighResPreview";
-import { useOpenFolder } from "../../hooks/useOpenFolder";
-import { useOpenInPhotoshop } from "../../hooks/useOpenInPhotoshop";
+} from "../../../../hooks/useHighResPreview";
+import { useOpenFolder } from "../../../../hooks/useOpenFolder";
+import { useOpenInPhotoshop } from "../../../../hooks/useOpenInPhotoshop";
 
 // ─── Types ───────────────────────────────────────────────
 

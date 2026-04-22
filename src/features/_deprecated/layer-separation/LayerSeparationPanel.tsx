@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { usePsdStore } from "../../store/psdStore";
-import { useHighResPreview, prefetchPreview } from "../../hooks/useHighResPreview";
-import { useOpenFolder } from "../../hooks/useOpenFolder";
-import type { LayerNode, LayerBounds } from "../../types";
+import { usePsdStore } from "../../../store/psdStore";
+import { useHighResPreview, prefetchPreview } from "../../../hooks/useHighResPreview";
+import { useOpenFolder } from "../../../hooks/useOpenFolder";
+import type { LayerNode, LayerBounds } from "../../../types";
 
 interface LayerSeparationPanelProps {
   onOpenInPhotoshop?: (filePath: string) => void;

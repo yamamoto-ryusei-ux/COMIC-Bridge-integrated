@@ -1,7 +1,7 @@
 import { useState } from "react";
-import type { ProofreadingCheckItem } from "../../types/typesettingCheck";
-import { CATEGORY_COLORS, getCategoryColorIndex } from "../../types/typesettingCheck";
-import { useTypesettingCheckStore } from "../../store/typesettingCheckStore";
+import type { ProofreadingCheckItem } from "../../../../types/typesettingCheck";
+import { CATEGORY_COLORS, getCategoryColorIndex } from "../../../../types/typesettingCheck";
+import { useTypesettingCheckStore } from "../typesettingCheckStore";
 
 interface Props {
   category: string;
