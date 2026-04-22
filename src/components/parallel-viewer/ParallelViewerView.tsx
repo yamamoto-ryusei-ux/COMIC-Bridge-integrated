@@ -28,20 +28,28 @@ export function ParallelViewerView({ externalPathA, externalPathB }: Props = {})
     return () => window.removeEventListener("keydown", h);
   }, [isFullscreen]);
 
-  // ── 外部パス自動読み込み（既に同じパスなら再読み込みしない）──
+  // ── 外部パス同期 ──
+  // フォルダパスはA/B片方だけでも常に登録（UI表示・共有維持）。
+  // ファイル実読み込みは A/B 両方が揃った時のみ実行（片方だけの場合は待機）。
   useEffect(() => {
-    if (externalPathA && externalPathA !== store.A.folder) {
-      store.loadFolderSide("A", externalPathA);
+    // パス登録のみ（ファイル読み込みなし）
+    if (externalPathA !== undefined && externalPathA !== store.A.folder) {
+      store.setFolder("A", externalPathA ?? null);
+    }
+    if (externalPathB !== undefined && externalPathB !== store.B.folder) {
+      store.setFolder("B", externalPathB ?? null);
+    }
+    // 両方揃っていれば実読み込み
+    if (externalPathA && externalPathB) {
+      if (externalPathA !== store.A.folder || store.A.files.length === 0) {
+        store.loadFolderSide("A", externalPathA);
+      }
+      if (externalPathB !== store.B.folder || store.B.files.length === 0) {
+        store.loadFolderSide("B", externalPathB);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [externalPathA]);
-
-  useEffect(() => {
-    if (externalPathB && externalPathB !== store.B.folder) {
-      store.loadFolderSide("B", externalPathB);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [externalPathB]);
+  }, [externalPathA, externalPathB]);
 
   // ── キーボードショートカット ──
   useEffect(() => {
@@ -85,13 +93,24 @@ export function ParallelViewerView({ externalPathA, externalPathB }: Props = {})
   }, [store]);
 
   // ── フォルダ/ファイル選択（TopNavのkenbanPathA/Bにも書き戻し）──
+  // - viewStore へは常に同期（他ビューとの共有を維持）
+  // - local store の folder パスも常に登録（片方だけでも選択事実を保持）
+  // - 実ファイル読み込みは A/B 両方揃ったときのみ実行
   const handleSelectFolder = useCallback(async (side: "A" | "B") => {
     const path = await dialogOpen({ directory: true, multiple: false });
     if (path && typeof path === "string") {
-      // viewStore に同期（最新を優先）
-      if (side === "A") useViewStore.getState().setKenbanPathA(path);
-      else useViewStore.getState().setKenbanPathB(path);
-      await store.loadFolderSide(side, path);
+      const vs = useViewStore.getState();
+      if (side === "A") vs.setKenbanPathA(path);
+      else vs.setKenbanPathB(path);
+      // local store にも folder パスを即登録（UIで待機状態が見える）
+      store.setFolder(side, path);
+      // 両方揃ったら実読み込み
+      const nextA = side === "A" ? path : vs.kenbanPathA;
+      const nextB = side === "B" ? path : vs.kenbanPathB;
+      if (nextA && nextB) {
+        if (nextA !== store.A.folder || store.A.files.length === 0) await store.loadFolderSide("A", nextA);
+        if (nextB !== store.B.folder || store.B.files.length === 0) await store.loadFolderSide("B", nextB);
+      }
     }
   }, [store]);
 
@@ -101,10 +120,16 @@ export function ParallelViewerView({ externalPathA, externalPathB }: Props = {})
       filters: [{ name: "対応ファイル", extensions: ["pdf", "psd", "psb", "tif", "tiff", "jpg", "jpeg", "png", "bmp"] }],
     });
     if (path && typeof path === "string") {
-      // viewStore に同期（最新を優先）
-      if (side === "A") useViewStore.getState().setKenbanPathA(path);
-      else useViewStore.getState().setKenbanPathB(path);
-      await store.loadFolderSide(side, path);
+      const vs = useViewStore.getState();
+      if (side === "A") vs.setKenbanPathA(path);
+      else vs.setKenbanPathB(path);
+      store.setFolder(side, path);
+      const nextA = side === "A" ? path : vs.kenbanPathA;
+      const nextB = side === "B" ? path : vs.kenbanPathB;
+      if (nextA && nextB) {
+        if (nextA !== store.A.folder || store.A.files.length === 0) await store.loadFolderSide("A", nextA);
+        if (nextB !== store.B.folder || store.B.files.length === 0) await store.loadFolderSide("B", nextB);
+      }
     }
   }, [store]);
 
@@ -229,7 +254,17 @@ function PanelView({ side, onSelectFolder, onSelectFile }: PanelProps) {
           </span>
         )}
 
-        {!file && (
+        {!file && panel.folder && (
+          <span
+            className="text-[9px] text-text-muted/80 truncate flex-1"
+            title={`${panel.folder}（もう片方のフォルダ登録待ち — 両方揃うと読み込み開始）`}
+          >
+            📂 {(panel.folder.replace(/\\/g, "/").split("/").pop() || panel.folder)}
+            <span className="ml-1 text-[8px] text-warning">待機中</span>
+          </span>
+        )}
+
+        {!file && !panel.folder && (
           <span className="text-[9px] text-text-muted/60 flex-1">未選択</span>
         )}
 

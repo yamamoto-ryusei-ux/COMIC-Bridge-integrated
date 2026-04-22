@@ -43,20 +43,26 @@ export function DiffViewerView({ externalPathA, externalPathB }: Props = {}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
 
-  // ── 外部パス自動読み込み（既に同じパスなら再読み込みしない）──
+  // ── 外部パス同期 ──
+  // フォルダパスはA/B片方だけでも常に登録（UI表示・共有維持）。
+  // ファイル実読み込みは A/B 両方揃った時のみ実行。
   useEffect(() => {
-    if (externalPathA && externalPathA !== store.folderA) {
-      store.loadFolderSide(externalPathA, "A");
+    if (externalPathA !== undefined && externalPathA !== store.folderA) {
+      store.setFolderA(externalPathA ?? null);
+    }
+    if (externalPathB !== undefined && externalPathB !== store.folderB) {
+      store.setFolderB(externalPathB ?? null);
+    }
+    if (externalPathA && externalPathB) {
+      if (externalPathA !== store.folderA || store.filesA.length === 0) {
+        store.loadFolderSide(externalPathA, "A");
+      }
+      if (externalPathB !== store.folderB || store.filesB.length === 0) {
+        store.loadFolderSide(externalPathB, "B");
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [externalPathA]);
-
-  useEffect(() => {
-    if (externalPathB && externalPathB !== store.folderB) {
-      store.loadFolderSide(externalPathB, "B");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [externalPathB]);
+  }, [externalPathA, externalPathB]);
 
   // ── 現在のペア ──
   const currentPair: FilePair | undefined = store.pairs[store.selectedIndex];
@@ -178,13 +184,24 @@ export function DiffViewerView({ externalPathA, externalPathB }: Props = {}) {
   }, [store]);
 
   // ── フォルダ選択（TopNavのkenbanPathA/Bにも書き戻し）──
+  // フォルダ/ファイル選択:
+  //   viewStore 同期は常時、local store の folder も常に登録、
+  //   実読み込みは A/B 両方揃った時のみ
   const handleSelectFolder = useCallback(async (side: "A" | "B") => {
     const path = await dialogOpen({ directory: true, multiple: false });
     if (path && typeof path === "string") {
-      // viewStore に同期（最新を優先）
-      if (side === "A") useViewStore.getState().setKenbanPathA(path);
-      else useViewStore.getState().setKenbanPathB(path);
-      await store.loadFolderSide(path, side);
+      const vs = useViewStore.getState();
+      if (side === "A") vs.setKenbanPathA(path);
+      else vs.setKenbanPathB(path);
+      // local store にも folder パスを即登録
+      if (side === "A") store.setFolderA(path);
+      else store.setFolderB(path);
+      const nextA = side === "A" ? path : vs.kenbanPathA;
+      const nextB = side === "B" ? path : vs.kenbanPathB;
+      if (nextA && nextB) {
+        if (nextA !== store.folderA || store.filesA.length === 0) await store.loadFolderSide(nextA, "A");
+        if (nextB !== store.folderB || store.filesB.length === 0) await store.loadFolderSide(nextB, "B");
+      }
     }
   }, [store]);
 
@@ -192,10 +209,17 @@ export function DiffViewerView({ externalPathA, externalPathB }: Props = {}) {
     const exts = ["psd", "psb", "tif", "tiff", "jpg", "jpeg", "png", "bmp", "pdf"];
     const path = await dialogOpen({ multiple: false, filters: [{ name: "対応ファイル", extensions: exts }] });
     if (path && typeof path === "string") {
-      // viewStore に同期（最新を優先）
-      if (side === "A") useViewStore.getState().setKenbanPathA(path);
-      else useViewStore.getState().setKenbanPathB(path);
-      await store.loadFolderSide(path, side);
+      const vs = useViewStore.getState();
+      if (side === "A") vs.setKenbanPathA(path);
+      else vs.setKenbanPathB(path);
+      if (side === "A") store.setFolderA(path);
+      else store.setFolderB(path);
+      const nextA = side === "A" ? path : vs.kenbanPathA;
+      const nextB = side === "B" ? path : vs.kenbanPathB;
+      if (nextA && nextB) {
+        if (nextA !== store.folderA || store.filesA.length === 0) await store.loadFolderSide(nextA, "A");
+        if (nextB !== store.folderB || store.filesB.length === 0) await store.loadFolderSide(nextB, "B");
+      }
     }
   }, [store]);
 

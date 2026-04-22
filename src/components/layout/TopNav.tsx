@@ -392,8 +392,7 @@ function TopNavDataButtons() {
     if (!selected) return;
     if (side === "A") useViewStore.getState().setKenbanPathA(selected);
     else useViewStore.getState().setKenbanPathB(selected);
-    const vs = useViewStore.getState();
-    if (vs.kenbanPathA && vs.kenbanPathB) vs.setActiveView("unifiedViewer");
+    // 自動遷移はしない（ユーザー意図的にビューアーへ切替できるようにする）
   };
 
   return (
@@ -633,12 +632,12 @@ function ABPickerButton({ kenbanPickMode, setKenbanPickMode, handleKenbanPick }:
               <button onClick={async () => {
                 const r = await dialogOpen({ directory: true, multiple: false, title: "A側: フォルダを選択" });
                 setHover(false);
-                if (r) { const ok = await validateAndSetABPath("A", r as string); if (ok) { const vs = useViewStore.getState(); if (vs.kenbanPathA && vs.kenbanPathB) vs.setActiveView("unifiedViewer"); } }
+                if (r) { await validateAndSetABPath("A", r as string); }
               }} className="flex-1 px-2 py-1 text-[9px] bg-bg-tertiary hover:bg-blue-50 hover:text-blue-600 rounded transition-colors">フォルダ</button>
               <button onClick={async () => {
                 const r = await dialogOpen({ directory: false, multiple: false, title: "A側: ファイルを選択", filters: [{ name: "対応ファイル", extensions: ["pdf","psd","tif","tiff","jpg","jpeg","png","bmp"] }] });
                 setHover(false);
-                if (r) { useViewStore.getState().setKenbanPathA(r as string); const vs = useViewStore.getState(); if (vs.kenbanPathA && vs.kenbanPathB) vs.setActiveView("unifiedViewer"); }
+                if (r) { useViewStore.getState().setKenbanPathA(r as string); }
               }} className="flex-1 px-2 py-1 text-[9px] bg-bg-tertiary hover:bg-blue-50 hover:text-blue-600 rounded transition-colors">ファイル</button>
             </div>
           </div>
@@ -660,12 +659,12 @@ function ABPickerButton({ kenbanPickMode, setKenbanPickMode, handleKenbanPick }:
               <button onClick={async () => {
                 const r = await dialogOpen({ directory: true, multiple: false, title: "B側: フォルダを選択" });
                 setHover(false);
-                if (r) { const ok = await validateAndSetABPath("B", r as string); if (ok) { const vs = useViewStore.getState(); if (vs.kenbanPathA && vs.kenbanPathB) vs.setActiveView("unifiedViewer"); } }
+                if (r) { await validateAndSetABPath("B", r as string); }
               }} className="flex-1 px-2 py-1 text-[9px] bg-bg-tertiary hover:bg-orange-50 hover:text-orange-600 rounded transition-colors">フォルダ</button>
               <button onClick={async () => {
                 const r = await dialogOpen({ directory: false, multiple: false, title: "B側: ファイルを選択", filters: [{ name: "対応ファイル", extensions: ["pdf","psd","tif","tiff","jpg","jpeg","png","bmp"] }] });
                 setHover(false);
-                if (r) { useViewStore.getState().setKenbanPathB(r as string); const vs = useViewStore.getState(); if (vs.kenbanPathA && vs.kenbanPathB) vs.setActiveView("unifiedViewer"); }
+                if (r) { useViewStore.getState().setKenbanPathB(r as string); }
               }} className="flex-1 px-2 py-1 text-[9px] bg-bg-tertiary hover:bg-orange-50 hover:text-orange-600 rounded transition-colors">ファイル</button>
             </div>
           </div>

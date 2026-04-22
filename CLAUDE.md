@@ -551,6 +551,51 @@
 - **FilePropertiesPanel**: 右プレビューパネル下部に折りたたみ可能なプロパティ表示
 - **表示項目**: ファイル名 / ドキュメント種類 / 作成日 / 修正日 / ファイルサイズ / 寸法(px/inch/cm) / 用紙サイズ / 解像度 / ビット数 / カラーモード / αチャンネル / ガイド / トンボ / レイヤー数 / チェック結果
 
+### 30. 差分/分割ビューアー A/B 共有・ペア読み込みガード（v3.8.1 以降）
+
+**要件**:
+- TopNav・差分ビューアー・分割ビューアー 全てで **A/B のフォルダ/ファイル選択を共有**
+- **A/B 両方が揃った時のみ** 実ファイル読み込みを実行（片方だけの状態では読み込まない）
+- A/B 登録時の**ビューアー自動遷移は行わない**（ユーザーの明示操作で切り替え）
+
+**実装**:
+
+1. **TopNav の自動遷移を削除** ([TopNav.tsx](src/components/layout/TopNav.tsx))
+   - WF中データピッカー、通常時A/Bピッカーのフォルダ/ファイル選択ボタン 5箇所から `setActiveView("unifiedViewer")` を全削除
+
+2. **外部パス同期 = 登録と読み込みを分離** ([DiffViewerView.tsx:46-62](src/components/diff-viewer/DiffViewerView.tsx#L46), [ParallelViewerView.tsx:30-46](src/components/parallel-viewer/ParallelViewerView.tsx#L30))
+   ```tsx
+   useEffect(() => {
+     // パス登録は常時（片方だけでも即反映）
+     if (externalPathA !== undefined) store.setFolder("A", externalPathA ?? null);
+     if (externalPathB !== undefined) store.setFolder("B", externalPathB ?? null);
+     // 実ファイル読み込みは両方揃った時のみ
+     if (externalPathA && externalPathB) {
+       store.loadFolderSide("A", externalPathA);
+       store.loadFolderSide("B", externalPathB);
+     }
+   }, [externalPathA, externalPathB]);
+   ```
+
+3. **ビューアー内選択も同パターン**: `handleSelectFolder` / `handleSelectFile` で
+   - `viewStore.setKenbanPathA/B`（共有維持）
+   - ローカル store の `setFolder`/`setFolderA/B`（登録事実を即反映）
+   - `loadFolderSide` は `nextA && nextB` の時のみ
+
+4. **待機状態の視覚表示** ([ParallelViewerView.tsx:244-254](src/components/parallel-viewer/ParallelViewerView.tsx#L244))
+   パネル上部ツールバーに、`panel.folder` が登録済みだが `files` 未ロードの場合:
+   ```
+   📂 フォルダ名  待機中
+   ```
+   を黄色バッジで表示。hover tooltip「もう片方のフォルダ登録待ち」。
+
+**動作**:
+| TopNav A | TopNav B | ビューアー表示 | 読み込み |
+|----|----|----|----|
+| `/foo` | 未設定 | A: `📂foo 待機中` / B: `未選択` | なし |
+| 未設定 | `/bar` | A: `未選択` / B: `📂bar 待機中` | なし |
+| `/foo` | `/bar` | 両方に画像表示 | **両方一括実行** |
+
 ### 29. v3.8.1 改修 — ダークモード画像反転問題の修正
 
 **問題**: ダークモード有効時、UIだけでなく**ビューアー表示画像も色反転**していた。
