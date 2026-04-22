@@ -6,7 +6,7 @@ import { usePsdStore } from "../../store/psdStore";
 import { DropZone } from "../file-browser/DropZone";
 import { useOpenInPhotoshop } from "../../hooks/useOpenInPhotoshop";
 import { TextExtractButton } from "../common/TextExtractButton";
-import { RenameView } from "./RenameView";
+import { RenameView } from "../../features/rename/RenameView";
 
 type SubTab = "layerControl" | "rename";
 

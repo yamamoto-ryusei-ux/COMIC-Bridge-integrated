@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { useViewStore } from "../../store/viewStore";
 import { SpecCheckView } from "../views/SpecCheckView";
 import { LayerControlView } from "../views/LayerControlView";
-import { SplitView } from "../views/SplitView";
-import { ReplaceView } from "../views/ReplaceView";
-import { ComposeView } from "../views/ComposeView";
-import { RenameView } from "../views/RenameView";
+import { SplitView } from "../../features/split/SplitView";
+import { ReplaceView } from "../../features/replace/ReplaceView";
+import { ComposeView } from "../../features/compose/ComposeView";
+import { RenameView } from "../../features/rename/RenameView";
 import { TiffView } from "../views/TiffView";
 import { ScanPsdView } from "../views/ScanPsdView";
 // TypsettingView は隔離中 — 削除予定
