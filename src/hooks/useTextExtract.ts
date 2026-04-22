@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { usePsdStore } from "../store/psdStore";
-import { useUnifiedViewerStore } from "../store/unifiedViewerStore";
+import { useUnifiedViewerStore } from "../features/unified-viewer/unifiedViewerStore";
 import { invoke } from "@tauri-apps/api/core";
 import { desktopDir } from "@tauri-apps/api/path";
 // readFile removed — loadToViewer now parses inline

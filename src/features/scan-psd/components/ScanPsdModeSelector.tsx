@@ -1,5 +1,5 @@
 import { useScanPsdStore } from "../scanPsdStore";
-import { useUnifiedViewerStore } from "../../../store/unifiedViewerStore";
+import { useUnifiedViewerStore } from "../../unified-viewer/unifiedViewerStore";
 import { useScanPsdProcessor } from "../useScanPsdProcessor";
 import type { ScanPsdMode } from "../../../types/scanPsd";
 

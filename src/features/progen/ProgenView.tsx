@@ -4,7 +4,7 @@ import { desktopDir } from "@tauri-apps/api/path";
 import { useProgenStore } from "./progenStore";
 import { useViewStore } from "../../store/viewStore";
 import { useScanPsdStore } from "../scan-psd/scanPsdStore";
-import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
+import { useUnifiedViewerStore } from "../unified-viewer/unifiedViewerStore";
 import { readJsonFile, getMasterLabelList, showSaveTextDialog, writeTextFile, showSaveJsonDialog, writeJsonFile } from "./useProgenTauri";
 import { performPresetJsonSave } from "../scan-psd/useScanPsdProcessor";
 import { ProgenRuleView } from "./components/ProgenRuleView";
@@ -15,7 +15,7 @@ import { ProgenResultViewer } from "./components/ProgenResultViewer";
 import { ProgenAdminView } from "./components/ProgenAdminView";
 import type { ProgenScreen } from "./progen";
 import { GENRE_LABELS } from "../../types/scanPsd";
-import { parseComicPotText } from "../../components/unified-viewer/utils";
+import { parseComicPotText } from "../unified-viewer/components/utils";
 
 // ─── 結果保存モーダル ────────────────────────────────────────────
 

@@ -9,7 +9,7 @@
 import { useEffect, useRef, useCallback, useMemo } from "react";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
-import { useDiffStore, isValidPairCombination, type CompareMode, type ViewMode, type FilePair } from "../../store/diffStore";
+import { useDiffStore, isValidPairCombination, type CompareMode, type ViewMode, type FilePair } from "./diffStore";
 import { useViewStore } from "../../store/viewStore";
 
 interface Props {

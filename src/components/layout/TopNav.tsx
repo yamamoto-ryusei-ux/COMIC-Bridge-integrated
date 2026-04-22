@@ -5,19 +5,19 @@ import { useViewStore, validateAndSetABPath } from "../../store/viewStore";
 import { usePsdStore } from "../../store/psdStore";
 import { useSpecStore } from "../../store/specStore";
 import { useAppUpdater } from "../../hooks/useAppUpdater";
-import { useUnifiedViewerStore, type FontPresetEntry } from "../../store/unifiedViewerStore";
+import { useUnifiedViewerStore, type FontPresetEntry } from "../../features/unified-viewer/unifiedViewerStore";
 import { useScanPsdStore } from "../../features/scan-psd/scanPsdStore";
-import { useProgenStore } from "../../store/progenStore";
+import { useProgenStore } from "../../features/progen/progenStore";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import type { ProofreadingCheckItem } from "../../types/typesettingCheck";
 import { JsonFileBrowser } from "../../features/scan-psd/components/JsonFileBrowser";
-import { CheckJsonBrowser } from "../unified-viewer/UnifiedViewer";
+import { CheckJsonBrowser } from "../../features/unified-viewer/components/UnifiedViewer";
 import { WorkflowBar } from "./WorkflowBar";
 import { useWorkflowStore } from "../../store/workflowStore";
 import { SettingsButton } from "./SettingsPanel";
 import { useSettingsStore, ALL_NAV_BUTTONS } from "../../store/settingsStore";
-import { parseComicPotText } from "../unified-viewer/utils";
+import { parseComicPotText } from "../../features/unified-viewer/components/utils";
 
 export function TopNav() {
   const setActiveView = useViewStore((s) => s.setActiveView);

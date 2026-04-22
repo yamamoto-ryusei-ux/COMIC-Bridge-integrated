@@ -12,7 +12,7 @@ import {
   cpParseTextToChunks,
   type CpRubyMode,
 } from "../../useComicPotState";
-import { useUnifiedViewerStore } from "../../../../store/unifiedViewerStore";
+import { useUnifiedViewerStore } from "../../../unified-viewer/unifiedViewerStore";
 
 // ═══ ヘルパー ═══
 

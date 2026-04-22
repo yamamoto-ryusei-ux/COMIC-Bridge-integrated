@@ -10,7 +10,7 @@ import {
 import { buildScanDataFromFiles, mergeScanData } from "../../lib/agPsdScanner";
 import { getAutoSubName } from "../../types/scanPsd";
 import { GENRE_LABELS, JSON_BASE_PATH } from "../../types/tiff";
-import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
+import { useUnifiedViewerStore } from "../../features/unified-viewer/unifiedViewerStore";
 import type { LayerNode, PsdFile } from "../../types";
 import type { FontResolveInfo } from "../../hooks/useFontResolver";
 

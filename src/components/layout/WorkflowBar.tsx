@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open as tauriDialogOpen } from "@tauri-apps/plugin-dialog";
 import { useViewStore } from "../../store/viewStore";
 import { useScanPsdStore } from "../../features/scan-psd/scanPsdStore";
-import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
+import { useUnifiedViewerStore } from "../../features/unified-viewer/unifiedViewerStore";
 import { useProgenStore } from "../../features/progen/progenStore";
 import { usePsdStore } from "../../store/psdStore";
 import { useWorkflowStore, WORKFLOWS, type Workflow, type WorkflowStep } from "../../store/workflowStore";
@@ -435,7 +435,7 @@ export function WorkflowBar() {
                         // テキスト保存してから進む
                         const viewer = useUnifiedViewerStore.getState();
                         if (viewer.textFilePath && viewer.textPages.length > 0) {
-                          const { serializeText } = await import("../../components/unified-viewer/utils");
+                          const { serializeText } = await import("../../features/unified-viewer/components/utils");
                           const content = serializeText(viewer.textHeader, viewer.textPages, viewer.fontPresets);
                           await invoke("write_text_file", { filePath: viewer.textFilePath, content });
                           viewer.setTextContent(content);

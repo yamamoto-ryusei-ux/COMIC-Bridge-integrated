@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useScanPsdStore } from "../scanPsdStore";
-import { useUnifiedViewerStore } from "../../../store/unifiedViewerStore";
+import { useUnifiedViewerStore } from "../../unified-viewer/unifiedViewerStore";
 
 interface SymbolRule { src: string; dst: string; note: string; active: boolean; }
 interface ProofRule { category: string; before: string; after: string; note?: string; active: boolean; addRuby?: boolean; mode?: string; userAdded?: boolean; [key: string]: any; }

@@ -10,8 +10,8 @@ import {
   useUnifiedViewerStore,
   type ViewerFile,
   type FontPresetEntry,
-} from "../../store/unifiedViewerStore";
-import type { ProofreadingCheckItem } from "../../types/typesettingCheck";
+} from "../unifiedViewerStore";
+import type { ProofreadingCheckItem } from "../../../types/typesettingCheck";
 import { isImageFile, isPsdFile, parseComicPotText, serializeText } from "./utils";
 import type { CacheEntry } from "./utils";
 

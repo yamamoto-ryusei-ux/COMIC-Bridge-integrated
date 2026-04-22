@@ -5,7 +5,7 @@
  * Right: テキスト編集 / 校正JSON
  */
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { FileContextMenu } from "../common/FileContextMenu";
+import { FileContextMenu } from "../../../components/common/FileContextMenu";
 import {
   DndContext,
   closestCenter,
@@ -28,30 +28,30 @@ import {
   type FontPresetEntry,
   PANEL_POSITION_LABELS,
   type PanelPosition,
-} from "../../store/unifiedViewerStore";
-import type { PanelTab } from "../../store/unifiedViewerStore";
+} from "../unifiedViewerStore";
+import type { PanelTab } from "../unifiedViewerStore";
 import {
   type ProofreadingCheckItem,
   CATEGORY_COLORS,
   getCategoryColorIndex,
-} from "../../types/typesettingCheck";
-import { detectPaperSize } from "../../lib/paperSize";
-import { JsonFileBrowser } from "../../features/scan-psd/components/JsonFileBrowser";
-import { useScanPsdStore } from "../../features/scan-psd/scanPsdStore";
-import { usePsdStore } from "../../store/psdStore";
-import { useViewStore } from "../../store/viewStore";
+} from "../../../types/typesettingCheck";
+import { detectPaperSize } from "../../../lib/paperSize";
+import { JsonFileBrowser } from "../../scan-psd/components/JsonFileBrowser";
+import { useScanPsdStore } from "../../scan-psd/scanPsdStore";
+import { usePsdStore } from "../../../store/psdStore";
+import { useViewStore } from "../../../store/viewStore";
 import {
   collectTextLayers,
   FONT_COLORS,
   MISSING_FONT_COLOR,
   type FontResolveInfo,
-} from "../../hooks/useFontResolver";
+} from "../../../hooks/useFontResolver";
 import {
   normalizeTextForComparison,
   computeLineSetDiff,
   buildUnifiedDiff,
-} from "../../kenban-utils/textExtract";
-import type { UnifiedDiffEntry } from "../../kenban-utils/textExtract";
+} from "../../../kenban-utils/textExtract";
+import type { UnifiedDiffEntry } from "../../../kenban-utils/textExtract";
 
 // ─── Separated modules ─────────────────────────────────
 import {
@@ -71,9 +71,9 @@ import {
   UnifiedDiffDisplay,
 } from "./UnifiedSubComponents";
 import { useViewerFileOps } from "./useViewerFileOps";
-import { LayerTree as FullLayerTree } from "../metadata/LayerTree";
-import { useFontBookStore } from "../../features/scan-psd/fontBookStore";
-import type { FontBookEntry } from "../../types/fontBook";
+import { LayerTree as FullLayerTree } from "../../../components/metadata/LayerTree";
+import { useFontBookStore } from "../../scan-psd/fontBookStore";
+import type { FontBookEntry } from "../../../types/fontBook";
 
 // (utils, helpers, sub-components are imported from ./utils and ./UnifiedSubComponents)
 

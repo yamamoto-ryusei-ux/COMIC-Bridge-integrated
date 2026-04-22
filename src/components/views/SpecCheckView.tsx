@@ -29,7 +29,7 @@ import { useHighResPreview } from "../../hooks/useHighResPreview";
 import { detectPaperSize } from "../../lib/paperSize";
 import { showPromptDialog } from "../../store/viewStore";
 import { useSettingsStore } from "../../store/settingsStore";
-import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
+import { useUnifiedViewerStore } from "../../features/unified-viewer/unifiedViewerStore";
 // useScanPsdStore は SpecScanJsonDialog 内で使用
 // JsonFileBrowser / PresetJsonData は JSON登録（SpecScanJsonDialog）に統合済み
 import { SpecScanJsonDialog } from "../spec-checker/SpecScanJsonDialog";

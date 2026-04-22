@@ -3,11 +3,11 @@
  * メインの psdStore とは独立したファイル管理を行う
  */
 import { create } from "zustand";
-import type { PsdMetadata } from "../types";
+import type { PsdMetadata } from "../../types";
 import type {
   ParsedProofreadingData,
   CheckTabMode,
-} from "../types/typesettingCheck";
+} from "../../types/typesettingCheck";
 
 // ─── Types ──────────────────────────────────────────────
 

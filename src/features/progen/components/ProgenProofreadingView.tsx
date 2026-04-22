@@ -4,7 +4,7 @@
  */
 import { useState, useCallback } from "react";
 import { useProgenStore } from "../progenStore";
-import { useUnifiedViewerStore } from "../../../store/unifiedViewerStore";
+import { useUnifiedViewerStore } from "../../unified-viewer/unifiedViewerStore";
 import { generateSimpleCheckPrompt, generateVariationCheckPrompt } from "../progenPrompts";
 import { openExternalUrl } from "../useProgenTauri";
 import type { ProofreadingMode } from "../progen";

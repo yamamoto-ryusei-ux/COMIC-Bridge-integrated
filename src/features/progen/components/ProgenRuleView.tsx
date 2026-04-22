@@ -12,7 +12,7 @@ import { EDIT_CATEGORIES, NUMBER_SUB_RULES } from "../progen";
 import type { SymbolRule, ProofRule } from "../progen";
 import { showPromptDialog } from "../../../store/viewStore";
 import { openExternalUrl } from "../useProgenTauri";
-import { useUnifiedViewerStore } from "../../../store/unifiedViewerStore";
+import { useUnifiedViewerStore } from "../../unified-viewer/unifiedViewerStore";
 import { generateSimpleCheckPrompt, generateVariationCheckPrompt, generateExtractionPrompt, generateFormattingPrompt } from "../progenPrompts";
 
 // ═══ メインコンポーネント ═══

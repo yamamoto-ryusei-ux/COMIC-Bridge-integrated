@@ -1,8 +1,8 @@
 /**
  * 統合ビューアー ユーティリティ関数・定数
  */
-import type { PanelTab } from "../../store/unifiedViewerStore";
-import type { TextPage, FontPresetEntry } from "../../store/unifiedViewerStore";
+import type { PanelTab } from "../unifiedViewerStore";
+import type { TextPage, FontPresetEntry } from "../unifiedViewerStore";
 
 // ─── Panel tab definitions (共通タブ) ───────────────────
 export const ALL_PANEL_TABS: { id: PanelTab; label: string }[] = [

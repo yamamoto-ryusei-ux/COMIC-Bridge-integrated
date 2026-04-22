@@ -12,7 +12,7 @@ import { ScanPsdView } from "../../features/scan-psd/ScanPsdView";
 // import { TypsettingView } from "../views/TypsettingView";
 // KENBAN は完全削除済み（差分・分割は統合ビューアーへReact移植完了）
 import { ProgenView } from "../../features/progen/ProgenView";
-import { UnifiedViewerView } from "../views/UnifiedViewerView";
+import { UnifiedViewerView } from "../../features/unified-viewer/UnifiedViewerView";
 import { FolderSetupView } from "../views/FolderSetupView";
 import { RequestPrepView } from "../views/RequestPrepView";
 

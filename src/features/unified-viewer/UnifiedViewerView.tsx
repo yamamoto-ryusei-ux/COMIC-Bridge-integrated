@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { UnifiedViewer } from "../unified-viewer/UnifiedViewer";
+import { UnifiedViewer } from "./components/UnifiedViewer";
 import { useViewStore } from "../../store/viewStore";
 import { DiffViewerView } from "../diff-viewer/DiffViewerView";
 import { ParallelViewerView } from "../parallel-viewer/ParallelViewerView";
-import { useDiffStore, computeCompareMode } from "../../store/diffStore";
-import { useParallelStore } from "../../store/parallelStore";
+import { useDiffStore, computeCompareMode } from "../diff-viewer/diffStore";
+import { useParallelStore } from "../parallel-viewer/parallelStore";
 
 type ViewerSubMode = "viewer" | "diff" | "parallel";
 

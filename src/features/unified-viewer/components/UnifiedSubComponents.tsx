@@ -5,10 +5,10 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { invoke } from "@tauri-apps/api/core";
-import type { LayerNode } from "../../types";
-import type { TextBlock } from "../../store/unifiedViewerStore";
-import type { UnifiedDiffEntry } from "../../kenban-utils/textExtract";
-import type { DiffPart } from "../../kenban-utils/kenbanTypes";
+import type { LayerNode } from "../../../types";
+import type { TextBlock } from "../unifiedViewerStore";
+import type { UnifiedDiffEntry } from "../../../kenban-utils/textExtract";
+import type { DiffPart } from "../../../kenban-utils/kenbanTypes";
 import { CHECK_JSON_BASE_PATH, CHECK_DATA_SUBFOLDER } from "./utils";
 
 // ─── ToolBtn ────────────────────────────────────────────

@@ -9,7 +9,7 @@
 import { useEffect, useCallback, useRef } from "react";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
-import { useParallelStore } from "../../store/parallelStore";
+import { useParallelStore } from "./parallelStore";
 import { useViewStore } from "../../store/viewStore";
 
 interface Props {

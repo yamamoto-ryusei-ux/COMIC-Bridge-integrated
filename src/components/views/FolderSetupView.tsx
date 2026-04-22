@@ -7,7 +7,7 @@ import { useScanPsdStore } from "../../features/scan-psd/scanPsdStore";
 import { useProgenStore } from "../../features/progen/progenStore";
 import { usePsdLoader } from "../../hooks/usePsdLoader";
 import { GENRE_LABELS } from "../../types/scanPsd";
-import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
+import { useUnifiedViewerStore } from "../../features/unified-viewer/unifiedViewerStore";
 import { useSpecStore } from "../../store";
 import { useWorkflowStore } from "../../store/workflowStore";
 import { JsonFileBrowser } from "../../features/scan-psd/components/JsonFileBrowser";

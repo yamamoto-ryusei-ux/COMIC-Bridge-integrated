@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { desktopDir } from "@tauri-apps/api/path";
 import { useScanPsdStore } from "../../features/scan-psd/scanPsdStore";
-import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
+import { useUnifiedViewerStore } from "../../features/unified-viewer/unifiedViewerStore";
 import { GENRE_LABELS } from "../../types/scanPsd";
 
 type RequestMode = "ingest" | "proof" | "whiteout";
