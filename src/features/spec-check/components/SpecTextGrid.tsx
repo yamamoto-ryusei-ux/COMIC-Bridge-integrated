@@ -1,12 +1,12 @@
 import { useState, useMemo } from "react";
-import { usePsdStore } from "../../store/psdStore";
+import { usePsdStore } from "../../../store/psdStore";
 import {
   useFontResolver,
   collectTextLayers,
   MISSING_FONT_COLOR,
   type FontHelpers,
   type TextLayerEntry,
-} from "../../hooks/useFontResolver";
+} from "../../../hooks/useFontResolver";
 import { FontBrowserDialog } from "./FontBrowserDialog";
 
 const FONT_SHARE_PATH = "\\\\haku\\CLLENN\\■アシスタント\\★フォント\\★全フォント";

@@ -4,25 +4,25 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
-import { usePsdStore } from "../../store/psdStore";
-import { detectPaperSize } from "../../lib/paperSize";
-import { useScanPsdStore } from "../../features/scan-psd/scanPsdStore";
+import { usePsdStore } from "../../../store/psdStore";
+import { detectPaperSize } from "../../../lib/paperSize";
+import { useScanPsdStore } from "../../scan-psd/scanPsdStore";
 import {
   useHighResPreview,
   prefetchPreview,
   invalidateUrlCache,
-} from "../../hooks/useHighResPreview";
-import { useOpenFolder } from "../../hooks/useOpenFolder";
-import { performPresetJsonSave } from "../../features/scan-psd/useScanPsdProcessor";
-import { useFontResolver, collectTextLayers } from "../../hooks/useFontResolver";
-import { SUB_NAME_PALETTE, ALL_SUB_NAMES } from "../../types/scanPsd";
-import type { PresetJsonData } from "../../types/scanPsd";
+} from "../../../hooks/useHighResPreview";
+import { useOpenFolder } from "../../../hooks/useOpenFolder";
+import { performPresetJsonSave } from "../../scan-psd/useScanPsdProcessor";
+import { useFontResolver, collectTextLayers } from "../../../hooks/useFontResolver";
+import { SUB_NAME_PALETTE, ALL_SUB_NAMES } from "../../../types/scanPsd";
+import type { PresetJsonData } from "../../../types/scanPsd";
 import { TextLayerRow, type TextIssueFilter } from "./SpecTextGrid";
-import { LayerTree } from "../metadata/LayerTree";
-import { JsonFileBrowser } from "../../features/scan-psd/components/JsonFileBrowser";
+import { LayerTree } from "../../../components/metadata/LayerTree";
+import { JsonFileBrowser } from "../../scan-psd/components/JsonFileBrowser";
 import { CaptureOverlay } from "./CaptureOverlay";
-import { useFontBookStore } from "../../features/scan-psd/fontBookStore";
-import type { FontBookEntry } from "../../types/fontBook";
+import { useFontBookStore } from "../../scan-psd/fontBookStore";
+import type { FontBookEntry } from "../../../types/fontBook";
 
 /** シャープ判定: 小文字で"sharp"を含む or "ansh" */
 function isSharpAA(aa: string | undefined): boolean {
@@ -32,7 +32,7 @@ function isSharpAA(aa: string | undefined): boolean {
 }
 
 function hasIssue(
-  entry: { textInfo?: import("../../types").TextInfo },
+  entry: { textInfo?: import("../../../types").TextInfo },
   issue: TextIssueFilter,
 ): boolean {
   if (!entry.textInfo) return false;
@@ -90,7 +90,7 @@ export function SpecViewerPanel({
   // Layer tree highlight (by layer id)
   const [highlightTreeLayerId, setHighlightTreeLayerId] = useState<string | null>(null);
   const [highlightTreeBounds, setHighlightTreeBounds] = useState<
-    import("../../types").LayerBounds | null
+    import("../../../types").LayerBounds | null
   >(null);
   // Category dropdown state
   const [categoryDropdownFont, setCategoryDropdownFont] = useState<string | null>(null);
@@ -345,19 +345,19 @@ export function SpecViewerPanel({
       return textLayers
         .filter((e) => e.textInfo?.fonts.includes(filterFont))
         .map((e) => e.bounds)
-        .filter((b): b is import("../../types").LayerBounds => !!b);
+        .filter((b): b is import("../../../types").LayerBounds => !!b);
     }
     if (filterIssue) {
       return textLayers
         .filter((e) => hasIssue(e, filterIssue))
         .map((e) => e.bounds)
-        .filter((b): b is import("../../types").LayerBounds => !!b);
+        .filter((b): b is import("../../../types").LayerBounds => !!b);
     }
     if (filterStroke != null) {
       return textLayers
         .filter((e) => e.textInfo?.strokeSize === filterStroke)
         .map((e) => e.bounds)
-        .filter((b): b is import("../../types").LayerBounds => !!b);
+        .filter((b): b is import("../../../types").LayerBounds => !!b);
     }
     return [];
   }, [filterHighlightAll, filterFont, filterIssue, filterStroke, textLayers]);
@@ -429,7 +429,7 @@ export function SpecViewerPanel({
             ? `data:image/jpeg;base64,${r.thumbnailData}`
             : undefined;
           usePsdStore.getState().updateFile(viewerFile.id, {
-            metadata: r.metadata as import("../../types").PsdMetadata,
+            metadata: r.metadata as import("../../../types").PsdMetadata,
             thumbnailUrl,
             thumbnailStatus: "ready",
             fileSize: r.fileSize,
@@ -599,22 +599,22 @@ export function SpecViewerPanel({
         const currentLayers = viewerFile?.metadata?.layerTree
           ? collectTextLayers(viewerFile.metadata.layerTree)
           : [];
-        let bounds: import("../../types").LayerBounds[] = [];
+        let bounds: import("../../../types").LayerBounds[] = [];
         if (filterFont) {
           bounds = currentLayers
             .filter((e) => e.textInfo?.fonts.includes(filterFont))
             .map((e) => e.bounds)
-            .filter((b): b is import("../../types").LayerBounds => !!b);
+            .filter((b): b is import("../../../types").LayerBounds => !!b);
         } else if (filterIssue) {
           bounds = currentLayers
             .filter((e) => hasIssue(e, filterIssue))
             .map((e) => e.bounds)
-            .filter((b): b is import("../../types").LayerBounds => !!b);
+            .filter((b): b is import("../../../types").LayerBounds => !!b);
         } else if (filterStroke != null) {
           bounds = currentLayers
             .filter((e) => e.textInfo?.strokeSize === filterStroke)
             .map((e) => e.bounds)
-            .filter((b): b is import("../../types").LayerBounds => !!b);
+            .filter((b): b is import("../../../types").LayerBounds => !!b);
         }
 
         const color = filterFont
@@ -673,7 +673,7 @@ export function SpecViewerPanel({
   const handleFontBookCapture = useCallback(
     async (
       region: { x: number; y: number; width: number; height: number },
-      font: import("../../types/scanPsd").FontPreset,
+      font: import("../../../types/scanPsd").FontPreset,
     ) => {
       if (!imageUrl) return;
       setIsCapturing(false);

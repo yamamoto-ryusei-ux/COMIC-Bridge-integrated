@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useSpecStore } from "../../store/specStore";
+import { useSpecStore } from "../../../store/specStore";
 
 export function ConversionToast() {
   const isConverting = useSpecStore((state) => state.isConverting);

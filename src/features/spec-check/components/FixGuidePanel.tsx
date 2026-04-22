@@ -1,10 +1,10 @@
-import type { SpecCheckResult } from "../../types";
-import { usePsdStore } from "../../store/psdStore";
-import { useSpecStore } from "../../store/specStore";
-import { useGuideStore } from "../../store/guideStore";
-import { usePhotoshopConverter } from "../../hooks/usePhotoshopConverter";
-import { usePreparePsd } from "../../hooks/usePreparePsd";
-import { PopButton } from "../ui/PopButton";
+import type { SpecCheckResult } from "../../../types";
+import { usePsdStore } from "../../../store/psdStore";
+import { useSpecStore } from "../../../store/specStore";
+import { useGuideStore } from "../../../store/guideStore";
+import { usePhotoshopConverter } from "../../../hooks/usePhotoshopConverter";
+import { usePreparePsd } from "../../../hooks/usePreparePsd";
+import { PopButton } from "../../../components/ui/PopButton";
 
 interface FixGuidePanelProps {
   checkResult: SpecCheckResult;

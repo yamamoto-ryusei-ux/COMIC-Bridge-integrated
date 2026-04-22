@@ -3,8 +3,8 @@ import { useSpecStore } from "../../store/specStore";
 import { useOpenInPhotoshop } from "../../hooks/useOpenInPhotoshop";
 import { usePhotoshopConverter } from "../../hooks/usePhotoshopConverter";
 import { MetadataPanel } from "../metadata/MetadataPanel";
-import { FixGuidePanel } from "../spec-checker/FixGuidePanel";
-import { GuideSectionPanel } from "../spec-checker/GuideSectionPanel";
+import { FixGuidePanel } from "../../features/spec-check/components/FixGuidePanel";
+import { GuideSectionPanel } from "../../features/spec-check/components/GuideSectionPanel";
 
 export function DetailSlidePanel() {
   const activeFile = usePsdStore((state) => state.getActiveFile());

@@ -5,7 +5,7 @@ import type { LayerActionMode, CustomVisibilityOp, CustomMoveOp } from "../layer
 import { useOpenFolder } from "../../../hooks/useOpenFolder";
 import { invoke } from "@tauri-apps/api/core";
 import { useFontResolver, collectTextLayers } from "../../../hooks/useFontResolver";
-import { FontBrowserDialog } from "../../../components/spec-checker/FontBrowserDialog";
+import { FontBrowserDialog } from "../../spec-check/components/FontBrowserDialog";
 import {
   useHighResPreview,
   prefetchPreview,

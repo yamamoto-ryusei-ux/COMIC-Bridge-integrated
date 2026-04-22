@@ -1,11 +1,11 @@
 import { useState, useMemo } from "react";
-import { usePsdStore } from "../../store/psdStore";
-import { LayerTree } from "../metadata/LayerTree";
+import { usePsdStore } from "../../../store/psdStore";
+import { LayerTree } from "../../../components/metadata/LayerTree";
 import {
   collectTextLayers,
   useFontResolver,
-} from "../../hooks/useFontResolver";
-import { LayerDiagnosticsBar } from "../../features/layer-control/components/LayerPreviewPanel";
+} from "../../../hooks/useFontResolver";
+import { LayerDiagnosticsBar } from "../../layer-control/components/LayerPreviewPanel";
 
 export function SpecLayerGrid() {
   const files = usePsdStore((s) => s.files);

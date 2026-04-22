@@ -5,7 +5,7 @@ import { ViewRouter } from "./ViewRouter";
 import { GuideEditorModal } from "../guide-editor/GuideEditorModal";
 import { ErrorBoundary } from "../ErrorBoundary";
 
-import { ConversionToast } from "../spec-checker/ConversionToast";
+import { ConversionToast } from "../../features/spec-check/components/ConversionToast";
 import { usePsdStore } from "../../store/psdStore";
 import { useViewStore } from "../../store/viewStore";
 import { useGuideStore } from "../../store/guideStore";

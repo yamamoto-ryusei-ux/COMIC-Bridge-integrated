@@ -1,8 +1,8 @@
 import { useMemo, useEffect } from "react";
-import { usePsdStore } from "../../store/psdStore";
-import { useSpecStore } from "../../store/specStore";
-import { useSpecChecker } from "../../hooks/useSpecChecker";
-import { usePhotoshopConverter } from "../../hooks/usePhotoshopConverter";
+import { usePsdStore } from "../../../store/psdStore";
+import { useSpecStore } from "../../../store/specStore";
+import { useSpecChecker } from "../useSpecChecker";
+import { usePhotoshopConverter } from "../../../hooks/usePhotoshopConverter";
 
 export function SpecCheckerPanel() {
   const files = usePsdStore((state) => state.files);

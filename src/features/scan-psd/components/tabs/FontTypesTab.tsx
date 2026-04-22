@@ -5,7 +5,7 @@ import { getAutoSubName, FONT_SUB_NAME_MAP, SUB_NAME_PALETTE } from "../../../..
 import type { FontPreset } from "../../../../types/scanPsd";
 import { MISSING_FONT_COLOR } from "../../../../hooks/useFontResolver";
 import type { FontResolveInfo } from "../../../../hooks/useFontResolver";
-import { FontBrowserDialog } from "../../../../components/spec-checker/FontBrowserDialog";
+import { FontBrowserDialog } from "../../../spec-check/components/FontBrowserDialog";
 
 const FONT_SHARE_PATH = "\\\\haku\\CLLENN\\■アシスタント\\★フォント\\★全フォント";
 

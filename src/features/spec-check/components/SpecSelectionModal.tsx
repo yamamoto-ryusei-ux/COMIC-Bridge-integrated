@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useSpecStore } from "../../store/specStore";
-import { Modal } from "../ui/Modal";
+import { useSpecStore } from "../../../store/specStore";
+import { Modal } from "../../../components/ui/Modal";
 
 export function SpecSelectionModal() {
   const showModal = useSpecStore((state) => state.showSpecSelectionModal);

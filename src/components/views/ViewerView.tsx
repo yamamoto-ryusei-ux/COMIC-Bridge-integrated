@@ -1,7 +1,7 @@
 import { usePsdStore } from "../../store/psdStore";
 import { useOpenInPhotoshop } from "../../hooks/useOpenInPhotoshop";
 import { usePhotoshopConverter } from "../../hooks/usePhotoshopConverter";
-import { SpecViewerPanel } from "../spec-checker/SpecViewerPanel";
+import { SpecViewerPanel } from "../../features/spec-check/components/SpecViewerPanel";
 import { DropZone } from "../file-browser/DropZone";
 
 export function ViewerView() {

@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { usePsdStore } from "../store/psdStore";
 import { useSpecStore, type ConversionResult } from "../store/specStore";
 import { useGuideStore } from "../store/guideStore";
-import { useSpecChecker } from "./useSpecChecker";
+import { useSpecChecker } from "../features/spec-check/useSpecChecker";
 import type { Guide, PsdMetadata } from "../types";
 
 interface PhotoshopResult {

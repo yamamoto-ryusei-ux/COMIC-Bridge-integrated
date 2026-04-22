@@ -1,6 +1,6 @@
-import type { PsdFile } from "../../types";
-import { useGuideStore } from "../../store/guideStore";
-import { useSpecStore } from "../../store/specStore";
+import type { PsdFile } from "../../../types";
+import { useGuideStore } from "../../../store/guideStore";
+import { useSpecStore } from "../../../store/specStore";
 
 interface GuideSectionPanelProps {
   file: PsdFile;

@@ -1,8 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { usePsdStore } from "../store/psdStore";
-import { useSpecStore } from "../store/specStore";
-import type { Specification, SpecCheckResult, SpecRule, PsdMetadata } from "../types";
-import { isPsdFile } from "../types";
+import { usePsdStore } from "../../store/psdStore";
+import { useSpecStore } from "../../store/specStore";
+import type { Specification, SpecCheckResult, SpecRule, PsdMetadata } from "../../types";
+import { isPsdFile } from "../../types";
 
 export function useSpecChecker() {
   const [isChecking, setIsChecking] = useState(false);

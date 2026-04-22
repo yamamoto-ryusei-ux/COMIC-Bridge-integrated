@@ -1,6 +1,6 @@
-import { usePsdStore } from "../../store/psdStore";
-import { useSpecStore } from "../../store/specStore";
-import type { PsdFile, SpecCheckResult } from "../../types";
+import { usePsdStore } from "../../../store/psdStore";
+import { useSpecStore } from "../../../store/specStore";
+import type { PsdFile, SpecCheckResult } from "../../../types";
 
 export function SpecCardList() {
   const files = usePsdStore((state) => state.files);

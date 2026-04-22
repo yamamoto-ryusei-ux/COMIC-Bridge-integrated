@@ -1,18 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { usePsdStore } from "../../store/psdStore";
-import { useScanPsdStore } from "../../features/scan-psd/scanPsdStore";
+import { usePsdStore } from "../../../store/psdStore";
+import { useScanPsdStore } from "../../scan-psd/scanPsdStore";
 import {
   performLoadPresetJson,
   performPresetJsonSave,
   performExportTextLog,
-} from "../../features/scan-psd/useScanPsdProcessor";
-import { buildScanDataFromFiles, mergeScanData } from "../../lib/agPsdScanner";
-import { getAutoSubName } from "../../types/scanPsd";
-import { GENRE_LABELS, JSON_BASE_PATH } from "../../types/tiff";
-import { useUnifiedViewerStore } from "../../features/unified-viewer/unifiedViewerStore";
-import type { LayerNode, PsdFile } from "../../types";
-import type { FontResolveInfo } from "../../hooks/useFontResolver";
+} from "../../scan-psd/useScanPsdProcessor";
+import { buildScanDataFromFiles, mergeScanData } from "../../../lib/agPsdScanner";
+import { getAutoSubName } from "../../../types/scanPsd";
+import { GENRE_LABELS, JSON_BASE_PATH } from "../../../types/tiff";
+import { useUnifiedViewerStore } from "../../unified-viewer/unifiedViewerStore";
+import type { LayerNode, PsdFile } from "../../../types";
+import type { FontResolveInfo } from "../../../hooks/useFontResolver";
 
 interface SpecScanJsonDialogProps {
   onClose: () => void;

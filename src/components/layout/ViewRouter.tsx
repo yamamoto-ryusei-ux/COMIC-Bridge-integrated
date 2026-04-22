@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useViewStore } from "../../store/viewStore";
-import { SpecCheckView } from "../views/SpecCheckView";
+import { SpecCheckView } from "../../features/spec-check/SpecCheckView";
 import { LayerControlView } from "../../features/layer-control/LayerControlView";
 import { SplitView } from "../../features/split/SplitView";
 import { ReplaceView } from "../../features/replace/ReplaceView";

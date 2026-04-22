@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { FontPreset } from "../../types/scanPsd";
-import { SUB_NAME_PALETTE } from "../../types/scanPsd";
+import type { FontPreset } from "../../../types/scanPsd";
+import { SUB_NAME_PALETTE } from "../../../types/scanPsd";
 
 interface CropRect {
   x: number;

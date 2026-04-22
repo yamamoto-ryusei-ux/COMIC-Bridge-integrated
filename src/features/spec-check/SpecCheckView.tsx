@@ -3,7 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { usePsdStore } from "../../store/psdStore";
 import { useSpecStore } from "../../store/specStore";
 import { useGuideStore } from "../../store/guideStore";
-import { useSpecChecker } from "../../hooks/useSpecChecker";
+import { useSpecChecker } from "./useSpecChecker";
 import { usePhotoshopConverter } from "../../hooks/usePhotoshopConverter";
 import { usePreparePsd } from "../../hooks/usePreparePsd";
 import { usePhotoshopShortcut, useOpenInPhotoshop } from "../../hooks/useOpenInPhotoshop";
@@ -12,18 +12,18 @@ import { useCanvasSizeCheck } from "../../hooks/useCanvasSizeCheck";
 import { usePsdLoader } from "../../hooks/usePsdLoader";
 
 import { usePageNumberCheck } from "../../hooks/usePageNumberCheck";
-import { PreviewGrid } from "../preview/PreviewGrid";
-import { MetadataPanel, LayerSectionPanel } from "../metadata/MetadataPanel";
-import { FixGuidePanel } from "../spec-checker/FixGuidePanel";
-import { GuideSectionPanel } from "../spec-checker/GuideSectionPanel";
-import { SpecLayerGrid } from "../spec-checker/SpecLayerGrid";
+import { PreviewGrid } from "../../components/preview/PreviewGrid";
+import { MetadataPanel, LayerSectionPanel } from "../../components/metadata/MetadataPanel";
+import { FixGuidePanel } from "./components/FixGuidePanel";
+import { GuideSectionPanel } from "./components/GuideSectionPanel";
+import { SpecLayerGrid } from "./components/SpecLayerGrid";
 // LayerSeparationPanel は隔離中 — 統合完了後に削除予定
-// import { LayerSeparationPanel } from "../spec-checker/LayerSeparationPanel";
-import { DropZone } from "../file-browser/DropZone";
+// import { LayerSeparationPanel } from "./components/LayerSeparationPanel";
+import { DropZone } from "../../components/file-browser/DropZone";
 
 import { THUMBNAIL_SIZES, isPsdFile, type ThumbnailSize, type PsdFile, type SpecCheckResult } from "../../types";
 import { invoke } from "@tauri-apps/api/core";
-import { TextExtractButton } from "../common/TextExtractButton";
+import { TextExtractButton } from "../../components/common/TextExtractButton";
 import { useTextExtract } from "../../hooks/useTextExtract";
 import { useHighResPreview } from "../../hooks/useHighResPreview";
 import { detectPaperSize } from "../../lib/paperSize";
@@ -32,8 +32,8 @@ import { useSettingsStore } from "../../store/settingsStore";
 import { useUnifiedViewerStore } from "../../features/unified-viewer/unifiedViewerStore";
 // useScanPsdStore は SpecScanJsonDialog 内で使用
 // JsonFileBrowser / PresetJsonData は JSON登録（SpecScanJsonDialog）に統合済み
-import { SpecScanJsonDialog } from "../spec-checker/SpecScanJsonDialog";
-import { FileContextMenu } from "../common/FileContextMenu";
+import { SpecScanJsonDialog } from "./components/SpecScanJsonDialog";
+import { FileContextMenu } from "../../components/common/FileContextMenu";
 
 // DOT_MENU_TABSはGlobalAddressBarに移動済み
 

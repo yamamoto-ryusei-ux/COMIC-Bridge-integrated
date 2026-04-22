@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { usePsdStore } from "../store/psdStore";
 import { useSpecStore, type ConversionResult } from "../store/specStore";
-import { useSpecChecker } from "./useSpecChecker";
+import { useSpecChecker } from "../features/spec-check/useSpecChecker";
 import type { PsdMetadata } from "../types";
 
 // Rust command types
