@@ -4,7 +4,7 @@ import { readDir } from "@tauri-apps/plugin-fs";
 import { usePsdLoader } from "./usePsdLoader";
 import { useViewStore, validateAndSetABPath } from "../store/viewStore";
 import { usePsdStore } from "../store/psdStore";
-import { useTiffStore } from "../store/tiffStore";
+import { useTiffStore } from "../features/tiff/tiffStore";
 import { isSupportedFile } from "../types";
 
 /**

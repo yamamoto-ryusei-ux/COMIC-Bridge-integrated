@@ -1,5 +1,5 @@
 import type { LayerNode } from "../types";
-import type { HideCondition } from "../store/layerStore";
+import type { HideCondition } from "../features/layer-control/layerStore";
 import type { ReplaceSettings } from "../types/replace";
 
 export const TEXT_FOLDER_PATTERNS = ["text", "写植", "セリフ", "テキスト", "セリフ層"];

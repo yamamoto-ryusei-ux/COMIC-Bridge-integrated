@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { desktopDir } from "@tauri-apps/api/path";
-import { useScanPsdStore } from "../../store/scanPsdStore";
+import { useScanPsdStore } from "../../features/scan-psd/scanPsdStore";
 import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
 import { GENRE_LABELS } from "../../types/scanPsd";
 

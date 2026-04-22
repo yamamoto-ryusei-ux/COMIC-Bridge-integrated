@@ -7,7 +7,7 @@ import type {
   CheckTabMode,
 } from "../../../../types/typesettingCheck";
 import { CheckCategoryGroup } from "./CheckCategoryGroup";
-import { JsonFileBrowser } from "../../../../components/scanPsd/JsonFileBrowser";
+import { JsonFileBrowser } from "../../../scan-psd/components/JsonFileBrowser";
 
 /** カテゴリ別にグループ化 */
 function groupByCategory(items: ProofreadingCheckItem[]): Map<string, ProofreadingCheckItem[]> {

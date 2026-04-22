@@ -9,7 +9,7 @@ import { TypesettingViewerPanel } from "./check/TypesettingViewerPanel";
 import { TypesettingCheckPanel } from "./check/TypesettingCheckPanel";
 import { TypesettingConfirmPanel } from "./confirm/TypesettingConfirmPanel";
 import { DropZone } from "../../../components/file-browser/DropZone";
-import { FontBookView } from "../../../components/views/FontBookView";
+import { FontBookView } from "../../scan-psd/FontBookView";
 import { TextExtractButton } from "../../../components/common/TextExtractButton";
 
 type SubTab = "spec" | "viewer" | "fontBook" | "check" | "confirm";

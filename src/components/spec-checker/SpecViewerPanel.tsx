@@ -6,22 +6,22 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { usePsdStore } from "../../store/psdStore";
 import { detectPaperSize } from "../../lib/paperSize";
-import { useScanPsdStore } from "../../store/scanPsdStore";
+import { useScanPsdStore } from "../../features/scan-psd/scanPsdStore";
 import {
   useHighResPreview,
   prefetchPreview,
   invalidateUrlCache,
 } from "../../hooks/useHighResPreview";
 import { useOpenFolder } from "../../hooks/useOpenFolder";
-import { performPresetJsonSave } from "../../hooks/useScanPsdProcessor";
+import { performPresetJsonSave } from "../../features/scan-psd/useScanPsdProcessor";
 import { useFontResolver, collectTextLayers } from "../../hooks/useFontResolver";
 import { SUB_NAME_PALETTE, ALL_SUB_NAMES } from "../../types/scanPsd";
 import type { PresetJsonData } from "../../types/scanPsd";
 import { TextLayerRow, type TextIssueFilter } from "./SpecTextGrid";
 import { LayerTree } from "../metadata/LayerTree";
-import { JsonFileBrowser } from "../scanPsd/JsonFileBrowser";
+import { JsonFileBrowser } from "../../features/scan-psd/components/JsonFileBrowser";
 import { CaptureOverlay } from "./CaptureOverlay";
-import { useFontBookStore } from "../../store/fontBookStore";
+import { useFontBookStore } from "../../features/scan-psd/fontBookStore";
 import type { FontBookEntry } from "../../types/fontBook";
 
 /** シャープ判定: 小文字で"sharp"を含む or "ansh" */

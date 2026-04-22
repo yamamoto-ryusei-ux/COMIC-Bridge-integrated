@@ -3,7 +3,7 @@
  * Used by both LayerPreviewPanel (preview) and useLayerControl (post-apply update).
  */
 import type { LayerNode } from "../types";
-import type { CustomVisibilityOp, CustomMoveOp } from "../store/layerStore";
+import type { CustomVisibilityOp, CustomMoveOp } from "../features/layer-control/layerStore";
 
 /** Build a path key for matching (same format as annotation) */
 export function buildPathKey(path: string[], index: number): string {

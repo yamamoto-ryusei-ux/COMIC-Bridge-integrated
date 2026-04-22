@@ -36,8 +36,8 @@ import {
   getCategoryColorIndex,
 } from "../../types/typesettingCheck";
 import { detectPaperSize } from "../../lib/paperSize";
-import { JsonFileBrowser } from "../scanPsd/JsonFileBrowser";
-import { useScanPsdStore } from "../../store/scanPsdStore";
+import { JsonFileBrowser } from "../../features/scan-psd/components/JsonFileBrowser";
+import { useScanPsdStore } from "../../features/scan-psd/scanPsdStore";
 import { usePsdStore } from "../../store/psdStore";
 import { useViewStore } from "../../store/viewStore";
 import {
@@ -72,7 +72,7 @@ import {
 } from "./UnifiedSubComponents";
 import { useViewerFileOps } from "./useViewerFileOps";
 import { LayerTree as FullLayerTree } from "../metadata/LayerTree";
-import { useFontBookStore } from "../../store/fontBookStore";
+import { useFontBookStore } from "../../features/scan-psd/fontBookStore";
 import type { FontBookEntry } from "../../types/fontBook";
 
 // (utils, helpers, sub-components are imported from ./utils and ./UnifiedSubComponents)

@@ -5,7 +5,7 @@
 import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useViewStore } from "../store/viewStore";
-import { useTiffStore } from "../store/tiffStore";
+import { useTiffStore } from "../features/tiff/tiffStore";
 import { usePsdLoader } from "./usePsdLoader";
 
 interface HandoffSelection {

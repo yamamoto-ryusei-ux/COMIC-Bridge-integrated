@@ -5,7 +5,7 @@ import { AppLayout } from "./components/layout/AppLayout";
 import { useViewStore } from "./store/viewStore";
 import { useTypesettingCheckStore } from "./features/_deprecated/typesetting/typesettingCheckStore";
 import type { ProofreadingCheckItem } from "./types/typesettingCheck";
-import { initProgenConfig } from "./lib/progenConfig";
+import { initProgenConfig } from "./features/progen/progenConfig";
 
 function App() {
   // 起動時に ProGen 外部設定を同期（共有ドライブから最新を取得）

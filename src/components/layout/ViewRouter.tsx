@@ -1,17 +1,17 @@
 import { useState, useEffect } from "react";
 import { useViewStore } from "../../store/viewStore";
 import { SpecCheckView } from "../views/SpecCheckView";
-import { LayerControlView } from "../views/LayerControlView";
+import { LayerControlView } from "../../features/layer-control/LayerControlView";
 import { SplitView } from "../../features/split/SplitView";
 import { ReplaceView } from "../../features/replace/ReplaceView";
 import { ComposeView } from "../../features/compose/ComposeView";
 import { RenameView } from "../../features/rename/RenameView";
-import { TiffView } from "../views/TiffView";
-import { ScanPsdView } from "../views/ScanPsdView";
+import { TiffView } from "../../features/tiff/TiffView";
+import { ScanPsdView } from "../../features/scan-psd/ScanPsdView";
 // TypsettingView は隔離中 — 削除予定
 // import { TypsettingView } from "../views/TypsettingView";
 // KENBAN は完全削除済み（差分・分割は統合ビューアーへReact移植完了）
-import { ProgenView } from "../views/ProgenView";
+import { ProgenView } from "../../features/progen/ProgenView";
 import { UnifiedViewerView } from "../views/UnifiedViewerView";
 import { FolderSetupView } from "../views/FolderSetupView";
 import { RequestPrepView } from "../views/RequestPrepView";

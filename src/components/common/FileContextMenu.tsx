@@ -7,7 +7,7 @@ import { usePsdStore } from "../../store/psdStore";
 import { useViewStore, validateAndSetABPath, showPromptDialog, type AppView } from "../../store/viewStore";
 import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
 import { parseComicPotText } from "../unified-viewer/utils";
-import { useScanPsdStore } from "../../store/scanPsdStore";
+import { useScanPsdStore } from "../../features/scan-psd/scanPsdStore";
 import { usePsdLoader } from "../../hooks/usePsdLoader";
 import { useTextExtract } from "../../hooks/useTextExtract";
 import type { PsdFile } from "../../types";

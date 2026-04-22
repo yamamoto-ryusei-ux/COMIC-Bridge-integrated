@@ -19,7 +19,7 @@ import { CSS } from "@dnd-kit/utilities";
 import html2canvas from "html2canvas";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { usePsdStore } from "../../../../store/psdStore";
-import { useScanPsdStore } from "../../../../store/scanPsdStore";
+import { useScanPsdStore } from "../../../scan-psd/scanPsdStore";
 import {
   useHighResPreview,
   prefetchPreview,

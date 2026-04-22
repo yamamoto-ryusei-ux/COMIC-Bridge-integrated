@@ -3,14 +3,14 @@ import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { usePsdStore } from "../../store/psdStore";
-import { useScanPsdStore } from "../../store/scanPsdStore";
-import { useProgenStore } from "../../store/progenStore";
+import { useScanPsdStore } from "../../features/scan-psd/scanPsdStore";
+import { useProgenStore } from "../../features/progen/progenStore";
 import { usePsdLoader } from "../../hooks/usePsdLoader";
 import { GENRE_LABELS } from "../../types/scanPsd";
 import { useUnifiedViewerStore } from "../../store/unifiedViewerStore";
 import { useSpecStore } from "../../store";
 import { useWorkflowStore } from "../../store/workflowStore";
-import { JsonFileBrowser } from "../scanPsd/JsonFileBrowser";
+import { JsonFileBrowser } from "../../features/scan-psd/components/JsonFileBrowser";
 
 const DEFAULT_COPY_DEST = "1_入稿";
 

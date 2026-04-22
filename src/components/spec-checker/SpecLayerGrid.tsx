@@ -5,7 +5,7 @@ import {
   collectTextLayers,
   useFontResolver,
 } from "../../hooks/useFontResolver";
-import { LayerDiagnosticsBar } from "../layer-control/LayerPreviewPanel";
+import { LayerDiagnosticsBar } from "../../features/layer-control/components/LayerPreviewPanel";
 
 export function SpecLayerGrid() {
   const files = usePsdStore((s) => s.files);

@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { usePsdStore } from "../../store/psdStore";
-import { useScanPsdStore } from "../../store/scanPsdStore";
+import { useScanPsdStore } from "../../features/scan-psd/scanPsdStore";
 import {
   performLoadPresetJson,
   performPresetJsonSave,
   performExportTextLog,
-} from "../../hooks/useScanPsdProcessor";
+} from "../../features/scan-psd/useScanPsdProcessor";
 import { buildScanDataFromFiles, mergeScanData } from "../../lib/agPsdScanner";
 import { getAutoSubName } from "../../types/scanPsd";
 import { GENRE_LABELS, JSON_BASE_PATH } from "../../types/tiff";
