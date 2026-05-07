@@ -13,7 +13,8 @@ export type AppView =
   | "progen"
   | "unifiedViewer"
   | "folderSetup"
-  | "requestPrep";
+  | "requestPrep"
+  | "recycle";
 
 export type ProgenMode = "extraction" | "formatting" | "proofreading" | null;
 

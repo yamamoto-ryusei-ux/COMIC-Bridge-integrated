@@ -14,10 +14,12 @@
 - **[docs/architecture.md](docs/architecture.md)** — レイヤー構成全体図（React / Tauri IPC / Rust / Photoshop JSX）。102 Rust コマンドの分類、起動シーケンス、import 規約とパスエイリアス
 - **[docs/feature-map.md](docs/feature-map.md)** — 21 機能 × 画面 × ストア × フック × Rust × JSX の横断対応表。グローバルストア × feature の依存マトリクス
 - **[docs/data-flow.md](docs/data-flow.md)** — 代表シナリオのシーケンス図（仕様チェック / TIFF 化 / ガイド適用 / ProGen / 差分ビューアー / スキャン PSD / ワークフロー横断 / データ格納先マップ）
+- **[docs/plugin-app-integration-template.md](docs/plugin-app-integration-template.md)** — Tauri アプリ ⇔ UXP プラグイン連携の完全テンプレート。リサイくるん連携で確立した再利用可能アーキテクチャ（通信プロトコル、自動起動、自動更新、エラーハンドリング、踏んだ罠の回避策）
+- **[docs/uxp-auto-launch-guide.md](docs/uxp-auto-launch-guide.md)** — UXP プラグインを Photoshop 起動時に**完全自動展開**させる手法の完全ガイド。4段階フォールバック（Script Events Manager → JSX 動的プロービング → PowerShell 起動 → COM Automation + UIA）
 - **[KENBAN統合手順書.md](KENBAN統合手順書.md)** — KENBAN 機能統合時の作業手順
 
 各 feature 単位の詳細は feature 内の README を参照:
-[compose](src/features/compose/README.md) / [diff-viewer](src/features/diff-viewer/README.md) / [layer-control](src/features/layer-control/README.md) / [parallel-viewer](src/features/parallel-viewer/README.md) / [progen](src/features/progen/README.md) / [rename](src/features/rename/README.md) / [replace](src/features/replace/README.md) / [scan-psd](src/features/scan-psd/README.md) / [spec-check](src/features/spec-check/README.md) / [split](src/features/split/README.md) / [tiff](src/features/tiff/README.md) / [unified-viewer](src/features/unified-viewer/README.md) / [_deprecated](src/features/_deprecated/README.md) / [shared (移行予定)](src/shared/README.md)
+[compose](src/features/compose/README.md) / [diff-viewer](src/features/diff-viewer/README.md) / [layer-control](src/features/layer-control/README.md) / [parallel-viewer](src/features/parallel-viewer/README.md) / [progen](src/features/progen/README.md) / [recycle](src/features/recycle/README.md) / [rename](src/features/rename/README.md) / [replace](src/features/replace/README.md) / [scan-psd](src/features/scan-psd/README.md) / [spec-check](src/features/spec-check/README.md) / [split](src/features/split/README.md) / [tiff](src/features/tiff/README.md) / [unified-viewer](src/features/unified-viewer/README.md) / [_deprecated](src/features/_deprecated/README.md) / [shared (移行予定)](src/shared/README.md)
 
 ## 概要
 
@@ -562,6 +564,77 @@
 ### 26. ファイルプロパティパネル
 - **FilePropertiesPanel**: 右プレビューパネル下部に折りたたみ可能なプロパティ表示
 - **表示項目**: ファイル名 / ドキュメント種類 / 作成日 / 修正日 / ファイルサイズ / 寸法(px/inch/cm) / 用紙サイズ / 解像度 / ビット数 / カラーモード / αチャンネル / ガイド / トンボ / レイヤー数 / チェック結果
+
+### 31. リサイくるん連携（v3.8.3 で追加 — UXP プラグイン双方向通信）
+
+**概要**: Photoshop の UXP プラグイン「リサイくるん (CB連携版)」へジョブを送信し、テキストレイヤーの一括処理（フォント統一・縦中横・白フチ等の写植スタイル整理）を実行する機能。
+
+**設計思想**: 「**UI = アプリ / 実行 = UXP プラグイン**」
+- アプリ側：フォルダスキャン（ag-psd）・3 タブ設定 UI・ジョブ送信・結果監視
+- プラグイン側：ジョブ JSON 受信 → Photoshop 一括処理 → 結果書出（textKey 再構築によるスタイル保持）
+
+**ファイル構成** ([src/features/recycle/](src/features/recycle/)):
+- `RecycleView.tsx` — 2カラムビュー（設定タブ + スキャンリスト + 個別レイヤー編集）
+- `recycleStore.ts` — Zustand（folderPath / scanFiles / settings / perFileOverrides / phase）
+- `recycleTypes.ts` — JOB_SCHEMA.md 準拠の型定義
+- `useRecycleScanner.ts` — `parse_psd_metadata_batch` で PSD スキャン
+- `useRecycleJob.ts` — ジョブ送信＋ 700ms 間隔結果ポーリング
+- `components/RecycleSettingsPanel.tsx` — 3タブ設定（最適化／テキスト整形／その他）
+- `components/RecycleScanList.tsx` — スキャン結果一覧（フィルタ：フォント／サイズ／白フチ）
+- `components/RecycleLayerDetailPanel.tsx` — scanPsdStore のプリセットからフォント・サイズ選択
+- `components/RecycleStatusCard.tsx` — 実行ステータスバッジ
+
+**通信プロトコル**: ファイルベース双方向（[詳細](docs/plugin-app-integration-template.md)）
+- ジョブ: `%APPDATA%\comic-bridge\recycle-jobs\{jobId}.job.json`
+- 結果: `%APPDATA%\comic-bridge\recycle-jobs\{jobId}.result.json`
+- 進捗ログ: `%APPDATA%\comic-bridge\recycle-jobs\_progress.log`
+
+**Rust コマンド** ([recycle.rs](src-tauri/src/recycle.rs)):
+- `write_recycle_job` / `read_recycle_status` / `read_recycle_result` / `cancel_recycle_job` / `cleanup_recycle_job`
+- `launch_photoshop_with_recycle` — Photoshop 起動 + bridge_invoke_command.jsx 実行
+- `setup_recycle_workspace` — ワークスペース「CB_Recycle」作成（パネル展開状態を保存）
+- `setup_recycle_startup` — Script Events Manager 通知登録（`app.notifiers.add` 経由）
+- `force_open_recycle_panel` — PowerShell COM Automation でパネル強制起動
+
+**自動起動の仕組み（4段階フォールバック）** ([詳細](docs/uxp-auto-launch-guide.md)):
+1. **Layer 1**: Script Events Manager で startApplication 通知発火 → `cb_recycle_startup.jsx` 実行
+2. **Layer 2**: JSX 内で `app.fonts.length` を動的プロービング（最大90秒）→ ワークスペース切替試行
+3. **Layer 3**: JSX から `app.system()` で PowerShell バックグラウンド起動
+4. **Layer 4 (核心)**: PowerShell が `New-Object -ComObject Photoshop.Application` で COM 接続 → `DoJavaScript` を 15 回多段実行（UXP の lazy load を構造的に回避）+ UI Automation メニューツリー操作（フォールバック）
+
+**重要な踏んだ罠と回避策**（[完全リスト](docs/uxp-auto-launch-guide.md#7-踏んだ罠と回避策)）:
+- 日本語パス + `$.evalFile` で「Unknown escape sequence」エラー → JSX 内容直接埋込 + UTF-8 BOM
+- 日本語ワークスペース名で file lock → ASCII 名「CB_Recycle」のみ
+- `Folder.create()` は再帰作成しない → 親フォルダから順次作成
+- ExtendScript の 5C 問題 → シングルクォート文字列で JSON 埋込
+- `runMenuItem` 不安定 → PowerShell COM Automation で構造的解決
+
+**スクリプトファイル** ([src-tauri/scripts/](src-tauri/scripts/)):
+- `cb_recycle_startup.jsx` — Photoshop 起動時に自動実行される本体
+- `bridge_invoke_command.jsx` — アプリの「実行」ボタン経由の起動
+- `open_recycle_panel.ps1` — PowerShell COM Automation + UIA + SendKeys（核心）
+- `setup_workspace.jsx` — ワークスペース「CB_Recycle」作成
+- `register_startup.jsx` — `app.notifiers.add()` で startApplication 登録
+- `cleanup_recycle.jsx` — 全リセット（`app.notifiers.removeAll()` + ワークスペース削除）
+- `test_recycle_panel.jsx` — 診断用
+
+**UXP プラグイン側** (`プラグインデータ/リサイクるん_プラグイン化試作 - コピー (3)/`):
+- バージョン v1.2.6（manifest.json + index.js）
+- entrypoints: panel + command の 2 種
+- **AUTO_UPDATE_MODE = "notify-only"** で自動更新を「検知のみ」に設定（更新実行は手動）
+- ファイル I/O はすべて ExtendScript ベース（シングルクォート JSON で 5C 問題回避）
+- legacy/ に旧版 v1.0.3 を保管
+
+**初回セットアップ手順**:
+1. プラグインを Photoshop にインストール
+2. **ウィンドウ > エクステンション > リサイくるん (CB連携)** を**手動で**開く（UXP 仕様で初回のみ必要）
+3. アプリ「ワークスペース保存」ボタン → 「起動時自動展開を登録」ボタン
+4. 以降の Photoshop 起動 → 30〜90 秒 → パネル自動展開
+
+**動作確認用ログ**:
+- `%APPDATA%\comic-bridge\_startup.log` — JSX (Layer 1-3) 動作記録
+- `%APPDATA%\comic-bridge\_uia_open.log` — PowerShell (Layer 4) 動作記録
+- `%APPDATA%\comic-bridge\recycle-jobs\_progress.log` — ジョブ処理進捗
 
 ### 30. 差分/分割ビューアー A/B 共有・ペア読み込みガード（v3.8.1 以降）
 

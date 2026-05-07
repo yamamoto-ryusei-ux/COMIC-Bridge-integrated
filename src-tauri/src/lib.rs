@@ -5,6 +5,7 @@ pub mod kenban;
 pub mod pdf;
 pub mod progen;
 pub mod psd_metadata;
+pub mod recycle;
 pub mod watcher;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -135,6 +136,20 @@ pub fn run() {
             progen::progen_open_and_read_json_dialog,
             progen::progen_launch_comic_bridge,
             progen::progen_get_comicpot_handoff,
+            // Recycle (リサイくるん連携) commands
+            recycle::write_recycle_job,
+            recycle::read_recycle_status,
+            recycle::read_recycle_result,
+            recycle::cancel_recycle_job,
+            recycle::cleanup_recycle_job,
+            recycle::cleanup_old_recycle_jobs,
+            recycle::launch_photoshop_with_recycle,
+            recycle::is_photoshop_running,
+            recycle::run_recycle_setup,
+            recycle::get_recycle_setup_status,
+            recycle::setup_recycle_workspace,
+            recycle::setup_recycle_startup,
+            recycle::force_open_recycle_panel,
         ])
         .setup(|app| {
             // CLI引数から校正データJSONパスを検出してフロントエンドに通知

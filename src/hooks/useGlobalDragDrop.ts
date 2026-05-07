@@ -24,7 +24,7 @@ export function useGlobalDragDrop() {
     const setup = async () => {
       const fn = await currentWindow.onDragDropEvent(async (event) => {
         const activeView = useViewStore.getState().activeView;
-        if (activeView === "replace" || activeView === "rename") return;
+        if (activeView === "replace" || activeView === "rename" || activeView === "recycle") return;
 
         if (event.payload.type === "drop") {
           const paths = event.payload.paths;

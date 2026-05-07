@@ -8,6 +8,7 @@ import { ComposeView } from "../../features/compose/ComposeView";
 import { RenameView } from "../../features/rename/RenameView";
 import { TiffView } from "../../features/tiff/TiffView";
 import { ScanPsdView } from "../../features/scan-psd/ScanPsdView";
+import { RecycleView } from "../../features/recycle/RecycleView";
 // TypsettingView は隔離中 — 削除予定
 // import { TypsettingView } from "../views/TypsettingView";
 // KENBAN は完全削除済み（差分・分割は統合ビューアーへReact移植完了）
@@ -41,6 +42,7 @@ export function ViewRouter() {
       {activeView === "rename" && <RenameView />}
       {activeView === "tiff" && <TiffView />}
       {activeView === "scanPsd" && <ScanPsdView />}
+      {activeView === "recycle" && <RecycleView />}
       {activeView === "folderSetup" && <FolderSetupView />}
       {activeView === "requestPrep" && <RequestPrepView />}
 

@@ -17,6 +17,7 @@ export const ALL_NAV_BUTTONS: NavButton[] = [
   { id: "compose", label: "合成" },
   { id: "tiff", label: "TIFF化" },
   { id: "split", label: "見開き分割" },
+  { id: "recycle", label: "リサイくるん" },
   { id: "folderSetup", label: "フォルダセットアップ" },
   { id: "requestPrep", label: "依頼準備" },
 ];
@@ -64,12 +65,27 @@ function saveSettings(state: Partial<AppSettings>) {
 
 const saved = loadSettings();
 
-// Migration: 既存ユーザーの toolMenuButtons に layerControl を追加（未登録の場合のみ）
+// Migration: 既存ユーザーの toolMenuButtons にレガシー項目（layerControl/recycle）を追加
 function migrateToolMenu(existing: string[] | undefined): string[] {
-  if (!existing) return ["layerControl", "replace", "compose", "tiff", "split", "folderSetup", "requestPrep"];
-  if (existing.includes("layerControl")) return existing;
-  // 先頭に追加
-  return ["layerControl", ...existing];
+  // 初期インストール: 全項目を含める
+  if (!existing) return ["layerControl", "replace", "compose", "tiff", "split", "recycle", "folderSetup", "requestPrep"];
+
+  let result = existing;
+  // layerControl 追加（未登録の場合のみ）
+  if (!result.includes("layerControl")) {
+    result = ["layerControl", ...result];
+  }
+  // recycle 追加（未登録の場合のみ）
+  if (!result.includes("recycle")) {
+    // split の後ろに挿入。なければ末尾に追加
+    const splitIdx = result.indexOf("split");
+    if (splitIdx >= 0) {
+      result = [...result.slice(0, splitIdx + 1), "recycle", ...result.slice(splitIdx + 1)];
+    } else {
+      result = [...result, "recycle"];
+    }
+  }
+  return result;
 }
 
 export const useSettingsStore = create<AppSettings>((set, get) => ({

@@ -34,3 +34,6 @@ src-tauri/resources/pdfium/
 # Tauri signing keys
 .tauri_private_key
 .tauri_private_key.pub
+
+# Windows shortcuts (個人環境用、コミット不要)
+*.lnk
